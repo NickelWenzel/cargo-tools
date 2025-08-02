@@ -1,4 +1,4 @@
-use test_rust_project::greet;
+use testlib::greet;
 
 fn main() {
     println!("Hello from main!");
