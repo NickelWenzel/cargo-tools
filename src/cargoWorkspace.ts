@@ -8,6 +8,30 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+interface CargoMetadataTarget {
+    name: string;
+    kind: string[];
+    crate_types: string[];
+    src_path: string;
+    edition: string;
+    doctest: boolean;
+    test: boolean;
+}
+
+interface CargoMetadataPackage {
+    name: string;
+    version: string;
+    edition: string;
+    manifest_path: string;
+    targets: CargoMetadataTarget[];
+}
+
+interface CargoMetadata {
+    packages: CargoMetadataPackage[];
+    workspace_members: string[];
+    workspace_root: string;
+}
+
 export interface CargoManifest {
     package?: {
         name: string;
@@ -133,33 +157,46 @@ export class CargoWorkspace {
         this._targets = [];
 
         try {
+            // Use cargo metadata to get accurate target information
             const { stdout } = await execAsync('cargo metadata --format-version 1 --no-deps', {
                 cwd: this._workspaceRoot
             });
 
-            const metadata = JSON.parse(stdout);
+            const metadata: CargoMetadata = JSON.parse(stdout);
 
-            for (const target of metadata.targets || []) {
-                const cargoTarget = new CargoTarget(
-                    target.name,
-                    target.kind,
-                    target.src_path,
-                    target.edition || '2021'
-                );
-                this._targets.push(cargoTarget);
+            // Process each package in the workspace
+            for (const pkg of metadata.packages) {
+                // For single-package workspaces, process all packages that match the workspace root
+                // For multi-package workspaces, only process workspace members
+                const isWorkspaceMember = metadata.workspace_members.some(member => member.includes(pkg.name)) ||
+                    pkg.manifest_path.startsWith(metadata.workspace_root);
+
+                if (!isWorkspaceMember) {
+                    continue;
+                }
+
+                // Process targets for this package
+                for (const target of pkg.targets) {
+                    const cargoTarget = new CargoTarget(
+                        target.name,
+                        target.kind,
+                        target.src_path,
+                        target.edition || pkg.edition || '2021'
+                    );
+                    this._targets.push(cargoTarget);
+                }
             }
-        } catch (error) {
-            console.error('Failed to discover targets:', error);
 
+            this._onDidChangeTargets.fire(this._targets);
+        } catch (error) {
+            console.error('Failed to discover targets using cargo metadata:', error);
             // Fallback to manual discovery
             await this.discoverTargetsManually();
         }
-
-        this._onDidChangeTargets.fire(this._targets);
     }
 
     private async discoverTargetsManually(): Promise<void> {
-        // Look for common target patterns
+        // Fallback manual discovery when cargo metadata fails
         const srcDir = path.join(this._workspaceRoot, 'src');
 
         if (fs.existsSync(srcDir)) {
@@ -177,18 +214,72 @@ export class CargoWorkspace {
                 this._targets.push(new CargoTarget(libName, ['lib'], libPath));
             }
 
-            // Check for bin directory
+            // Check for bin directory (additional binary targets)
             const binDir = path.join(srcDir, 'bin');
             if (fs.existsSync(binDir)) {
-                const binFiles = await fs.promises.readdir(binDir);
-                for (const file of binFiles) {
-                    if (file.endsWith('.rs')) {
-                        const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file)));
+                try {
+                    const binFiles = await fs.promises.readdir(binDir);
+                    for (const file of binFiles) {
+                        if (file.endsWith('.rs')) {
+                            const name = path.basename(file, '.rs');
+                            this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file)));
+                        }
                     }
+                } catch (error) {
+                    console.error('Failed to read bin directory:', error);
                 }
             }
         }
+
+        // Check for examples directory
+        const examplesDir = path.join(this._workspaceRoot, 'examples');
+        if (fs.existsSync(examplesDir)) {
+            try {
+                const exampleFiles = await fs.promises.readdir(examplesDir);
+                for (const file of exampleFiles) {
+                    if (file.endsWith('.rs')) {
+                        const name = path.basename(file, '.rs');
+                        this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file)));
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to read examples directory:', error);
+            }
+        }
+
+        // Check for tests directory
+        const testsDir = path.join(this._workspaceRoot, 'tests');
+        if (fs.existsSync(testsDir)) {
+            try {
+                const testFiles = await fs.promises.readdir(testsDir);
+                for (const file of testFiles) {
+                    if (file.endsWith('.rs')) {
+                        const name = path.basename(file, '.rs');
+                        this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file)));
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to read tests directory:', error);
+            }
+        }
+
+        // Check for benches directory
+        const benchesDir = path.join(this._workspaceRoot, 'benches');
+        if (fs.existsSync(benchesDir)) {
+            try {
+                const benchFiles = await fs.promises.readdir(benchesDir);
+                for (const file of benchFiles) {
+                    if (file.endsWith('.rs')) {
+                        const name = path.basename(file, '.rs');
+                        this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file)));
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to read benches directory:', error);
+            }
+        }
+
+        this._onDidChangeTargets.fire(this._targets);
     }
 
     private setDefaultTarget(): void {
@@ -216,6 +307,11 @@ export class CargoWorkspace {
 
     async refresh(): Promise<void> {
         await this.loadManifest();
+        await this.discoverTargets();
+        this.setDefaultTarget();
+    }
+
+    async refreshTargets(): Promise<void> {
         await this.discoverTargets();
         this.setDefaultTarget();
     }
