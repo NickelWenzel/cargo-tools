@@ -257,7 +257,7 @@ function registerCommands(
 
 				const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
 				const args = ['run', '--example', selected.target.name];
-				
+
 				if (workspace.currentProfile.toString() === 'release') {
 					args.push('--release');
 				}
@@ -272,7 +272,7 @@ function registerCommands(
 	context.subscriptions.push(
 		vscode.commands.registerCommand('cargo-tools.runTest', async () => {
 			const tests = workspace.targets.filter(t => t.isTest);
-			
+
 			const items = [
 				{ label: 'All tests', description: 'Run all tests', target: null },
 				...tests.map(test => ({
@@ -295,7 +295,7 @@ function registerCommands(
 
 				const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
 				const args = ['test'];
-				
+
 				if (selected.target) {
 					args.push('--test', selected.target.name);
 				}
@@ -341,7 +341,7 @@ function registerCommands(
 
 				const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
 				const args = ['bench'];
-				
+
 				if (selected.target) {
 					args.push('--bench', selected.target.name);
 				}

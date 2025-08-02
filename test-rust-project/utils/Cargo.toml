@@ -1,0 +1,21 @@
+[package]
+name = "utils"
+version = "0.1.0"
+edition = "2021"
+
+[[example]]
+name = "string-utils"
+path = "examples/strings.rs"
+
+[[bench]]
+name = "performance"
+path = "benches/perf.rs"
+harness = false
+
+[dependencies]
+core = { path = "../core" }
+serde = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5"

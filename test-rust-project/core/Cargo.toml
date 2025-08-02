@@ -1,0 +1,13 @@
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+anyhow = { workspace = true }
+
+[features]
+default = ["std-support"]
+std-support = []
+async-support = []
