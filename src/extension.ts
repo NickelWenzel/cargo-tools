@@ -8,7 +8,9 @@ import { TargetsTreeProvider } from './targetsTreeProvider';
 import { WorkspaceTreeProvider } from './workspaceTreeProvider';
 import { StatusBarProvider } from './statusBarProvider';
 import { CargoTaskProvider } from './cargoTaskProvider';
+import { CargoExtensionManager } from './cargoExtensionManager';
 
+let extensionManager: CargoExtensionManager | undefined;
 let cargoWorkspace: CargoWorkspace | undefined;
 let statusBarProvider: StatusBarProvider | undefined;
 
@@ -18,72 +20,102 @@ function isWorkspace(workspace: CargoWorkspace): boolean {
 	return packageNames.size > 1;
 }
 
-export async function activate(context: vscode.ExtensionContext) {
+/**
+ * Main extension activation function.
+ * @param context The extension context
+ * @returns A promise that will resolve when the extension is ready for use
+ */
+export async function activate(context: vscode.ExtensionContext): Promise<any> {
 	try {
 		console.log('Cargo Tools extension activation started...');
 
-		// Check if workspace has Cargo.toml
-		if (!hasCargoWorkspace()) {
-			console.log('No Cargo workspace found - extension will not activate');
-			return;
-		}
-
-		console.log('Cargo workspace detected!');
-
-		// Set context for when clauses
-		await vscode.commands.executeCommand('setContext', 'cargoTools:workspaceHasCargo', true);
-		console.log('Context set: cargoTools:workspaceHasCargo = true');
-
-		// Initialize cargo workspace
-		const workspaceRoot = getCargoWorkspaceRoot();
-		if (!workspaceRoot) {
-			console.log('Could not determine workspace root');
-			return;
-		}
-
-		console.log('Workspace root:', workspaceRoot);
-
-		cargoWorkspace = new CargoWorkspace(workspaceRoot);
-		await cargoWorkspace.initialize();
-
-		// Create tree providers
-		const profilesProvider = new ProfilesTreeProvider(cargoWorkspace);
-		const targetsProvider = new TargetsTreeProvider(cargoWorkspace);
-		const workspaceProvider = new WorkspaceTreeProvider(cargoWorkspace);
-
-		// Register tree views
-		vscode.window.createTreeView('cargoToolsProfiles', {
-			treeDataProvider: profilesProvider,
-			showCollapseAll: false
-		});
-
-		vscode.window.createTreeView('cargoToolsTargets', {
-			treeDataProvider: targetsProvider,
-			showCollapseAll: false
-		});
-
-		vscode.window.createTreeView('cargoToolsWorkspace', {
-			treeDataProvider: workspaceProvider,
-			showCollapseAll: true
-		});
-
-		// Create status bar provider
-		statusBarProvider = new StatusBarProvider(cargoWorkspace);
-
-		// Register task provider
-		const taskProvider = new CargoTaskProvider(cargoWorkspace);
-		context.subscriptions.push(
-			vscode.tasks.registerTaskProvider(CargoTaskProvider.CargoType, taskProvider)
-		);
-
-		// Register commands
-		registerCommands(context, cargoWorkspace, profilesProvider, targetsProvider, workspaceProvider);
+		// Initialize and start the extension manager
+		extensionManager = await CargoExtensionManager.create(context);
+		await extensionManager.init();
 
 		console.log('Cargo Tools extension fully initialized!');
+		return setup(context);
 	} catch (error) {
 		console.error('Failed to activate Cargo Tools extension:', error);
 		vscode.window.showErrorMessage(`Cargo Tools extension failed to activate: ${error}`);
+		throw error;
 	}
+}
+
+/**
+ * Setup function that configures the extension components and commands
+ */
+async function setup(context: vscode.ExtensionContext): Promise<any> {
+	if (!extensionManager) {
+		throw new Error('Extension manager not initialized');
+	}
+
+	// Wait for the extension manager to be fully ready
+	// This handles the case where workspace detection is asynchronous
+	await extensionManager.waitForInitialization();
+
+	// If we don't have a cargo workspace, exit early with minimal activation
+	if (!extensionManager.hasCargoProject()) {
+		console.log('No Cargo workspace found - extension activated with minimal features');
+		await setCargoContext(false);
+		return {};
+	}
+
+	// We have a cargo project, set the context
+	await setCargoContext(true);
+
+	// Get the legacy components from the extension manager
+	cargoWorkspace = extensionManager.getCargoWorkspace();
+	if (!cargoWorkspace) {
+		console.log('No cargo workspace available');
+		return {};
+	}
+
+	// Create tree providers
+	const profilesProvider = new ProfilesTreeProvider(cargoWorkspace);
+	const targetsProvider = new TargetsTreeProvider(cargoWorkspace);
+	const workspaceProvider = new WorkspaceTreeProvider(cargoWorkspace);
+
+	// Register tree views
+	vscode.window.createTreeView('cargoToolsProfiles', {
+		treeDataProvider: profilesProvider,
+		showCollapseAll: false
+	});
+
+	vscode.window.createTreeView('cargoToolsTargets', {
+		treeDataProvider: targetsProvider,
+		showCollapseAll: false
+	});
+
+	vscode.window.createTreeView('cargoToolsWorkspace', {
+		treeDataProvider: workspaceProvider,
+		showCollapseAll: true
+	});
+
+	// Create status bar provider
+	statusBarProvider = new StatusBarProvider(cargoWorkspace);
+
+	// Register task provider
+	const taskProvider = new CargoTaskProvider(cargoWorkspace);
+	context.subscriptions.push(
+		vscode.tasks.registerTaskProvider(CargoTaskProvider.CargoType, taskProvider)
+	);
+
+	// Register legacy commands - these will be gradually migrated to the extension manager
+	registerCommands(context, cargoWorkspace, profilesProvider, targetsProvider, workspaceProvider);
+
+	return {
+		extensionManager,
+		workspace: cargoWorkspace
+	};
+}
+
+/**
+ * Helper function to set cargo context for when clauses
+ */
+async function setCargoContext(hasCargo: boolean): Promise<void> {
+	await vscode.commands.executeCommand('setContext', 'cargoTools:workspaceHasCargo', hasCargo);
+	console.log(`Context set: cargoTools:workspaceHasCargo = ${hasCargo}`);
 }
 
 function registerCommands(

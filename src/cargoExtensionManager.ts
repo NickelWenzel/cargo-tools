@@ -23,6 +23,7 @@ function generateCorrelationId(): string {
  */
 export class CargoExtensionManager implements vscode.Disposable {
     private static instance?: CargoExtensionManager;
+    private initializationPromise?: Promise<void>;
 
     // Core components
     private cargoWorkspace?: CargoWorkspace;
@@ -47,7 +48,8 @@ export class CargoExtensionManager implements vscode.Disposable {
     static async create(context: vscode.ExtensionContext): Promise<CargoExtensionManager> {
         if (!CargoExtensionManager.instance) {
             CargoExtensionManager.instance = new CargoExtensionManager(context);
-            await CargoExtensionManager.instance.init();
+            CargoExtensionManager.instance.initializationPromise = CargoExtensionManager.instance.init();
+            await CargoExtensionManager.instance.initializationPromise;
         }
         return CargoExtensionManager.instance;
     }
@@ -72,7 +74,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     /**
      * Initialize the extension manager and all components
      */
-    private async init(): Promise<void> {
+    public async init(): Promise<void> {
         // Set up configuration change listeners
         this.setupConfigurationSubscriptions();
 
@@ -447,6 +449,22 @@ export class CargoExtensionManager implements vscode.Disposable {
 
     getTaskProvider(): CargoTaskProvider | undefined {
         return this.taskProvider;
+    }
+
+    /**
+     * Check if we have a valid cargo project/workspace
+     */
+    hasCargoProject(): boolean {
+        return this.cargoWorkspace !== undefined;
+    }
+
+    /**
+     * Wait for the extension manager to be fully initialized
+     */
+    async waitForInitialization(): Promise<void> {
+        if (this.initializationPromise) {
+            await this.initializationPromise;
+        }
     }
 
     dispose(): void {
