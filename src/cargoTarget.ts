@@ -3,7 +3,8 @@ export class CargoTarget {
         public readonly name: string,
         public readonly kind: string[],
         public readonly srcPath: string,
-        public readonly edition: string = '2021'
+        public readonly edition: string = '2021',
+        public readonly packageName?: string
     ) { }
 
     get displayName(): string {

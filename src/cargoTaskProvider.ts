@@ -17,6 +17,12 @@ export class CargoTaskProvider implements vscode.TaskProvider {
 
     constructor(private workspace: CargoWorkspace) { }
 
+    private isWorkspace(): boolean {
+        // Check if we have multiple packages (indicating a workspace)
+        const packageNames = new Set(this.workspace.targets.map(t => t.packageName).filter(Boolean));
+        return packageNames.size > 1;
+    }
+
     public provideTasks(): Thenable<vscode.Task[]> {
         return this.getCargoTasks();
     }
@@ -253,6 +259,19 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         if (definition.profile === 'release' ||
             (this.workspace.currentProfile.toString() === 'release' && !definition.profile)) {
             args.push('--release');
+        }
+
+        // Find target to get package information
+        let targetObj: CargoTarget | undefined;
+        if (definition.target) {
+            targetObj = this.workspace.targets.find(t => t.name === definition.target);
+        } else if (this.workspace.currentTarget) {
+            targetObj = this.workspace.currentTarget;
+        }
+
+        // Add package argument if we have package info and it's needed
+        if (targetObj?.packageName && this.isWorkspace()) {
+            args.push('--package', targetObj.packageName);
         }
 
         // Add target-specific arguments

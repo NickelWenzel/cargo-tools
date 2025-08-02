@@ -181,7 +181,8 @@ export class CargoWorkspace {
                         target.name,
                         target.kind,
                         target.src_path,
-                        target.edition || pkg.edition || '2021'
+                        target.edition || pkg.edition || '2021',
+                        pkg.name
                     );
                     this._targets.push(cargoTarget);
                 }
