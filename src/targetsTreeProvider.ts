@@ -38,6 +38,18 @@ export class TargetTreeItem extends vscode.TreeItem {
     }
 }
 
+export class WorkspaceMemberItem extends vscode.TreeItem {
+    constructor(
+        public readonly memberName: string,
+        public readonly targets: CargoTarget[]
+    ) {
+        super(memberName, vscode.TreeItemCollapsibleState.Expanded);
+        this.contextValue = 'workspaceMember';
+        this.iconPath = new vscode.ThemeIcon('package');
+        this.tooltip = `Workspace member: ${memberName} (${targets.length} targets)`;
+    }
+}
+
 export class TargetGroupItem extends vscode.TreeItem {
     constructor(
         public readonly kind: string,
@@ -50,8 +62,8 @@ export class TargetGroupItem extends vscode.TreeItem {
     }
 }
 
-export class TargetsTreeProvider implements vscode.TreeDataProvider<TargetTreeItem | TargetGroupItem> {
-    private _onDidChangeTreeData = new vscode.EventEmitter<TargetTreeItem | TargetGroupItem | undefined | null | void>();
+export class TargetsTreeProvider implements vscode.TreeDataProvider<TargetTreeItem | TargetGroupItem | WorkspaceMemberItem> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<TargetTreeItem | TargetGroupItem | WorkspaceMemberItem | undefined | null | void>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     constructor(private workspace: CargoWorkspace) {
@@ -62,22 +74,30 @@ export class TargetsTreeProvider implements vscode.TreeDataProvider<TargetTreeIt
         workspace.onDidChangeTargets(() => {
             this._onDidChangeTreeData.fire();
         });
+
+        // Listen for configuration changes to refresh the tree when grouping setting changes
+        vscode.workspace.onDidChangeConfiguration((e) => {
+            if (e.affectsConfiguration('cargoTools.groupTargetsByWorkspaceMember')) {
+                this._onDidChangeTreeData.fire();
+            }
+        });
     }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
     }
 
-    getTreeItem(element: TargetTreeItem | TargetGroupItem): vscode.TreeItem {
+    getTreeItem(element: TargetTreeItem | TargetGroupItem | WorkspaceMemberItem): vscode.TreeItem {
         return element;
     }
 
-    getChildren(element?: TargetTreeItem | TargetGroupItem): Thenable<(TargetTreeItem | TargetGroupItem)[]> {
+    getChildren(element?: TargetTreeItem | TargetGroupItem | WorkspaceMemberItem): Thenable<(TargetTreeItem | TargetGroupItem | WorkspaceMemberItem)[]> {
         if (!element) {
-            // Root level - group targets by kind
-            const targets = this.workspace.targets;
-            const groups = this.groupTargetsByKind(targets);
-
+            // Root level - determine if this is a workspace or single package
+            return this.getRootChildren();
+        } else if (element instanceof WorkspaceMemberItem) {
+            // Show target groups for this workspace member
+            const groups = this.groupTargetsByKind(element.targets);
             return Promise.resolve(
                 Array.from(groups.entries()).map(([kind, targets]) =>
                     new TargetGroupItem(kind, targets)
@@ -92,6 +112,28 @@ export class TargetsTreeProvider implements vscode.TreeDataProvider<TargetTreeIt
         }
 
         return Promise.resolve([]);
+    }
+
+    private async getRootChildren(): Promise<(TargetTreeItem | TargetGroupItem | WorkspaceMemberItem)[]> {
+        const targets = this.workspace.targets;
+        const config = vscode.workspace.getConfiguration('cargoTools');
+        const groupByWorkspaceMember = config.get<boolean>('groupTargetsByWorkspaceMember', true);
+        
+        // Check if this is a workspace with multiple members and grouping is enabled
+        const workspaceMembers = this.workspace.getWorkspaceMembers();
+        
+        if (groupByWorkspaceMember && workspaceMembers.size > 1) {
+            // Multi-member workspace: group by workspace member first
+            return Array.from(workspaceMembers.entries()).map(([memberName, memberTargets]) =>
+                new WorkspaceMemberItem(memberName, memberTargets)
+            );
+        } else {
+            // Single package or grouping disabled: group directly by kind (legacy behavior)
+            const groups = this.groupTargetsByKind(targets);
+            return Array.from(groups.entries()).map(([kind, targets]) =>
+                new TargetGroupItem(kind, targets)
+            );
+        }
     }
 
     private groupTargetsByKind(targets: CargoTarget[]): Map<string, CargoTarget[]> {

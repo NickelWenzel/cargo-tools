@@ -86,6 +86,29 @@ export class CargoWorkspace {
         return this._currentTarget;
     }
 
+    get isWorkspace(): boolean {
+        return this._manifest?.workspace !== undefined;
+    }
+
+    get workspaceMembers(): string[] {
+        return this._manifest?.workspace?.members || [];
+    }
+
+    getWorkspaceMembers(): Map<string, CargoTarget[]> {
+        const members = new Map<string, CargoTarget[]>();
+
+        for (const target of this._targets) {
+            const memberName = target.packageName || 'default';
+            
+            if (!members.has(memberName)) {
+                members.set(memberName, []);
+            }
+            members.get(memberName)!.push(target);
+        }
+
+        return members;
+    }
+
     async initialize(): Promise<void> {
         await this.loadManifest();
         await this.discoverTargets();
@@ -199,20 +222,20 @@ export class CargoWorkspace {
     private async discoverTargetsManually(): Promise<void> {
         // Fallback manual discovery when cargo metadata fails
         const srcDir = path.join(this._workspaceRoot, 'src');
+        const packageName = this._manifest?.package?.name || path.basename(this._workspaceRoot);
 
         if (fs.existsSync(srcDir)) {
             // Check for main.rs (binary target)
             const mainPath = path.join(srcDir, 'main.rs');
             if (fs.existsSync(mainPath)) {
-                const packageName = this._manifest?.package?.name || path.basename(this._workspaceRoot);
-                this._targets.push(new CargoTarget(packageName, ['bin'], mainPath));
+                this._targets.push(new CargoTarget(packageName, ['bin'], mainPath, '2021', packageName));
             }
 
             // Check for lib.rs (library target)
             const libPath = path.join(srcDir, 'lib.rs');
             if (fs.existsSync(libPath)) {
-                const libName = this._manifest?.lib?.name || this._manifest?.package?.name || path.basename(this._workspaceRoot);
-                this._targets.push(new CargoTarget(libName, ['lib'], libPath));
+                const libName = this._manifest?.lib?.name || packageName;
+                this._targets.push(new CargoTarget(libName, ['lib'], libPath, '2021', packageName));
             }
 
             // Check for bin directory (additional binary targets)
@@ -223,7 +246,7 @@ export class CargoWorkspace {
                     for (const file of binFiles) {
                         if (file.endsWith('.rs')) {
                             const name = path.basename(file, '.rs');
-                            this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file)));
+                            this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file), '2021', packageName));
                         }
                     }
                 } catch (error) {
@@ -240,7 +263,7 @@ export class CargoWorkspace {
                 for (const file of exampleFiles) {
                     if (file.endsWith('.rs')) {
                         const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file)));
+                        this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file), '2021', packageName));
                     }
                 }
             } catch (error) {
@@ -256,7 +279,7 @@ export class CargoWorkspace {
                 for (const file of testFiles) {
                     if (file.endsWith('.rs')) {
                         const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file)));
+                        this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file), '2021', packageName));
                     }
                 }
             } catch (error) {
@@ -272,7 +295,7 @@ export class CargoWorkspace {
                 for (const file of benchFiles) {
                     if (file.endsWith('.rs')) {
                         const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file)));
+                        this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file), '2021', packageName));
                     }
                 }
             } catch (error) {

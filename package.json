@@ -247,6 +247,11 @@
           "type": "boolean",
           "default": false,
           "description": "Disable default features"
+        },
+        "cargoTools.groupTargetsByWorkspaceMember": {
+          "type": "boolean",
+          "default": true,
+          "description": "Group targets by workspace member in the BUILD TARGETS tree view. When enabled, targets are first organized by workspace member, then by type (bin, lib, etc.). When disabled, targets are grouped directly by type."
         }
       }
     },
