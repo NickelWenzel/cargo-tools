@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTaskProvider } from './cargoTaskProvider';
 import { StatusBarProvider } from './statusBarProvider';
@@ -151,7 +152,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.workspaceTreeProvider = new WorkspaceTreeProvider(this.cargoWorkspace);
 
         // Initialize task provider
-        this.taskProvider = new CargoTaskProvider(this.cargoWorkspace);
+        this.taskProvider = new CargoTaskProvider(this.cargoWorkspace, this.workspaceConfig);
         const taskProviderDisposable = vscode.tasks.registerTaskProvider('cargo', this.taskProvider);
         this.subscriptions.push(taskProviderDisposable);
     }
@@ -165,22 +166,22 @@ export class CargoExtensionManager implements vscode.Disposable {
             return vscode.commands.registerCommand(`cargo-tools.${name}`, async (...args: any[]) => {
                 // Generate a unique ID that can be correlated in the log file
                 const correlationId = generateCorrelationId();
-                
+
                 try {
                     console.log(`[${correlationId}] cargo-tools.${name} started`);
-                    
+
                     const command = (CargoExtensionManager.instance![name] as Function).bind(CargoExtensionManager.instance);
                     const result = await command(...args);
-                    
+
                     console.log(`[${correlationId}] cargo-tools.${name} completed`);
                     return result;
                 } catch (error) {
                     console.error(`[${correlationId}] cargo-tools.${name} failed:`, error);
-                    
+
                     // Show user-friendly error message
                     const message = error instanceof Error ? error.message : String(error);
                     vscode.window.showErrorMessage(`Command failed: ${message}`);
-                    
+
                     throw error;
                 }
             });
@@ -261,17 +262,20 @@ export class CargoExtensionManager implements vscode.Disposable {
             return;
         }
 
-        // Subscribe to workspace events using the correct event names
+        // Subscribe to workspace events - tree providers will auto-refresh via their own subscriptions
         const targetChangedSub = this.cargoWorkspace.onDidChangeTarget((target: CargoTarget | null) => {
-            this.targetsTreeProvider?.refresh();
+            console.log('Target changed:', target?.name || 'none');
+            // Status bar updates automatically via its own subscription
         });
 
         const profileChangedSub = this.cargoWorkspace.onDidChangeProfile((profile: CargoProfile) => {
-            this.profilesTreeProvider?.refresh();
+            console.log('Profile changed:', CargoProfile.getDisplayName(profile));
+            // Status bar updates automatically via its own subscription
         });
 
         const targetsChangedSub = this.cargoWorkspace.onDidChangeTargets((targets: CargoTarget[]) => {
-            this.targetsTreeProvider?.refresh();
+            console.log('Targets changed, count:', targets.length);
+            // Tree providers update automatically via their own subscriptions
         });
 
         this.workspaceSubscriptions.push(
@@ -336,62 +340,71 @@ export class CargoExtensionManager implements vscode.Disposable {
     // Command implementations
     async build(): Promise<void> {
         if (!this.cargoWorkspace) {
-            return;
+            throw new Error('No cargo workspace available');
         }
 
         const target = this.cargoWorkspace.currentTarget;
         const profile = this.cargoWorkspace.currentProfile;
-
-        // Use existing command for now - will be improved in task provider enhancements
-        await vscode.commands.executeCommand('cargo-tools.build');
+        
+        await this.executeCargoCommand('build');
     }
 
     async run(): Promise<void> {
         if (!this.cargoWorkspace) {
-            return;
+            throw new Error('No cargo workspace available');
         }
 
         const target = this.cargoWorkspace.currentTarget;
         if (!target || !target.isExecutable) {
-            vscode.window.showErrorMessage('Selected target is not executable');
-            return;
+            throw new Error('Selected target is not executable');
         }
 
-        // Use existing command for now
-        await vscode.commands.executeCommand('cargo-tools.run');
+        await this.executeCargoCommand('run');
     }
 
     async test(): Promise<void> {
         if (!this.cargoWorkspace) {
-            return;
+            throw new Error('No cargo workspace available');
         }
 
-        // Use existing command for now
-        await vscode.commands.executeCommand('cargo-tools.test');
+        await this.executeCargoCommand('test');
     }
 
     async debug(): Promise<void> {
         if (!this.cargoWorkspace) {
-            return;
+            throw new Error('No cargo workspace available');
         }
 
         const target = this.cargoWorkspace.currentTarget;
         if (!target || !target.isExecutable) {
-            vscode.window.showErrorMessage('Selected target is not executable');
-            return;
+            throw new Error('Selected target is not executable');
         }
 
-        // Use existing command for now
-        await vscode.commands.executeCommand('cargo-tools.debug');
+        // Build first
+        await this.executeCargoCommand('build');
+
+        // Start debugging session
+        const debugConfig = {
+            name: 'Debug Rust',
+            type: 'cppdbg',
+            request: 'launch',
+            program: this.getTargetExecutablePath(),
+            cwd: this.cargoWorkspace.workspaceRoot,
+            args: [],
+            stopAtEntry: false,
+            environment: [],
+            console: 'integratedTerminal'
+        };
+
+        await vscode.debug.startDebugging(undefined, debugConfig);
     }
 
     async clean(): Promise<void> {
         if (!this.cargoWorkspace) {
-            return;
+            throw new Error('No cargo workspace available');
         }
 
-        // Use existing command for now
-        await vscode.commands.executeCommand('cargo-tools.clean');
+        await this.executeCargoCommand('clean');
     }
 
     async selectProfile(): Promise<void> {
@@ -465,6 +478,44 @@ export class CargoExtensionManager implements vscode.Disposable {
         if (this.initializationPromise) {
             await this.initializationPromise;
         }
+    }
+
+    /**
+     * Execute a cargo command with proper error handling
+     */
+    private async executeCargoCommand(command: string): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        const terminal = vscode.window.createTerminal({
+            name: `Cargo ${command}`,
+            cwd: this.cargoWorkspace.workspaceRoot
+        });
+
+        const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
+        const args = this.cargoWorkspace.getCargoArgs(command);
+        const commandLine = `${cargoPath} ${args.join(' ')}`;
+
+        terminal.sendText(commandLine);
+        terminal.show();
+    }
+
+    /**
+     * Get the executable path for the current target
+     */
+    private getTargetExecutablePath(): string {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        const target = this.cargoWorkspace.currentTarget;
+        if (!target) {
+            throw new Error('No target selected');
+        }
+
+        const profile = this.cargoWorkspace.currentProfile === CargoProfile.release ? 'release' : 'debug';
+        return path.join(this.cargoWorkspace.workspaceRoot, 'target', profile, target.name);
     }
 
     dispose(): void {

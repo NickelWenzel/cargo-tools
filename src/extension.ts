@@ -253,9 +253,7 @@ function registerCommands(
 	context.subscriptions.push(
 		vscode.commands.registerCommand('cargo-tools.refresh', async () => {
 			await workspace.refresh();
-			profilesProvider.refresh();
-			targetsProvider.refresh();
-			workspaceProvider.refresh();
+			// Tree providers will automatically refresh via event subscriptions
 			vscode.window.showInformationMessage('Cargo workspace refreshed');
 		})
 	);

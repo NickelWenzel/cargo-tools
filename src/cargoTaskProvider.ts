@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTarget } from './cargoTarget';
+import { CargoConfigurationReader } from './cargoConfigurationReader';
 
 export interface CargoTaskDefinition extends vscode.TaskDefinition {
     command: string;
@@ -15,7 +16,10 @@ export interface CargoTaskDefinition extends vscode.TaskDefinition {
 export class CargoTaskProvider implements vscode.TaskProvider {
     static CargoType = 'cargo';
 
-    constructor(private workspace: CargoWorkspace) { }
+    constructor(
+        private workspace: CargoWorkspace,
+        private configReader?: CargoConfigurationReader
+    ) { }
 
     private isWorkspace(): boolean {
         // Check if we have multiple packages (indicating a workspace)
@@ -37,7 +41,10 @@ export class CargoTaskProvider implements vscode.TaskProvider {
 
     private async getCargoTasks(): Promise<vscode.Task[]> {
         const tasks: vscode.Task[] = [];
-        const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
+        // Use configuration reader if available, otherwise fall back to direct VS Code config
+        const cargoPath = this.configReader 
+            ? this.configReader.cargoPath 
+            : vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
 
         // Common cargo commands (without specific targets)
         const baseCommands = ['build', 'check', 'clean', 'doc'];

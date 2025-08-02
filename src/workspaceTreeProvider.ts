@@ -57,7 +57,12 @@ export class WorkspaceTreeProvider implements vscode.TreeDataProvider<WorkspaceT
     private _onDidChangeTreeData = new vscode.EventEmitter<WorkspaceTreeItem | undefined | null | void>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    constructor(private workspace: CargoWorkspace) { }
+    constructor(private workspace: CargoWorkspace) {
+        // Subscribe to workspace events to automatically refresh
+        workspace.onDidChangeTargets(() => {
+            this._onDidChangeTreeData.fire();
+        });
+    }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();

@@ -26,11 +26,11 @@ export class CargoProjectController implements vscode.Disposable {
             vscode.workspace.onDidChangeWorkspaceFolders(
                 e => this.handleWorkspaceFoldersChanged(e)
             ),
-            
+
             vscode.workspace.onDidOpenTextDocument(
                 document => this.handleDocumentOpened(document)
             ),
-            
+
             vscode.workspace.onDidSaveTextDocument(
                 document => this.handleDocumentSaved(document)
             ),
@@ -76,12 +76,12 @@ export class CargoProjectController implements vscode.Disposable {
             // Check if folder contains Cargo.toml
             const cargoTomlPath = vscode.Uri.joinPath(folder.uri, 'Cargo.toml');
             const hasCargoToml = await vscode.workspace.fs.stat(cargoTomlPath).then(() => true, () => false);
-            
+
             if (hasCargoToml) {
                 const cargoWorkspace = new CargoWorkspace(folder.uri.fsPath);
                 await cargoWorkspace.initialize();
                 this.folderToWorkspaceMap.set(folder, cargoWorkspace);
-                
+
                 console.log(`Added cargo workspace: ${folder.name}`);
                 return [cargoWorkspace];
             }
@@ -99,12 +99,12 @@ export class CargoProjectController implements vscode.Disposable {
         const cargoWorkspace = this.folderToWorkspaceMap.get(folder);
         if (cargoWorkspace) {
             this.folderToWorkspaceMap.delete(folder);
-            
+
             // If this was the active folder, select a new one
             if (this.activeFolder === folder) {
                 await this.autoSelectActiveFolder();
             }
-            
+
             console.log(`Removed cargo workspace: ${folder.name}`);
         }
     }
@@ -126,7 +126,7 @@ export class CargoProjectController implements vscode.Disposable {
         if (this.activeFolder) {
             return this.folderToWorkspaceMap.get(this.activeFolder);
         }
-        
+
         // Return first available workspace if no active folder
         const workspaces = Array.from(this.folderToWorkspaceMap.values());
         return workspaces.length > 0 ? workspaces[0] : undefined;
@@ -186,7 +186,7 @@ export class CargoProjectController implements vscode.Disposable {
     private isFolderExcluded(folder: vscode.WorkspaceFolder): boolean {
         const excludePatterns = this.workspaceConfig.excludeFolders;
         const folderPath = folder.uri.fsPath;
-        
+
         return excludePatterns.some(pattern => {
             // Simple pattern matching - could be enhanced with glob patterns
             return folderPath.includes(pattern);

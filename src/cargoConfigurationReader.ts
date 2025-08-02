@@ -38,7 +38,7 @@ type EmittersOf<T> = {
 export class CargoConfigurationReader implements vscode.Disposable {
     private updateSubscription?: vscode.Disposable;
 
-    constructor(private readonly configData: CargoConfiguration) {}
+    constructor(private readonly configData: CargoConfiguration) { }
 
     dispose() {
         if (this.updateSubscription) {
@@ -57,14 +57,14 @@ export class CargoConfigurationReader implements vscode.Disposable {
     static create(folder?: vscode.WorkspaceFolder): CargoConfigurationReader {
         const configData = CargoConfigurationReader.loadConfig(folder);
         const reader = new CargoConfigurationReader(configData);
-        
+
         reader.updateSubscription = vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('cargoTools', folder?.uri)) {
                 const newConfigData = CargoConfigurationReader.loadConfig(folder);
                 reader.update(newConfigData);
             }
         });
-        
+
         return reader;
     }
 
@@ -73,7 +73,7 @@ export class CargoConfigurationReader implements vscode.Disposable {
      */
     static loadConfig(folder?: vscode.WorkspaceFolder): CargoConfiguration {
         const config = vscode.workspace.getConfiguration('cargoTools', folder?.uri);
-        
+
         return {
             cargoPath: config.get<string>('cargoPath', 'cargo'),
             defaultProfile: config.get<string>('defaultProfile', 'dev'),
@@ -112,16 +112,16 @@ export class CargoConfigurationReader implements vscode.Disposable {
         const keys: string[] = [];
         const oldValues = { ...this.configData };
         Object.assign(this.configData, newConfigData);
-        
+
         for (const keyObject of Object.getOwnPropertyNames(newConfigData)) {
             const key = keyObject as keyof CargoConfiguration;
             if (!(key in this.emitters)) {
                 continue;
             }
-            
+
             const newValue = this.configData[key];
             const oldValue = oldValues[key];
-            
+
             // Compare values (simple comparison for now)
             if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
                 if (fireEvent) {
@@ -134,7 +134,7 @@ export class CargoConfigurationReader implements vscode.Disposable {
                 keys.push(key);
             }
         }
-        
+
         return keys;
     }
 
@@ -259,8 +259,8 @@ export class CargoConfigurationReader implements vscode.Disposable {
     isDefaultValue<K extends keyof CargoConfiguration>(setting: K, configurationScope?: vscode.ConfigurationScope): boolean {
         const settings = vscode.workspace.getConfiguration('cargoTools', configurationScope);
         const value = settings.inspect(setting);
-        return value?.globalValue === undefined && 
-               value?.workspaceValue === undefined && 
-               value?.workspaceFolderValue === undefined;
+        return value?.globalValue === undefined &&
+            value?.workspaceValue === undefined &&
+            value?.workspaceFolderValue === undefined;
     }
 }
