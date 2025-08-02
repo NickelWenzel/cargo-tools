@@ -7,10 +7,19 @@ import { TargetsTreeProvider } from './targetsTreeProvider';
 import { WorkspaceTreeProvider } from './workspaceTreeProvider';
 import { CargoProfile } from './cargoProfile';
 import { CargoTarget } from './cargoTarget';
+import { CargoConfigurationReader } from './cargoConfigurationReader';
+
+/**
+ * Generates a unique correlation ID for tracking commands and operations
+ */
+function generateCorrelationId(): string {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
 
 /**
  * The main extension manager that coordinates all cargo-tools functionality.
  * This is the singleton that manages the extension lifecycle and state.
+ * Follows patterns from microsoft/vscode-cmake-tools for maintainability.
  */
 export class CargoExtensionManager implements vscode.Disposable {
     private static instance?: CargoExtensionManager;
@@ -22,6 +31,9 @@ export class CargoExtensionManager implements vscode.Disposable {
     private profilesTreeProvider?: ProfilesTreeProvider;
     private targetsTreeProvider?: TargetsTreeProvider;
     private workspaceTreeProvider?: WorkspaceTreeProvider;
+
+    // Configuration management
+    private readonly workspaceConfig: CargoConfigurationReader = CargoConfigurationReader.create();
 
     // Subscriptions for cleanup
     private subscriptions: vscode.Disposable[] = [];
@@ -51,9 +63,19 @@ export class CargoExtensionManager implements vscode.Disposable {
     }
 
     /**
+     * Get the workspace configuration reader
+     */
+    public getWorkspaceConfig(): CargoConfigurationReader {
+        return this.workspaceConfig;
+    }
+
+    /**
      * Initialize the extension manager and all components
      */
     private async init(): Promise<void> {
+        // Set up configuration change listeners
+        this.setupConfigurationSubscriptions();
+
         // Initialize core components
         await this.initializeComponents();
 
@@ -67,6 +89,38 @@ export class CargoExtensionManager implements vscode.Disposable {
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             await this.initializeWorkspace();
         }
+    }
+
+    /**
+     * Set up configuration change subscriptions following CMake Tools pattern
+     */
+    private setupConfigurationSubscriptions(): void {
+        // Subscribe to configuration changes
+        this.subscriptions.push(
+            this.workspaceConfig.onChange('cargoPath', async (cargoPath: string) => {
+                console.log(`Cargo path changed to: ${cargoPath}`);
+                // Refresh workspace if needed
+                if (this.cargoWorkspace) {
+                    await this.cargoWorkspace.refreshTargets();
+                }
+            }),
+
+            this.workspaceConfig.onChange('defaultProfile', async (profile: string) => {
+                console.log(`Default profile changed to: ${profile}`);
+                // Update active profile if needed
+                if (this.cargoWorkspace) {
+                    this.cargoWorkspace.setProfile(profile as CargoProfile);
+                }
+            }),
+
+            this.workspaceConfig.onChange('excludeFolders', async (excludeFolders: string[]) => {
+                console.log(`Exclude folders changed:`, excludeFolders);
+                // Refresh workspace to respect new exclusions
+                if (this.cargoWorkspace) {
+                    await this.cargoWorkspace.refreshTargets();
+                }
+            })
+        );
     }
 
     /**
@@ -104,7 +158,34 @@ export class CargoExtensionManager implements vscode.Disposable {
      * Register all extension commands with error handling wrapper
      */
     private registerCommands(): void {
-        const commands = [
+        // Register command with improved CMake Tools-style wrapper
+        function register<K extends keyof CargoExtensionManager>(name: K) {
+            return vscode.commands.registerCommand(`cargo-tools.${name}`, async (...args: any[]) => {
+                // Generate a unique ID that can be correlated in the log file
+                const correlationId = generateCorrelationId();
+                
+                try {
+                    console.log(`[${correlationId}] cargo-tools.${name} started`);
+                    
+                    const command = (CargoExtensionManager.instance![name] as Function).bind(CargoExtensionManager.instance);
+                    const result = await command(...args);
+                    
+                    console.log(`[${correlationId}] cargo-tools.${name} completed`);
+                    return result;
+                } catch (error) {
+                    console.error(`[${correlationId}] cargo-tools.${name} failed:`, error);
+                    
+                    // Show user-friendly error message
+                    const message = error instanceof Error ? error.message : String(error);
+                    vscode.window.showErrorMessage(`Command failed: ${message}`);
+                    
+                    throw error;
+                }
+            });
+        }
+
+        // List of commands to register - matches CMake Tools pattern
+        const commands: (keyof CargoExtensionManager)[] = [
             'build',
             'run',
             'test',
@@ -113,42 +194,13 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectProfile',
             'selectTarget',
             'refresh'
-        ] as const;
+        ];
 
+        // Register all commands
         for (const command of commands) {
-            const disposable = this.registerCommand(command);
+            const disposable = register(command);
             this.subscriptions.push(disposable);
         }
-    }
-
-    /**
-     * Register a single command with error handling wrapper
-     */
-    private registerCommand<K extends keyof CargoExtensionManager>(name: K): vscode.Disposable {
-        return vscode.commands.registerCommand(`cargo-tools.${name}`, async (...args: any[]) => {
-            const correlationId = this.generateCorrelationId();
-            try {
-                console.log(`[${correlationId}] cargo-tools.${name} started`);
-
-                if (!this.cargoWorkspace) {
-                    vscode.window.showErrorMessage('No cargo workspace found. Please open a Rust project.');
-                    return;
-                }
-
-                const method = this[name] as Function;
-                if (typeof method !== 'function') {
-                    throw new Error(`Command ${name} is not implemented`);
-                }
-
-                const result = await method.call(this, ...args);
-                console.log(`[${correlationId}] cargo-tools.${name} completed`);
-                return result;
-            } catch (error) {
-                console.error(`[${correlationId}] cargo-tools.${name} failed:`, error);
-                vscode.window.showErrorMessage(`Cargo Tools: ${name} failed - ${error}`);
-                throw error;
-            }
-        });
     }
 
     /**
@@ -400,6 +452,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     dispose(): void {
         this.disposeWorkspaceSubscriptions();
         this.subscriptions.forEach(sub => sub.dispose());
+        this.workspaceConfig.dispose();
         // CargoWorkspace doesn't have dispose method in current implementation
         CargoExtensionManager.instance = undefined;
     }
