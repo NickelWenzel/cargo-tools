@@ -24,6 +24,18 @@ export interface CargoConfiguration {
     excludeFolders: string[];
     autoSelectActiveProject: boolean;
     defaultActiveProject: string | null;
+    // Enhanced UI configuration options
+    statusBar: {
+        visible: boolean;
+        showProfile: boolean;
+        showTarget: boolean;
+    };
+    treeView: {
+        showProfiles: boolean;
+        showTargets: boolean;
+        showWorkspace: boolean;
+        groupTargetsByKind: boolean;
+    };
 }
 
 type EmittersOf<T> = {
@@ -87,14 +99,25 @@ export class CargoConfigurationReader implements vscode.Disposable {
             offline: config.get<boolean>('offline', false),
             manifestPath: config.get<string | null>('manifestPath', null),
             targetDir: config.get<string | null>('targetDir', null),
-            clearOutputBeforeBuild: config.get<boolean>('clearOutputBeforeBuild', true),
+            clearOutputBeforeBuild: config.get<boolean>('clearOutputBeforeBuild', false),
             saveBeforeRun: config.get<boolean>('saveBeforeRun', true),
             showOutputOnError: config.get<boolean>('showOutputOnError', true),
             enableLogging: config.get<boolean>('enableLogging', false),
             logLevel: config.get<'trace' | 'debug' | 'info' | 'warn' | 'error'>('logLevel', 'info'),
             excludeFolders: config.get<string[]>('excludeFolders', []),
             autoSelectActiveProject: config.get<boolean>('autoSelectActiveProject', true),
-            defaultActiveProject: config.get<string | null>('defaultActiveProject', null)
+            defaultActiveProject: config.get<string | null>('defaultActiveProject', null),
+            statusBar: {
+                visible: config.get<boolean>('statusBar.visible', true),
+                showProfile: config.get<boolean>('statusBar.showProfile', true),
+                showTarget: config.get<boolean>('statusBar.showTarget', true),
+            },
+            treeView: {
+                showProfiles: config.get<boolean>('treeView.showProfiles', true),
+                showTargets: config.get<boolean>('treeView.showTargets', true),
+                showWorkspace: config.get<boolean>('treeView.showWorkspace', true),
+                groupTargetsByKind: config.get<boolean>('treeView.groupTargetsByKind', true),
+            }
         };
     }
 
@@ -240,7 +263,18 @@ export class CargoConfigurationReader implements vscode.Disposable {
         logLevel: new vscode.EventEmitter<'trace' | 'debug' | 'info' | 'warn' | 'error'>(),
         excludeFolders: new vscode.EventEmitter<string[]>(),
         autoSelectActiveProject: new vscode.EventEmitter<boolean>(),
-        defaultActiveProject: new vscode.EventEmitter<string | null>()
+        defaultActiveProject: new vscode.EventEmitter<string | null>(),
+        statusBar: new vscode.EventEmitter<{
+            visible: boolean;
+            showProfile: boolean;
+            showTarget: boolean;
+        }>(),
+        treeView: new vscode.EventEmitter<{
+            showProfiles: boolean;
+            showTargets: boolean;
+            showWorkspace: boolean;
+            groupTargetsByKind: boolean;
+        }>()
     };
 
     /**

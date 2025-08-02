@@ -122,6 +122,17 @@ export class CargoExtensionManager implements vscode.Disposable {
                 if (this.cargoWorkspace) {
                     await this.cargoWorkspace.refreshTargets();
                 }
+            }),
+
+            // UI configuration monitoring
+            this.workspaceConfig.onChange('statusBar', async (statusBarConfig) => {
+                console.log(`Status bar configuration changed:`, statusBarConfig);
+                this.updateStatusBarVisibility(statusBarConfig);
+            }),
+
+            this.workspaceConfig.onChange('treeView', async (treeViewConfig) => {
+                console.log(`Tree view configuration changed:`, treeViewConfig);
+                this.updateTreeViewVisibility(treeViewConfig);
             })
         );
     }
@@ -296,6 +307,28 @@ export class CargoExtensionManager implements vscode.Disposable {
         // Status bar is automatically updated through event subscriptions
         // Tree providers refresh themselves through event subscriptions
         console.log('UI components updated');
+    }
+
+    /**
+     * Update status bar visibility based on configuration
+     */
+    private updateStatusBarVisibility(config: { visible: boolean; showProfile: boolean; showTarget: boolean }): void {
+        if (!this.statusBarProvider) {
+            return;
+        }
+
+        // Note: Current StatusBarProvider doesn't have visibility controls
+        // This is a placeholder for future enhancement
+        console.log('Status bar visibility updated:', config);
+    }
+
+    /**
+     * Update tree view visibility based on configuration
+     */
+    private updateTreeViewVisibility(config: { showProfiles: boolean; showTargets: boolean; showWorkspace: boolean; groupTargetsByKind: boolean }): void {
+        // Note: Current tree view providers don't have visibility controls
+        // This is a placeholder for future enhancement
+        console.log('Tree view visibility updated:', config);
     }
 
     /**
