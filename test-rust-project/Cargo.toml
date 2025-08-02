@@ -1,0 +1,24 @@
+[package]
+name = "test-rust-project"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
+name = "helper"
+path = "src/bin/helper.rs"
+
+[lib]
+name = "testlib"
+path = "src/lib.rs"
+
+[features]
+default = ["std-support"]
+std-support = []
+extra-features = []

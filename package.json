@@ -1,0 +1,276 @@
+{
+  "name": "cargo-tools",
+  "displayName": "Cargo Tools",
+  "description": "Rust development tools for VSCode with build profiles, targets, and workspace integration",
+  "version": "0.0.1",
+  "publisher": "cargo-tools",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "rust",
+    "cargo",
+    "build",
+    "development"
+  ],
+  "activationEvents": [
+    "workspaceContains:Cargo.toml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cargo-tools.build",
+        "title": "Build",
+        "category": "Cargo Tools",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "cargo-tools.run",
+        "title": "Run",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.test",
+        "title": "Test",
+        "category": "Cargo Tools",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "cargo-tools.debug",
+        "title": "Debug",
+        "category": "Cargo Tools",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "cargo-tools.clean",
+        "title": "Clean",
+        "category": "Cargo Tools",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "cargo-tools.selectProfile",
+        "title": "Select Build Profile",
+        "category": "Cargo Tools",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "cargo-tools.selectTarget",
+        "title": "Select Build Target",
+        "category": "Cargo Tools",
+        "icon": "$(target)"
+      },
+      {
+        "command": "cargo-tools.refresh",
+        "title": "Refresh",
+        "category": "Cargo Tools",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "cargo-tools.editConfiguration",
+        "title": "Edit Configuration",
+        "category": "Cargo Tools",
+        "icon": "$(edit)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "cargoToolsExplorer",
+          "name": "Cargo Tools",
+          "when": "cargoTools:workspaceHasCargo"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cargoTools",
+          "title": "Cargo Tools",
+          "icon": "$(package)"
+        }
+      ]
+    },
+    "views": {
+      "cargoTools": [
+        {
+          "id": "cargoToolsProfiles",
+          "name": "Build Profiles",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "id": "cargoToolsTargets",
+          "name": "Build Targets",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "id": "cargoToolsWorkspace",
+          "name": "Workspace",
+          "when": "cargoTools:workspaceHasCargo"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "cargo-tools.refresh",
+          "when": "view == cargoToolsProfiles || view == cargoToolsTargets || view == cargoToolsWorkspace",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "cargo-tools.build",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.run",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.test",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.debug",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.clean",
+          "when": "cargoTools:workspaceHasCargo"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Cargo Tools",
+      "properties": {
+        "cargoTools.defaultProfile": {
+          "type": "string",
+          "default": "dev",
+          "description": "Default build profile to use",
+          "enum": ["dev", "release"],
+          "enumDescriptions": [
+            "Development profile with debug information",
+            "Release profile with optimizations"
+          ]
+        },
+        "cargoTools.cargoPath": {
+          "type": "string",
+          "default": "cargo",
+          "description": "Path to the cargo executable"
+        },
+        "cargoTools.buildArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments to pass to cargo build"
+        },
+        "cargoTools.runArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments to pass to cargo run"
+        },
+        "cargoTools.testArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments to pass to cargo test"
+        },
+        "cargoTools.environment": {
+          "type": "object",
+          "default": {},
+          "description": "Environment variables to set when running cargo commands"
+        },
+        "cargoTools.features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Default features to enable"
+        },
+        "cargoTools.allFeatures": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable all features by default"
+        },
+        "cargoTools.noDefaultFeatures": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable default features"
+        }
+      }
+    },
+    "taskDefinitions": [
+      {
+        "type": "cargo",
+        "required": ["command"],
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "The cargo command to run"
+          },
+          "profile": {
+            "type": "string",
+            "description": "The build profile to use"
+          },
+          "target": {
+            "type": "string",
+            "description": "The target to build"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Features to enable"
+          },
+          "allFeatures": {
+            "type": "boolean",
+            "description": "Enable all features"
+          },
+          "noDefaultFeatures": {
+            "type": "boolean",
+            "description": "Disable default features"
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.102.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3",
+    "ts-loader": "^9.5.2",
+    "webpack": "^5.99.7",
+    "webpack-cli": "^6.0.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
