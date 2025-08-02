@@ -12,6 +12,12 @@ import { CargoTaskProvider } from './cargoTaskProvider';
 let cargoWorkspace: CargoWorkspace | undefined;
 let statusBarProvider: StatusBarProvider | undefined;
 
+// Helper function to check if we're in a workspace
+function isWorkspace(workspace: CargoWorkspace): boolean {
+	const packageNames = new Set(workspace.targets.map(t => t.packageName).filter(Boolean));
+	return packageNames.size > 1;
+}
+
 export async function activate(context: vscode.ExtensionContext) {
 	try {
 		console.log('Cargo Tools extension activation started...');
@@ -256,7 +262,14 @@ function registerCommands(
 				});
 
 				const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
-				const args = ['run', '--example', selected.target.name];
+				const args = ['run'];
+
+				// Add package argument if we have package info and it's a workspace
+				if (selected.target.packageName && isWorkspace(workspace)) {
+					args.push('--package', selected.target.packageName);
+				}
+
+				args.push('--example', selected.target.name);
 
 				if (workspace.currentProfile.toString() === 'release') {
 					args.push('--release');
@@ -297,6 +310,10 @@ function registerCommands(
 				const args = ['test'];
 
 				if (selected.target) {
+					// Add package argument if we have package info and it's a workspace
+					if (selected.target.packageName && isWorkspace(workspace)) {
+						args.push('--package', selected.target.packageName);
+					}
 					args.push('--test', selected.target.name);
 				}
 
@@ -343,6 +360,10 @@ function registerCommands(
 				const args = ['bench'];
 
 				if (selected.target) {
+					// Add package argument if we have package info and it's a workspace
+					if (selected.target.packageName && isWorkspace(workspace)) {
+						args.push('--package', selected.target.packageName);
+					}
 					args.push('--bench', selected.target.name);
 				}
 
