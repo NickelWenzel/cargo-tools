@@ -42,8 +42,8 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     private async getCargoTasks(): Promise<vscode.Task[]> {
         const tasks: vscode.Task[] = [];
         // Use configuration reader if available, otherwise fall back to direct VS Code config
-        const cargoPath = this.configReader 
-            ? this.configReader.cargoPath 
+        const cargoPath = this.configReader
+            ? this.configReader.cargoPath
             : vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
 
         // Common cargo commands (without specific targets)

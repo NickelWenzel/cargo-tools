@@ -102,7 +102,8 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	);
 
 	// Register legacy commands - these will be gradually migrated to the extension manager
-	registerCommands(context, cargoWorkspace, profilesProvider, targetsProvider, workspaceProvider);
+	// NOTE: Commands are now registered in the Extension Manager to prevent duplicates
+	// registerCommands(context, cargoWorkspace, profilesProvider, targetsProvider, workspaceProvider);
 
 	return {
 		extensionManager,
@@ -454,8 +455,31 @@ function getCargoWorkspaceRoot(): string | undefined {
 	return cargoFolder?.uri.fsPath;
 }
 
-export function deactivate() {
-	if (statusBarProvider) {
-		statusBarProvider.dispose();
+/**
+ * This method is called when the extension is deactivated.
+ * Following CMake Tools deactivation pattern for proper cleanup.
+ */
+export async function deactivate(): Promise<void> {
+	console.log('Deactivating Cargo Tools extension...');
+	
+	try {
+		// Dispose extension manager first (this handles commands and workspace)
+		if (extensionManager) {
+			await extensionManager.asyncDispose();
+			extensionManager = undefined;
+		}
+
+		// Dispose legacy components if they exist
+		if (statusBarProvider) {
+			statusBarProvider.dispose();
+			statusBarProvider = undefined;
+		}
+
+		// Clear workspace reference
+		cargoWorkspace = undefined;
+
+		console.log('Cargo Tools extension deactivated successfully');
+	} catch (error) {
+		console.error('Error during Cargo Tools extension deactivation:', error);
 	}
 }

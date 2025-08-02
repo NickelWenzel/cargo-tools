@@ -173,7 +173,7 @@ export class CargoExtensionManager implements vscode.Disposable {
      */
     private registerCommands(): void {
         // Register command with improved CMake Tools-style wrapper
-        function register<K extends keyof CargoExtensionManager>(name: K) {
+        const register = <K extends keyof CargoExtensionManager>(name: K) => {
             return vscode.commands.registerCommand(`cargo-tools.${name}`, async (...args: any[]) => {
                 // Generate a unique ID that can be correlated in the log file
                 const correlationId = generateCorrelationId();
@@ -181,7 +181,12 @@ export class CargoExtensionManager implements vscode.Disposable {
                 try {
                     console.log(`[${correlationId}] cargo-tools.${name} started`);
 
-                    const command = (CargoExtensionManager.instance![name] as Function).bind(CargoExtensionManager.instance);
+                    // Ensure we have a valid instance
+                    if (!CargoExtensionManager.instance) {
+                        throw new Error('Extension manager not initialized');
+                    }
+
+                    const command = (CargoExtensionManager.instance[name] as Function).bind(CargoExtensionManager.instance);
                     const result = await command(...args);
 
                     console.log(`[${correlationId}] cargo-tools.${name} completed`);
@@ -196,7 +201,7 @@ export class CargoExtensionManager implements vscode.Disposable {
                     throw error;
                 }
             });
-        }
+        };
 
         // List of commands to register - matches CMake Tools pattern
         const commands: (keyof CargoExtensionManager)[] = [
@@ -210,11 +215,40 @@ export class CargoExtensionManager implements vscode.Disposable {
             'refresh'
         ];
 
-        // Register all commands
+        // Clear any existing command registrations to prevent duplicates
+        console.log('Registering Cargo Tools commands...');
+
+        // Register all commands with error handling
         for (const command of commands) {
-            const disposable = register(command);
-            this.subscriptions.push(disposable);
+            try {
+                // Check if command already exists (safety check)
+                const commandId = `cargo-tools.${command}`;
+                
+                const disposable = register(command);
+                this.subscriptions.push(disposable);
+                console.log(`Registered command: ${commandId}`);
+            } catch (error) {
+                console.error(`Failed to register command cargo-tools.${command}:`, error);
+                
+                // If it's a "command already exists" error, show a user-friendly message
+                if (error instanceof Error && error.message.includes('already exists')) {
+                    console.warn(`Command cargo-tools.${command} already exists - this may indicate an extension reload issue`);
+                    vscode.window.showWarningMessage(
+                        'Cargo Tools: Some commands may already be registered. Try reloading the window if you experience issues.',
+                        'Reload Window'
+                    ).then(selection => {
+                        if (selection === 'Reload Window') {
+                            vscode.commands.executeCommand('workbench.action.reloadWindow');
+                        }
+                    });
+                } else {
+                    // Re-throw other errors
+                    throw error;
+                }
+            }
         }
+
+        console.log(`Successfully registered ${commands.length} commands`);
     }
 
     /**
@@ -378,7 +412,7 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         const target = this.cargoWorkspace.currentTarget;
         const profile = this.cargoWorkspace.currentProfile;
-        
+
         await this.executeCargoCommand('build');
     }
 
@@ -551,11 +585,51 @@ export class CargoExtensionManager implements vscode.Disposable {
         return path.join(this.cargoWorkspace.workspaceRoot, 'target', profile, target.name);
     }
 
+    /**
+     * Dispose of all resources - following CMake Tools disposal pattern
+     */
     dispose(): void {
+        console.log('Disposing Cargo Tools extension manager...');
+        
+        // Dispose workspace subscriptions first
         this.disposeWorkspaceSubscriptions();
-        this.subscriptions.forEach(sub => sub.dispose());
-        this.workspaceConfig.dispose();
-        // CargoWorkspace doesn't have dispose method in current implementation
+        
+        // Dispose all subscriptions (including commands)
+        this.subscriptions.forEach(sub => {
+            try {
+                sub.dispose();
+            } catch (error) {
+                console.error('Error disposing subscription:', error);
+            }
+        });
+        this.subscriptions.length = 0;
+
+        // Dispose workspace configuration
+        try {
+            this.workspaceConfig.dispose();
+        } catch (error) {
+            console.error('Error disposing workspace config:', error);
+        }
+
+        // Clear workspace reference
+        this.cargoWorkspace = undefined;
+
+        // Clear singleton instance
         CargoExtensionManager.instance = undefined;
+        
+        console.log('Cargo Tools extension manager disposed');
+    }
+
+    /**
+     * Asynchronous disposal for long-running cleanup - following CMake Tools pattern
+     */
+    public async asyncDispose(): Promise<void> {
+        console.log('Async disposing Cargo Tools extension manager...');
+        
+        // Perform any async cleanup if needed in the future
+        // For now, just call synchronous dispose
+        this.dispose();
+        
+        console.log('Cargo Tools extension manager async disposed');
     }
 }
