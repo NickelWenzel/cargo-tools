@@ -92,8 +92,8 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		showCollapseAll: true
 	});
 
-	// Create status bar provider
-	statusBarProvider = new StatusBarProvider(cargoWorkspace);
+	// NOTE: Status bar provider is now managed by Extension Manager to prevent duplicates
+	// statusBarProvider = new StatusBarProvider(cargoWorkspace);
 
 	// Register task provider
 	const taskProvider = new CargoTaskProvider(cargoWorkspace);

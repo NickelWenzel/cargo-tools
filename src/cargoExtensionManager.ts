@@ -41,6 +41,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     private subscriptions: vscode.Disposable[] = [];
     private workspaceSubscriptions: vscode.Disposable[] = [];
     private commandsRegistered = false; // Guard flag to prevent double registration
+    private statusBarCreated = false; // Guard flag to prevent double status bar creation
 
     private constructor(private readonly extensionContext: vscode.ExtensionContext) { }
 
@@ -154,9 +155,13 @@ export class CargoExtensionManager implements vscode.Disposable {
             return;
         }
 
-        // Initialize status bar with workspace
-        this.statusBarProvider = new StatusBarProvider(this.cargoWorkspace);
-        this.subscriptions.push(this.statusBarProvider);
+        // Initialize status bar with workspace (only once)
+        if (!this.statusBarCreated) {
+            this.statusBarProvider = new StatusBarProvider(this.cargoWorkspace);
+            this.subscriptions.push(this.statusBarProvider);
+            this.statusBarCreated = true;
+            console.log('Status bar provider created');
+        }
 
         // Initialize tree providers with workspace
         this.profilesTreeProvider = new ProfilesTreeProvider(this.cargoWorkspace);
@@ -624,6 +629,9 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         // Reset command registration flag
         this.commandsRegistered = false;
+
+        // Reset status bar creation flag
+        this.statusBarCreated = false;
 
         // Clear singleton instance
         CargoExtensionManager.instance = undefined;

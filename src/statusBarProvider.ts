@@ -7,9 +7,9 @@ export class StatusBarProvider {
     private targetStatusBarItem: vscode.StatusBarItem;
 
     constructor(private workspace: CargoWorkspace) {
-        // Create status bar items
-        this.profileStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-        this.targetStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
+        // Create status bar items with proper priority spacing (following CMake Tools pattern)
+        this.profileStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 3.25);
+        this.targetStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 3.24);
 
         // Set up commands
         this.profileStatusBarItem.command = 'cargo-tools.selectProfile';
@@ -53,6 +53,16 @@ export class StatusBarProvider {
             this.targetStatusBarItem.text = `${icon} ${target.name}`;
         } else {
             this.targetStatusBarItem.text = '$(target) No target';
+        }
+    }
+
+    setVisible(visible: boolean): void {
+        if (visible) {
+            this.profileStatusBarItem.show();
+            this.targetStatusBarItem.show();
+        } else {
+            this.profileStatusBarItem.hide();
+            this.targetStatusBarItem.hide();
         }
     }
 
