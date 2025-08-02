@@ -93,6 +93,36 @@
         "title": "Run Benchmark",
         "category": "Cargo Tools",
         "icon": "$(dashboard)"
+      },
+      {
+        "command": "cargo-tools.buildTarget",
+        "title": "Build Target",
+        "category": "Cargo Tools",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "cargo-tools.runTarget",
+        "title": "Run Target",
+        "category": "Cargo Tools", 
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.testTarget",
+        "title": "Test Target",
+        "category": "Cargo Tools",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "cargo-tools.debugTarget",
+        "title": "Debug Target",
+        "category": "Cargo Tools",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "cargo-tools.setAsDefaultTarget",
+        "title": "Set as Default Target",
+        "category": "Cargo Tools",
+        "icon": "$(star)"
       }
     ],
     "viewsContainers": {
@@ -143,6 +173,31 @@
           "command": "cargo-tools.selectTarget",
           "when": "view == cargoToolsTargets && viewItem == cargoTarget",
           "group": "inline"
+        },
+        {
+          "command": "cargo-tools.buildTarget",
+          "when": "view == cargoToolsTargets && viewItem =~ /cargoTarget/",
+          "group": "target@1"
+        },
+        {
+          "command": "cargo-tools.runTarget",
+          "when": "view == cargoToolsTargets && viewItem =~ /cargoTarget.*isExecutable/",
+          "group": "target@2"
+        },
+        {
+          "command": "cargo-tools.testTarget",
+          "when": "view == cargoToolsTargets && viewItem =~ /cargoTarget.*isTest/",
+          "group": "target@3"
+        },
+        {
+          "command": "cargo-tools.debugTarget",
+          "when": "view == cargoToolsTargets && viewItem =~ /cargoTarget.*isExecutable/",
+          "group": "target@4"
+        },
+        {
+          "command": "cargo-tools.setAsDefaultTarget",
+          "when": "view == cargoToolsTargets && viewItem =~ /cargoTarget/",
+          "group": "default@1"
         }
       ],
       "commandPalette": [

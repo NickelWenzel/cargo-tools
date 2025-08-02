@@ -10,7 +10,23 @@ export class TargetTreeItem extends vscode.TreeItem {
         super(target.displayName, vscode.TreeItemCollapsibleState.None);
 
         this.tooltip = `Target: ${target.name}\nKind: ${target.kind.join(', ')}\nPath: ${target.srcPath}`;
-        this.contextValue = 'cargoTarget';
+        
+        // Build context value with target capabilities for context menu
+        const contextParts = ['cargoTarget'];
+        if (target.isExecutable) {
+            contextParts.push('cargoTarget.isExecutable');
+        }
+        if (target.isTest) {
+            contextParts.push('cargoTarget.isTest');
+        }
+        if (target.isBench) {
+            contextParts.push('cargoTarget.isBench');
+        }
+        if (target.isExample) {
+            contextParts.push('cargoTarget.isExample');
+        }
+        this.contextValue = contextParts.join(' && ');
+        
         this.command = {
             command: 'cargo-tools.selectTarget',
             title: 'Select Target',

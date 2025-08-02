@@ -224,7 +224,12 @@ export class CargoExtensionManager implements vscode.Disposable {
             'clean',
             'selectProfile',
             'selectTarget',
-            'refresh'
+            'refresh',
+            'buildTarget',
+            'runTarget',
+            'testTarget',
+            'debugTarget',
+            'setAsDefaultTarget'
         ];
 
         // Clear any existing command registrations to prevent duplicates
@@ -592,6 +597,177 @@ export class CargoExtensionManager implements vscode.Disposable {
         const target = this.cargoWorkspace.currentTarget;
         if (!target) {
             throw new Error('No target selected');
+        }
+
+        const profile = this.cargoWorkspace.currentProfile === CargoProfile.release ? 'release' : 'debug';
+        return path.join(this.cargoWorkspace.workspaceRoot, 'target', profile, target.name);
+    }
+
+    // Target-specific commands following CMake Tools patterns
+    async buildTarget(target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        console.log(`Building target: ${target.name} (${target.kind.join(', ')})`);
+        await this.executeCargoCommandForTarget('build', target);
+    }
+
+    async runTarget(target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        if (!target.isExecutable && !target.isExample) {
+            throw new Error(`Target ${target.name} is not executable`);
+        }
+
+        console.log(`Running target: ${target.name}`);
+        await this.executeCargoCommandForTarget('run', target);
+    }
+
+    async testTarget(target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        if (!target.isTest) {
+            throw new Error(`Target ${target.name} is not a test target`);
+        }
+
+        console.log(`Testing target: ${target.name}`);
+        await this.executeCargoCommandForTarget('test', target);
+    }
+
+    async debugTarget(target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        if (!target.isExecutable) {
+            throw new Error(`Target ${target.name} is not executable`);
+        }
+
+        console.log(`Debugging target: ${target.name}`);
+        
+        // Build the target first
+        await this.executeCargoCommandForTarget('build', target);
+
+        // Start debugging session for the specific target
+        const debugConfig = {
+            name: `Debug ${target.name}`,
+            type: 'cppdbg',
+            request: 'launch',
+            program: this.getTargetExecutablePathForTarget(target),
+            cwd: this.cargoWorkspace.workspaceRoot,
+            args: [],
+            stopAtEntry: false,
+            environment: [],
+            console: 'integratedTerminal'
+        };
+
+        await vscode.debug.startDebugging(undefined, debugConfig);
+    }
+
+    async setAsDefaultTarget(target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        console.log(`Setting default target: ${target.name}`);
+        this.cargoWorkspace.setTarget(target);
+        vscode.window.showInformationMessage(`Set ${target.name} as default target`);
+    }
+
+    /**
+     * Execute cargo command for a specific target with workspace awareness
+     */
+    private async executeCargoCommandForTarget(command: string, target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        // Get cargo args for the specific target
+        const args = this.getCargoArgsForTarget(command, target);
+        const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
+
+        // Create terminal for command execution
+        const terminal = vscode.window.createTerminal({
+            name: `Cargo ${command} ${target.name}`,
+            cwd: this.cargoWorkspace.workspaceRoot,
+            env: { ...process.env, ...this.workspaceConfig.environment }
+        });
+
+        const commandLine = `${cargoPath} ${args.join(' ')}`;
+        console.log(`Executing: ${commandLine}`);
+
+        terminal.sendText(commandLine);
+        terminal.show();
+
+        // Show information message
+        vscode.window.showInformationMessage(`Running ${command} for ${target.name}...`);
+    }
+
+    /**
+     * Get cargo arguments for a specific target
+     */
+    private getCargoArgsForTarget(command: string, target: CargoTarget): string[] {
+        const args = [command];
+
+        // Add profile
+        if (this.cargoWorkspace!.currentProfile === CargoProfile.release) {
+            args.push('--release');
+        }
+
+        // For workspace projects, add package specification
+        if (target.packageName && this.cargoWorkspace!.isWorkspace) {
+            args.push('-p', target.packageName);
+        }
+
+        // Add target-specific flags
+        if (command !== 'clean') {
+            if (target.kind.includes('bin')) {
+                args.push('--bin', target.name);
+            } else if (target.kind.includes('lib')) {
+                args.push('--lib');
+            } else if (target.kind.includes('example')) {
+                args.push('--example', target.name);
+            } else if (target.kind.includes('test')) {
+                args.push('--test', target.name);
+            } else if (target.kind.includes('bench')) {
+                args.push('--bench', target.name);
+            }
+        }
+
+        // Add features and other configuration
+        const features = this.workspaceConfig.features;
+        if (features.length > 0) {
+            args.push('--features', features.join(','));
+        }
+
+        if (this.workspaceConfig.allFeatures) {
+            args.push('--all-features');
+        }
+
+        if (this.workspaceConfig.noDefaultFeatures) {
+            args.push('--no-default-features');
+        }
+
+        // Add command-specific arguments from configuration
+        const commandArgs = this.workspaceConfig[`${command}Args` as keyof typeof this.workspaceConfig] as string[] | undefined;
+        if (commandArgs && Array.isArray(commandArgs)) {
+            args.push(...commandArgs);
+        }
+
+        return args;
+    }
+
+    /**
+     * Get executable path for a specific target
+     */
+    private getTargetExecutablePathForTarget(target: CargoTarget): string {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
         }
 
         const profile = this.cargoWorkspace.currentProfile === CargoProfile.release ? 'release' : 'debug';

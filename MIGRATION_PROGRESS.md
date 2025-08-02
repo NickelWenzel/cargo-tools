@@ -66,13 +66,14 @@ This document tracks the migration progress from a monolithic extension structur
 - [x] Add guard flags to prevent duplicate command registrations
 - [x] Fix duplicate status bar button creation following CMake Tools patterns
 - [x] Implement workspace member grouping in BUILD TARGETS tree following CMake Tools patterns
+- [x] Implement target-specific commands and context menus following CMake Tools patterns
 - [ ] Implement workspace exclusion patterns
 - [ ] Add advanced configuration options
 - [ ] Enhance multi-workspace folder support  
 - [ ] Add debugging integration improvements
 - [ ] Performance optimizations
 
-**Recent Completion:** Implemented workspace member grouping in BUILD TARGETS tree view
+**Recent Completion:** Implemented target-specific commands and context menus in BUILD TARGETS tree view
 
 **Estimated Completion:** Next iteration
 
@@ -95,6 +96,7 @@ This document tracks the migration progress from a monolithic extension structur
 - Task provider integration
 - Legacy command compatibility
 - **Workspace member grouping in BUILD TARGETS tree** (NEW)
+- **Target-specific commands and context menus** (NEW)
 
 ### 🔄 Architecture Benefits Realized
 - Centralized extension state management
