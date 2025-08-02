@@ -118,10 +118,10 @@ export class TargetsTreeProvider implements vscode.TreeDataProvider<TargetTreeIt
         const targets = this.workspace.targets;
         const config = vscode.workspace.getConfiguration('cargoTools');
         const groupByWorkspaceMember = config.get<boolean>('groupTargetsByWorkspaceMember', true);
-        
+
         // Check if this is a workspace with multiple members and grouping is enabled
         const workspaceMembers = this.workspace.getWorkspaceMembers();
-        
+
         if (groupByWorkspaceMember && workspaceMembers.size > 1) {
             // Multi-member workspace: group by workspace member first
             return Array.from(workspaceMembers.entries()).map(([memberName, memberTargets]) =>

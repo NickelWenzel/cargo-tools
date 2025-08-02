@@ -99,7 +99,7 @@ export class CargoWorkspace {
 
         for (const target of this._targets) {
             const memberName = target.packageName || 'default';
-            
+
             if (!members.has(memberName)) {
                 members.set(memberName, []);
             }

@@ -94,6 +94,7 @@ This document tracks the migration progress from a monolithic extension structur
 - All existing tree views and status bar
 - Task provider integration
 - Legacy command compatibility
+- **Workspace member grouping in BUILD TARGETS tree** (NEW)
 
 ### 🔄 Architecture Benefits Realized
 - Centralized extension state management
@@ -102,6 +103,7 @@ This document tracks the migration progress from a monolithic extension structur
 - Event-driven component communication foundation
 - Better separation of concerns
 - Multi-workspace support foundation
+- **CMake Tools-inspired target organization** (NEW)
 
 ### ⚠️ Known Limitations
 All major limitations from previous phases have been resolved:
