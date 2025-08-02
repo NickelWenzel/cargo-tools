@@ -461,7 +461,7 @@ function getCargoWorkspaceRoot(): string | undefined {
  */
 export async function deactivate(): Promise<void> {
 	console.log('Deactivating Cargo Tools extension...');
-	
+
 	try {
 		// Dispose extension manager first (this handles commands and workspace)
 		if (extensionManager) {

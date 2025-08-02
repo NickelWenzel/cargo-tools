@@ -40,6 +40,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     // Subscriptions for cleanup
     private subscriptions: vscode.Disposable[] = [];
     private workspaceSubscriptions: vscode.Disposable[] = [];
+    private commandsRegistered = false; // Guard flag to prevent double registration
 
     private constructor(private readonly extensionContext: vscode.ExtensionContext) { }
 
@@ -172,6 +173,12 @@ export class CargoExtensionManager implements vscode.Disposable {
      * Register all extension commands with error handling wrapper
      */
     private registerCommands(): void {
+        // Guard against multiple registrations
+        if (this.commandsRegistered) {
+            console.log('Commands already registered, skipping duplicate registration');
+            return;
+        }
+
         // Register command with improved CMake Tools-style wrapper
         const register = <K extends keyof CargoExtensionManager>(name: K) => {
             return vscode.commands.registerCommand(`cargo-tools.${name}`, async (...args: any[]) => {
@@ -223,13 +230,13 @@ export class CargoExtensionManager implements vscode.Disposable {
             try {
                 // Check if command already exists (safety check)
                 const commandId = `cargo-tools.${command}`;
-                
+
                 const disposable = register(command);
                 this.subscriptions.push(disposable);
                 console.log(`Registered command: ${commandId}`);
             } catch (error) {
                 console.error(`Failed to register command cargo-tools.${command}:`, error);
-                
+
                 // If it's a "command already exists" error, show a user-friendly message
                 if (error instanceof Error && error.message.includes('already exists')) {
                     console.warn(`Command cargo-tools.${command} already exists - this may indicate an extension reload issue`);
@@ -249,6 +256,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         console.log(`Successfully registered ${commands.length} commands`);
+        this.commandsRegistered = true; // Mark commands as registered
     }
 
     /**
@@ -590,10 +598,10 @@ export class CargoExtensionManager implements vscode.Disposable {
      */
     dispose(): void {
         console.log('Disposing Cargo Tools extension manager...');
-        
+
         // Dispose workspace subscriptions first
         this.disposeWorkspaceSubscriptions();
-        
+
         // Dispose all subscriptions (including commands)
         this.subscriptions.forEach(sub => {
             try {
@@ -614,9 +622,12 @@ export class CargoExtensionManager implements vscode.Disposable {
         // Clear workspace reference
         this.cargoWorkspace = undefined;
 
+        // Reset command registration flag
+        this.commandsRegistered = false;
+
         // Clear singleton instance
         CargoExtensionManager.instance = undefined;
-        
+
         console.log('Cargo Tools extension manager disposed');
     }
 
@@ -625,11 +636,11 @@ export class CargoExtensionManager implements vscode.Disposable {
      */
     public async asyncDispose(): Promise<void> {
         console.log('Async disposing Cargo Tools extension manager...');
-        
+
         // Perform any async cleanup if needed in the future
         // For now, just call synchronous dispose
         this.dispose();
-        
+
         console.log('Cargo Tools extension manager async disposed');
     }
 }
