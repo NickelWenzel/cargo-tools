@@ -8,7 +8,7 @@ export class ProfileTreeItem extends vscode.TreeItem {
         public readonly isActive: boolean
     ) {
         super(CargoProfile.getDisplayName(profile), vscode.TreeItemCollapsibleState.None);
-        
+
         this.tooltip = CargoProfile.getDescription(profile);
         this.contextValue = 'cargoProfile';
         this.command = {
@@ -47,12 +47,12 @@ export class ProfilesTreeProvider implements vscode.TreeDataProvider<ProfileTree
             // Root level - return all profiles
             const profiles = CargoProfile.getAllProfiles();
             const currentProfile = this.workspace.currentProfile;
-            
+
             return Promise.resolve(
                 profiles.map(profile => new ProfileTreeItem(profile, profile === currentProfile))
             );
         }
-        
+
         return Promise.resolve([]);
     }
 }

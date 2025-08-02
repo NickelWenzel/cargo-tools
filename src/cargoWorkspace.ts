@@ -70,7 +70,7 @@ export class CargoWorkspace {
 
     private async loadManifest(): Promise<void> {
         const manifestPath = path.join(this._workspaceRoot, 'Cargo.toml');
-        
+
         try {
             const content = await fs.promises.readFile(manifestPath, 'utf8');
             // Simple TOML parsing - for production, consider using a proper TOML parser
@@ -100,7 +100,7 @@ export class CargoWorkspace {
                 currentSection = sectionMatch[1];
                 const parts = currentSection.split('.');
                 currentObject = manifest;
-                
+
                 for (const part of parts) {
                     if (!currentObject[part]) {
                         currentObject[part] = {};
@@ -115,13 +115,13 @@ export class CargoWorkspace {
             if (keyValueMatch && currentObject) {
                 const key = keyValueMatch[1].trim();
                 let value = keyValueMatch[2].trim();
-                
+
                 // Remove quotes
-                if ((value.startsWith('"') && value.endsWith('"')) || 
+                if ((value.startsWith('"') && value.endsWith('"')) ||
                     (value.startsWith("'") && value.endsWith("'"))) {
                     value = value.slice(1, -1);
                 }
-                
+
                 currentObject[key] = value;
             }
         }
@@ -136,9 +136,9 @@ export class CargoWorkspace {
             const { stdout } = await execAsync('cargo metadata --format-version 1 --no-deps', {
                 cwd: this._workspaceRoot
             });
-            
+
             const metadata = JSON.parse(stdout);
-            
+
             for (const target of metadata.targets || []) {
                 const cargoTarget = new CargoTarget(
                     target.name,
@@ -150,7 +150,7 @@ export class CargoWorkspace {
             }
         } catch (error) {
             console.error('Failed to discover targets:', error);
-            
+
             // Fallback to manual discovery
             await this.discoverTargetsManually();
         }
@@ -161,7 +161,7 @@ export class CargoWorkspace {
     private async discoverTargetsManually(): Promise<void> {
         // Look for common target patterns
         const srcDir = path.join(this._workspaceRoot, 'src');
-        
+
         if (fs.existsSync(srcDir)) {
             // Check for main.rs (binary target)
             const mainPath = path.join(srcDir, 'main.rs');
@@ -239,7 +239,7 @@ export class CargoWorkspace {
 
         // Add configuration-based arguments
         const config = vscode.workspace.getConfiguration('cargoTools');
-        
+
         const features = config.get<string[]>('features', []);
         if (features.length > 0) {
             args.push('--features', features.join(','));
@@ -273,7 +273,7 @@ export class CargoWorkspace {
                 cwd: this._workspaceRoot,
                 env
             });
-            
+
             return { stdout, stderr };
         } catch (error: any) {
             throw new Error(`Cargo command failed: ${error.message}`);

@@ -13,7 +13,7 @@ export interface CargoTaskDefinition extends vscode.TaskDefinition {
 export class CargoTaskProvider implements vscode.TaskProvider {
     static CargoType = 'cargo';
 
-    constructor(private workspace: CargoWorkspace) {}
+    constructor(private workspace: CargoWorkspace) { }
 
     public provideTasks(): Thenable<vscode.Task[]> {
         return this.getCargoTasks();
@@ -33,7 +33,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
 
         // Common cargo commands
         const commands = ['build', 'run', 'test', 'check', 'clean', 'doc'];
-        
+
         for (const command of commands) {
             // Create task for current configuration
             const currentTask = this.createCargoTask({
@@ -71,7 +71,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     private createCargoTask(definition: CargoTaskDefinition): vscode.Task {
         const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
         const args = this.buildCargoArgs(definition);
-        
+
         const execution = new vscode.ShellExecution(cargoPath, args, {
             cwd: this.workspace.workspaceRoot
         });
@@ -102,7 +102,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         const args = [definition.command];
 
         // Add profile
-        if (definition.profile === 'release' || 
+        if (definition.profile === 'release' ||
             (this.workspace.currentProfile.toString() === 'release' && !definition.profile)) {
             args.push('--release');
         }
@@ -149,15 +149,15 @@ export class CargoTaskProvider implements vscode.TaskProvider {
 
     private getTaskName(definition: CargoTaskDefinition): string {
         let name = `cargo ${definition.command}`;
-        
+
         if (definition.target) {
             name += ` (${definition.target})`;
         }
-        
+
         if (definition.profile) {
             name += ` [${definition.profile}]`;
         }
-        
+
         return name;
     }
 

@@ -35,13 +35,13 @@ export class StatusBarProvider {
     private updateProfileStatusBar(): void {
         const profile = this.workspace.currentProfile;
         const displayName = CargoProfile.getDisplayName(profile);
-        
+
         this.profileStatusBarItem.text = `$(tools) ${displayName}`;
     }
 
     private updateTargetStatusBar(): void {
         const target = this.workspace.currentTarget;
-        
+
         if (target) {
             let icon = '$(target)';
             if (target.isExecutable) {
@@ -49,7 +49,7 @@ export class StatusBarProvider {
             } else if (target.isLibrary) {
                 icon = '$(package)';
             }
-            
+
             this.targetStatusBarItem.text = `${icon} ${target.name}`;
         } else {
             this.targetStatusBarItem.text = '$(target) No target';

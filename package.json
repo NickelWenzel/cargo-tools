@@ -77,15 +77,6 @@
         "icon": "$(edit)"
       }
     ],
-    "views": {
-      "explorer": [
-        {
-          "id": "cargoToolsExplorer",
-          "name": "Cargo Tools",
-          "when": "cargoTools:workspaceHasCargo"
-        }
-      ]
-    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -96,6 +87,13 @@
       ]
     },
     "views": {
+      "explorer": [
+        {
+          "id": "cargoToolsExplorer",
+          "name": "Cargo Tools",
+          "when": "cargoTools:workspaceHasCargo"
+        }
+      ],
       "cargoTools": [
         {
           "id": "cargoToolsProfiles",
@@ -152,7 +150,10 @@
           "type": "string",
           "default": "dev",
           "description": "Default build profile to use",
-          "enum": ["dev", "release"],
+          "enum": [
+            "dev",
+            "release"
+          ],
           "enumDescriptions": [
             "Development profile with debug information",
             "Release profile with optimizations"
@@ -215,7 +216,9 @@
     "taskDefinitions": [
       {
         "type": "cargo",
-        "required": ["command"],
+        "required": [
+          "command"
+        ],
         "properties": {
           "command": {
             "type": "string",

@@ -4,7 +4,7 @@ export class CargoTarget {
         public readonly kind: string[],
         public readonly srcPath: string,
         public readonly edition: string = '2021'
-    ) {}
+    ) { }
 
     get displayName(): string {
         const kindStr = this.kind.join(', ');

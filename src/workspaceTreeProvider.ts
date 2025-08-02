@@ -12,10 +12,10 @@ export class WorkspaceTreeItem extends vscode.TreeItem {
         public readonly description?: string
     ) {
         super(label, collapsibleState);
-        
+
         this.contextValue = itemType;
         this.tooltip = this.resourceUri ? this.resourceUri.fsPath : this.label;
-        
+
         // Set icons based on item type
         switch (itemType) {
             case 'workspace':
@@ -57,7 +57,7 @@ export class WorkspaceTreeProvider implements vscode.TreeDataProvider<WorkspaceT
     private _onDidChangeTreeData = new vscode.EventEmitter<WorkspaceTreeItem | undefined | null | void>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    constructor(private workspace: CargoWorkspace) {}
+    constructor(private workspace: CargoWorkspace) { }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
@@ -71,7 +71,7 @@ export class WorkspaceTreeProvider implements vscode.TreeDataProvider<WorkspaceT
         if (!element) {
             // Root level - show workspace info
             const items: WorkspaceTreeItem[] = [];
-            
+
             // Show workspace name
             const workspaceName = path.basename(this.workspace.workspaceRoot);
             items.push(new WorkspaceTreeItem(
@@ -138,14 +138,14 @@ export class WorkspaceTreeProvider implements vscode.TreeDataProvider<WorkspaceT
 
     private async getSourceFiles(dir: string): Promise<WorkspaceTreeItem[]> {
         const items: WorkspaceTreeItem[] = [];
-        
+
         try {
             const files = await fs.promises.readdir(dir);
-            
+
             for (const file of files) {
                 const filePath = path.join(dir, file);
                 const stat = await fs.promises.stat(filePath);
-                
+
                 if (stat.isFile() && file.endsWith('.rs')) {
                     items.push(new WorkspaceTreeItem(
                         file,

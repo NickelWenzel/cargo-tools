@@ -8,7 +8,7 @@ export class TargetTreeItem extends vscode.TreeItem {
         public readonly isActive: boolean
     ) {
         super(target.displayName, vscode.TreeItemCollapsibleState.None);
-        
+
         this.tooltip = `Target: ${target.name}\nKind: ${target.kind.join(', ')}\nPath: ${target.srcPath}`;
         this.contextValue = 'cargoTarget';
         this.command = {
@@ -65,12 +65,12 @@ export class TargetsTreeProvider implements vscode.TreeDataProvider<TargetTreeIt
             // Root level - return all targets
             const targets = this.workspace.targets;
             const currentTarget = this.workspace.currentTarget;
-            
+
             return Promise.resolve(
                 targets.map(target => new TargetTreeItem(target, target === currentTarget))
             );
         }
-        
+
         return Promise.resolve([]);
     }
 }
