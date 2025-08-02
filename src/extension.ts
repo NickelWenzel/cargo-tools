@@ -228,6 +228,129 @@ function registerCommands(
 			await vscode.commands.executeCommand('workbench.action.openSettings', 'cargoTools');
 		})
 	);
+
+	// Run example command
+	context.subscriptions.push(
+		vscode.commands.registerCommand('cargo-tools.runExample', async () => {
+			const examples = workspace.targets.filter(t => t.isExample);
+			if (examples.length === 0) {
+				vscode.window.showWarningMessage('No examples found in workspace');
+				return;
+			}
+
+			const items = examples.map(example => ({
+				label: example.name,
+				description: 'example',
+				detail: example.srcPath,
+				target: example
+			}));
+
+			const selected = await vscode.window.showQuickPick(items, {
+				placeHolder: 'Select example to run'
+			});
+
+			if (selected) {
+				const terminal = vscode.window.createTerminal({
+					name: `Example: ${selected.target.name}`,
+					cwd: workspace.workspaceRoot
+				});
+
+				const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
+				const args = ['run', '--example', selected.target.name];
+				
+				if (workspace.currentProfile.toString() === 'release') {
+					args.push('--release');
+				}
+
+				terminal.sendText(`${cargoPath} ${args.join(' ')}`);
+				terminal.show();
+			}
+		})
+	);
+
+	// Run test command (specific test)
+	context.subscriptions.push(
+		vscode.commands.registerCommand('cargo-tools.runTest', async () => {
+			const tests = workspace.targets.filter(t => t.isTest);
+			
+			const items = [
+				{ label: 'All tests', description: 'Run all tests', target: null },
+				...tests.map(test => ({
+					label: test.name,
+					description: 'integration test',
+					detail: test.srcPath,
+					target: test
+				}))
+			];
+
+			const selected = await vscode.window.showQuickPick(items, {
+				placeHolder: 'Select test to run'
+			});
+
+			if (selected) {
+				const terminal = vscode.window.createTerminal({
+					name: selected.target ? `Test: ${selected.target.name}` : 'All Tests',
+					cwd: workspace.workspaceRoot
+				});
+
+				const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
+				const args = ['test'];
+				
+				if (selected.target) {
+					args.push('--test', selected.target.name);
+				}
+
+				if (workspace.currentProfile.toString() === 'release') {
+					args.push('--release');
+				}
+
+				terminal.sendText(`${cargoPath} ${args.join(' ')}`);
+				terminal.show();
+			}
+		})
+	);
+
+	// Run benchmark command
+	context.subscriptions.push(
+		vscode.commands.registerCommand('cargo-tools.runBench', async () => {
+			const benches = workspace.targets.filter(t => t.isBench);
+			if (benches.length === 0) {
+				vscode.window.showWarningMessage('No benchmarks found in workspace');
+				return;
+			}
+
+			const items = [
+				{ label: 'All benchmarks', description: 'Run all benchmarks', target: null },
+				...benches.map(bench => ({
+					label: bench.name,
+					description: 'benchmark',
+					detail: bench.srcPath,
+					target: bench
+				}))
+			];
+
+			const selected = await vscode.window.showQuickPick(items, {
+				placeHolder: 'Select benchmark to run'
+			});
+
+			if (selected) {
+				const terminal = vscode.window.createTerminal({
+					name: selected.target ? `Bench: ${selected.target.name}` : 'All Benchmarks',
+					cwd: workspace.workspaceRoot
+				});
+
+				const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
+				const args = ['bench'];
+				
+				if (selected.target) {
+					args.push('--bench', selected.target.name);
+				}
+
+				terminal.sendText(`${cargoPath} ${args.join(' ')}`);
+				terminal.show();
+			}
+		})
+	);
 }
 
 async function executeCargoCommand(command: string, workspace: CargoWorkspace): Promise<void> {

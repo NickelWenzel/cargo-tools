@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
+import { CargoTarget } from './cargoTarget';
 
 export interface CargoTaskDefinition extends vscode.TaskDefinition {
     command: string;
     profile?: string;
     target?: string;
+    targetKind?: 'bin' | 'lib' | 'example' | 'test' | 'bench';
     features?: string[];
     allFeatures?: boolean;
     noDefaultFeatures?: boolean;
@@ -31,10 +33,10 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         const tasks: vscode.Task[] = [];
         const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
 
-        // Common cargo commands
-        const commands = ['build', 'run', 'test', 'check', 'clean', 'doc'];
+        // Common cargo commands (without specific targets)
+        const baseCommands = ['build', 'check', 'clean', 'doc'];
 
-        for (const command of commands) {
+        for (const command of baseCommands) {
             // Create task for current configuration
             const currentTask = this.createCargoTask({
                 type: CargoTaskProvider.CargoType,
@@ -43,7 +45,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             tasks.push(currentTask);
 
             // Create additional variants for different profiles
-            if (command === 'build' || command === 'run' || command === 'test') {
+            if (command === 'build' || command === 'check') {
                 const releaseTask = this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: command,
@@ -53,19 +55,165 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             }
         }
 
-        // Add target-specific tasks
+        // Add target-specific tasks based on target types
         for (const target of this.workspace.targets) {
-            if (target.isExecutable) {
-                const runTask = this.createCargoTask({
-                    type: CargoTaskProvider.CargoType,
-                    command: 'run',
-                    target: target.name
-                });
-                tasks.push(runTask);
-            }
+            this.addTargetSpecificTasks(tasks, target);
+        }
+
+        // Add general test and run commands
+        tasks.push(this.createCargoTask({
+            type: CargoTaskProvider.CargoType,
+            command: 'test'
+        }));
+
+        tasks.push(this.createCargoTask({
+            type: CargoTaskProvider.CargoType,
+            command: 'test',
+            profile: 'release'
+        }));
+
+        // Add workspace-level run task (runs default binary)
+        const defaultBinary = this.workspace.targets.find(t => t.isExecutable);
+        if (defaultBinary) {
+            tasks.push(this.createCargoTask({
+                type: CargoTaskProvider.CargoType,
+                command: 'run'
+            }));
+
+            tasks.push(this.createCargoTask({
+                type: CargoTaskProvider.CargoType,
+                command: 'run',
+                profile: 'release'
+            }));
         }
 
         return tasks;
+    }
+
+    private addTargetSpecificTasks(tasks: vscode.Task[], target: CargoTarget): void {
+        const targetKind = target.kind[0]; // Primary kind
+
+        switch (targetKind) {
+            case 'bin':
+                // Binary targets: build and run
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'build',
+                    target: target.name,
+                    targetKind: 'bin'
+                }));
+
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'run',
+                    target: target.name,
+                    targetKind: 'bin'
+                }));
+
+                // Release variants
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'build',
+                    target: target.name,
+                    targetKind: 'bin',
+                    profile: 'release'
+                }));
+
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'run',
+                    target: target.name,
+                    targetKind: 'bin',
+                    profile: 'release'
+                }));
+                break;
+
+            case 'example':
+                // Example targets: build and run
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'build',
+                    target: target.name,
+                    targetKind: 'example'
+                }));
+
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'run',
+                    target: target.name,
+                    targetKind: 'example'
+                }));
+
+                // Release variants
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'run',
+                    target: target.name,
+                    targetKind: 'example',
+                    profile: 'release'
+                }));
+                break;
+
+            case 'test':
+                // Test targets: build and run
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'build',
+                    target: target.name,
+                    targetKind: 'test'
+                }));
+
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'test',
+                    target: target.name,
+                    targetKind: 'test'
+                }));
+                break;
+
+            case 'bench':
+                // Benchmark targets: build and run
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'build',
+                    target: target.name,
+                    targetKind: 'bench'
+                }));
+
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'bench',
+                    target: target.name,
+                    targetKind: 'bench'
+                }));
+                break;
+
+            case 'lib':
+                // Library targets: build and test
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'build',
+                    target: target.name,
+                    targetKind: 'lib'
+                }));
+
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'test',
+                    target: target.name,
+                    targetKind: 'lib'
+                }));
+
+                // Release variant
+                tasks.push(this.createCargoTask({
+                    type: CargoTaskProvider.CargoType,
+                    command: 'build',
+                    target: target.name,
+                    targetKind: 'lib',
+                    profile: 'release'
+                }));
+                break;
+        }
     }
 
     private createCargoTask(definition: CargoTaskDefinition): vscode.Task {
@@ -107,22 +255,54 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             args.push('--release');
         }
 
-        // Add target
-        if (definition.target) {
+        // Add target-specific arguments
+        if (definition.target && definition.targetKind) {
+            switch (definition.targetKind) {
+                case 'bin':
+                    args.push('--bin', definition.target);
+                    break;
+                case 'lib':
+                    args.push('--lib');
+                    break;
+                case 'example':
+                    args.push('--example', definition.target);
+                    break;
+                case 'test':
+                    args.push('--test', definition.target);
+                    break;
+                case 'bench':
+                    args.push('--bench', definition.target);
+                    break;
+            }
+        } else if (definition.target) {
+            // Fallback: try to find target in workspace and determine type
             const target = this.workspace.targets.find(t => t.name === definition.target);
             if (target) {
                 if (target.isExecutable) {
                     args.push('--bin', target.name);
                 } else if (target.isLibrary) {
                     args.push('--lib');
+                } else if (target.isExample) {
+                    args.push('--example', target.name);
+                } else if (target.isTest) {
+                    args.push('--test', target.name);
+                } else if (target.isBench) {
+                    args.push('--bench', target.name);
                 }
             }
         } else if (this.workspace.currentTarget && definition.command !== 'clean') {
+            // Use current target if no specific target is defined
             const target = this.workspace.currentTarget;
             if (target.isExecutable) {
                 args.push('--bin', target.name);
             } else if (target.isLibrary) {
                 args.push('--lib');
+            } else if (target.isExample) {
+                args.push('--example', target.name);
+            } else if (target.isTest) {
+                args.push('--test', target.name);
+            } else if (target.isBench) {
+                args.push('--bench', target.name);
             }
         }
 
@@ -150,7 +330,10 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     private getTaskName(definition: CargoTaskDefinition): string {
         let name = `cargo ${definition.command}`;
 
-        if (definition.target) {
+        if (definition.target && definition.targetKind) {
+            const kindLabel = this.getTargetKindLabel(definition.targetKind);
+            name += ` ${kindLabel} (${definition.target})`;
+        } else if (definition.target) {
             name += ` (${definition.target})`;
         }
 
@@ -161,12 +344,30 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         return name;
     }
 
+    private getTargetKindLabel(kind: string): string {
+        switch (kind) {
+            case 'bin':
+                return 'binary';
+            case 'lib':
+                return 'library';
+            case 'example':
+                return 'example';
+            case 'test':
+                return 'test';
+            case 'bench':
+                return 'benchmark';
+            default:
+                return kind;
+        }
+    }
+
     private getTaskGroup(command: string): vscode.TaskGroup | undefined {
         switch (command) {
             case 'build':
             case 'check':
                 return vscode.TaskGroup.Build;
             case 'test':
+            case 'bench':
                 return vscode.TaskGroup.Test;
             case 'clean':
                 return vscode.TaskGroup.Clean;
@@ -181,6 +382,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             case 'check':
             case 'run':
             case 'test':
+            case 'bench':
                 return ['$rustc'];
             default:
                 return [];

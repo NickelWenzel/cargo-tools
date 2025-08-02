@@ -75,6 +75,24 @@
         "title": "Edit Configuration",
         "category": "Cargo Tools",
         "icon": "$(edit)"
+      },
+      {
+        "command": "cargo-tools.runExample",
+        "title": "Run Example",
+        "category": "Cargo Tools",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "cargo-tools.runTest",
+        "title": "Run Test",
+        "category": "Cargo Tools",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "cargo-tools.runBench",
+        "title": "Run Benchmark",
+        "category": "Cargo Tools",
+        "icon": "$(dashboard)"
       }
     ],
     "viewsContainers": {
@@ -120,6 +138,13 @@
           "group": "navigation"
         }
       ],
+      "view/item/context": [
+        {
+          "command": "cargo-tools.selectTarget",
+          "when": "view == cargoToolsTargets && viewItem == cargoTarget",
+          "group": "inline"
+        }
+      ],
       "commandPalette": [
         {
           "command": "cargo-tools.build",
@@ -139,6 +164,18 @@
         },
         {
           "command": "cargo-tools.clean",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.runExample",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.runTest",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.runBench",
           "when": "cargoTools:workspaceHasCargo"
         }
       ]
