@@ -609,7 +609,8 @@ export class CargoExtensionManager implements vscode.Disposable {
             throw new Error('No cargo workspace available');
         }
 
-        console.log(`Building target: ${target.name} (${target.kind.join(', ')})`);
+        const kindStr = target.kind && Array.isArray(target.kind) ? target.kind.join(', ') : 'unknown';
+        console.log(`Building target: ${target.name} (${kindStr})`);
         await this.executeCargoCommandForTarget('build', target);
     }
 
@@ -649,7 +650,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         console.log(`Debugging target: ${target.name}`);
-        
+
         // Build the target first
         await this.executeCargoCommandForTarget('build', target);
 
@@ -691,15 +692,18 @@ export class CargoExtensionManager implements vscode.Disposable {
         const args = this.getCargoArgsForTarget(command, target);
         const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
 
+        // Get the correct working directory for the target
+        const workingDirectory = this.getWorkingDirectoryForTarget(target);
+
         // Create terminal for command execution
         const terminal = vscode.window.createTerminal({
             name: `Cargo ${command} ${target.name}`,
-            cwd: this.cargoWorkspace.workspaceRoot,
+            cwd: workingDirectory,
             env: { ...process.env, ...this.workspaceConfig.environment }
         });
 
         const commandLine = `${cargoPath} ${args.join(' ')}`;
-        console.log(`Executing: ${commandLine}`);
+        console.log(`Executing: ${commandLine} in ${workingDirectory}`);
 
         terminal.sendText(commandLine);
         terminal.show();
@@ -719,13 +723,18 @@ export class CargoExtensionManager implements vscode.Disposable {
             args.push('--release');
         }
 
-        // For workspace projects, add package specification
-        if (target.packageName && this.cargoWorkspace!.isWorkspace) {
+        // For workspace projects, we need different logic depending on working directory
+        // If we're executing in the package directory, we don't need -p flag
+        // If we're executing from workspace root, we need -p flag
+        const workingDirectory = this.getWorkingDirectoryForTarget(target);
+        const isExecutingFromPackageDir = target.packagePath && workingDirectory === target.packagePath;
+
+        if (target.packageName && this.cargoWorkspace!.isWorkspace && !isExecutingFromPackageDir) {
             args.push('-p', target.packageName);
         }
 
         // Add target-specific flags
-        if (command !== 'clean') {
+        if (command !== 'clean' && target.kind && Array.isArray(target.kind)) {
             if (target.kind.includes('bin')) {
                 args.push('--bin', target.name);
             } else if (target.kind.includes('lib')) {
@@ -741,7 +750,7 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         // Add features and other configuration
         const features = this.workspaceConfig.features;
-        if (features.length > 0) {
+        if (features && Array.isArray(features) && features.length > 0) {
             args.push('--features', features.join(','));
         }
 
@@ -760,6 +769,23 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         return args;
+    }
+
+    /**
+     * Get the correct working directory for a target
+     */
+    private getWorkingDirectoryForTarget(target: CargoTarget): string {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        // For workspace members, use the package path if available
+        if (target.packagePath && this.cargoWorkspace.isWorkspace) {
+            return target.packagePath;
+        }
+
+        // For single-package projects or when package path is not available, use workspace root
+        return this.cargoWorkspace.workspaceRoot;
     }
 
     /**

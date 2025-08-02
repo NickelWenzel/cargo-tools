@@ -200,12 +200,16 @@ export class CargoWorkspace {
 
                 // Process targets for this package
                 for (const target of pkg.targets) {
+                    // Get package directory from manifest path
+                    const packagePath = path.dirname(pkg.manifest_path);
+
                     const cargoTarget = new CargoTarget(
                         target.name,
-                        target.kind,
+                        Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'],
                         target.src_path,
                         target.edition || pkg.edition || '2021',
-                        pkg.name
+                        pkg.name,
+                        packagePath
                     );
                     this._targets.push(cargoTarget);
                 }
@@ -223,19 +227,20 @@ export class CargoWorkspace {
         // Fallback manual discovery when cargo metadata fails
         const srcDir = path.join(this._workspaceRoot, 'src');
         const packageName = this._manifest?.package?.name || path.basename(this._workspaceRoot);
+        const packagePath = this._workspaceRoot; // For manual discovery, package path is workspace root
 
         if (fs.existsSync(srcDir)) {
             // Check for main.rs (binary target)
             const mainPath = path.join(srcDir, 'main.rs');
             if (fs.existsSync(mainPath)) {
-                this._targets.push(new CargoTarget(packageName, ['bin'], mainPath, '2021', packageName));
+                this._targets.push(new CargoTarget(packageName, ['bin'], mainPath, '2021', packageName, packagePath));
             }
 
             // Check for lib.rs (library target)
             const libPath = path.join(srcDir, 'lib.rs');
             if (fs.existsSync(libPath)) {
                 const libName = this._manifest?.lib?.name || packageName;
-                this._targets.push(new CargoTarget(libName, ['lib'], libPath, '2021', packageName));
+                this._targets.push(new CargoTarget(libName, ['lib'], libPath, '2021', packageName, packagePath));
             }
 
             // Check for bin directory (additional binary targets)
@@ -246,7 +251,7 @@ export class CargoWorkspace {
                     for (const file of binFiles) {
                         if (file.endsWith('.rs')) {
                             const name = path.basename(file, '.rs');
-                            this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file), '2021', packageName));
+                            this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file), '2021', packageName, packagePath));
                         }
                     }
                 } catch (error) {
@@ -263,7 +268,7 @@ export class CargoWorkspace {
                 for (const file of exampleFiles) {
                     if (file.endsWith('.rs')) {
                         const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file), '2021', packageName));
+                        this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file), '2021', packageName, packagePath));
                     }
                 }
             } catch (error) {
@@ -279,7 +284,7 @@ export class CargoWorkspace {
                 for (const file of testFiles) {
                     if (file.endsWith('.rs')) {
                         const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file), '2021', packageName));
+                        this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file), '2021', packageName, packagePath));
                     }
                 }
             } catch (error) {
@@ -295,7 +300,7 @@ export class CargoWorkspace {
                 for (const file of benchFiles) {
                     if (file.endsWith('.rs')) {
                         const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file), '2021', packageName));
+                        this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file), '2021', packageName, packagePath));
                     }
                 }
             } catch (error) {
@@ -309,7 +314,7 @@ export class CargoWorkspace {
     private setDefaultTarget(): void {
         if (this._targets.length > 0) {
             // Prefer binary targets over library targets
-            const binTarget = this._targets.find(t => t.kind.includes('bin'));
+            const binTarget = this._targets.find(t => t.kind && Array.isArray(t.kind) && t.kind.includes('bin'));
             this._currentTarget = binTarget || this._targets[0];
             this._onDidChangeTarget.fire(this._currentTarget);
         }
@@ -350,10 +355,12 @@ export class CargoWorkspace {
 
         // Add target
         if (this._currentTarget && command !== 'clean') {
-            if (this._currentTarget.kind.includes('bin')) {
-                args.push('--bin', this._currentTarget.name);
-            } else if (this._currentTarget.kind.includes('lib')) {
-                args.push('--lib');
+            if (this._currentTarget.kind && Array.isArray(this._currentTarget.kind)) {
+                if (this._currentTarget.kind.includes('bin')) {
+                    args.push('--bin', this._currentTarget.name);
+                } else if (this._currentTarget.kind.includes('lib')) {
+                    args.push('--lib');
+                }
             }
         }
 
