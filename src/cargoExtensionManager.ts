@@ -2,9 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTaskProvider } from './cargoTaskProvider';
-import { ProfilesTreeProvider } from './profilesTreeProvider';
-import { TargetsTreeProvider } from './targetsTreeProvider';
-import { WorkspaceTreeProvider } from './workspaceTreeProvider';
 import { CargoProfile } from './cargoProfile';
 import { CargoTarget, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
@@ -28,9 +25,6 @@ export class CargoExtensionManager implements vscode.Disposable {
     // Core components
     private cargoWorkspace?: CargoWorkspace;
     private taskProvider?: CargoTaskProvider;
-    private profilesTreeProvider?: ProfilesTreeProvider;
-    private targetsTreeProvider?: TargetsTreeProvider;
-    private workspaceTreeProvider?: WorkspaceTreeProvider;
 
     // Configuration management
     private readonly workspaceConfig: CargoConfigurationReader = CargoConfigurationReader.create();
@@ -154,11 +148,6 @@ export class CargoExtensionManager implements vscode.Disposable {
         if (!this.cargoWorkspace) {
             return;
         }
-
-        // Initialize tree providers with workspace
-        this.profilesTreeProvider = new ProfilesTreeProvider(this.cargoWorkspace);
-        this.targetsTreeProvider = new TargetsTreeProvider(this.cargoWorkspace);
-        this.workspaceTreeProvider = new WorkspaceTreeProvider(this.cargoWorkspace);
 
         // Initialize task provider
         this.taskProvider = new CargoTaskProvider(this.cargoWorkspace, this.workspaceConfig);

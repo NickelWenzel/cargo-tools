@@ -1,4 +1,9 @@
-# Cargo Tools for Visual Studio Code
+# Cargo Tools for Visual- **Easy Management**: Add and remove commands with simple UI
+
+## Getting Started
+
+1. **Install the Extension**: Search for "Cargo Tools" in VS Code Extensions
+2. **Open a Rust Project**: The extension automatically activates when it detects a `Cargo.toml` filee
 
 ![Cargo Tools](https://img.shields.io/badge/cargo--tools-VS%20Code%20Extension-blue)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
