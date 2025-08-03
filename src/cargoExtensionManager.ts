@@ -199,6 +199,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         // List of commands to register - matches CMake Tools pattern
         const commands: (keyof CargoExtensionManager)[] = [
             'selectProfile',
+            'selectPackage',
             'refresh',
             'executeDefaultBuild',
             'executeDefaultRun',
@@ -318,6 +319,11 @@ export class CargoExtensionManager implements vscode.Disposable {
             // Status bar updates automatically via its own subscription
         });
 
+        const packageChangedSub = this.cargoWorkspace.onDidChangeSelectedPackage((packageName: string | undefined) => {
+            console.log('Package changed:', packageName || 'All packages');
+            // Tree providers update automatically via their own subscriptions
+        });
+
         const targetsChangedSub = this.cargoWorkspace.onDidChangeTargets((targets: CargoTarget[]) => {
             console.log('Targets changed, count:', targets.length);
             // Tree providers update automatically via their own subscriptions
@@ -326,6 +332,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.workspaceSubscriptions.push(
             targetChangedSub,
             profileChangedSub,
+            packageChangedSub,
             targetsChangedSub
         );
     }
@@ -412,6 +419,46 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         if (selected) {
             await this.cargoWorkspace.setProfile(selected.profile);
+        }
+    }
+
+    async selectPackage(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const packageItems: { label: string; package?: string }[] = [];
+
+        if (this.cargoWorkspace.isWorkspace) {
+            // Multi-package workspace
+            packageItems.push({
+                label: 'All packages',
+                package: undefined // No -p flag
+            });
+
+            // Add individual packages
+            for (const member of this.cargoWorkspace.workspaceMembers) {
+                packageItems.push({
+                    label: member,
+                    package: member
+                });
+            }
+        } else {
+            // Single package - no selection needed, but show current state
+            packageItems.push({
+                label: 'default (single package)',
+                package: undefined
+            });
+        }
+
+        const selected = await vscode.window.showQuickPick(packageItems, {
+            placeHolder: 'Select a package to build'
+        });
+
+        if (selected && this.cargoWorkspace.isWorkspace) {
+            // Set the selected package in the workspace
+            // We'll need to add this method to CargoWorkspace
+            await this.cargoWorkspace.setSelectedPackage(selected.package);
         }
     }
 

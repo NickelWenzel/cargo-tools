@@ -35,6 +35,12 @@
         "icon": "$(target)"
       },
       {
+        "command": "cargo-tools.selectPackage",
+        "title": "Select Package",
+        "category": "Cargo Tools",
+        "icon": "$(package)"
+      },
+      {
         "command": "cargo-tools.refresh",
         "title": "Refresh",
         "category": "Cargo Tools",

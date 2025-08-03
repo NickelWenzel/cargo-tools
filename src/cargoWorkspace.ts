@@ -54,13 +54,17 @@ export class CargoWorkspace {
     private _targets: CargoTarget[] = [];
     private _currentProfile: CargoProfile = CargoProfile.dev;
     private _currentTarget: CargoTarget | null = null;
+    private _selectedPackage: string | undefined = undefined; // undefined means "All"
+    private _workspacePackageNames: string[] = []; // Package names from cargo metadata
     private _onDidChangeProfile = new vscode.EventEmitter<CargoProfile>();
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeTargets = new vscode.EventEmitter<CargoTarget[]>();
+    private _onDidChangeSelectedPackage = new vscode.EventEmitter<string | undefined>();
 
     readonly onDidChangeProfile = this._onDidChangeProfile.event;
     readonly onDidChangeTarget = this._onDidChangeTarget.event;
     readonly onDidChangeTargets = this._onDidChangeTargets.event;
+    readonly onDidChangeSelectedPackage = this._onDidChangeSelectedPackage.event;
 
     constructor(workspaceRoot: string) {
         this._workspaceRoot = workspaceRoot;
@@ -86,12 +90,19 @@ export class CargoWorkspace {
         return this._currentTarget;
     }
 
+    get selectedPackage(): string | undefined {
+        return this._selectedPackage;
+    }
+
     get isWorkspace(): boolean {
         return this._manifest?.workspace !== undefined;
     }
 
     get workspaceMembers(): string[] {
-        return this._manifest?.workspace?.members || [];
+        // Use package names from cargo metadata if available, fallback to TOML parsing
+        return this._workspacePackageNames.length > 0
+            ? this._workspacePackageNames
+            : this._manifest?.workspace?.members || [];
     }
 
     getWorkspaceMembers(): Map<string, CargoTarget[]> {
@@ -178,6 +189,7 @@ export class CargoWorkspace {
 
     private async discoverTargets(): Promise<void> {
         this._targets = [];
+        this._workspacePackageNames = [];
 
         try {
             // Use cargo metadata to get accurate target information
@@ -186,6 +198,17 @@ export class CargoWorkspace {
             });
 
             const metadata: CargoMetadata = JSON.parse(stdout);
+
+            // Extract workspace package names from metadata
+            const workspacePackageNames = new Set<string>();
+            for (const pkg of metadata.packages) {
+                const isWorkspaceMember = metadata.workspace_members.some(member => member.includes(pkg.name)) ||
+                    pkg.manifest_path.startsWith(metadata.workspace_root);
+                if (isWorkspaceMember) {
+                    workspacePackageNames.add(pkg.name);
+                }
+            }
+            this._workspacePackageNames = Array.from(workspacePackageNames).sort();
 
             // Process each package in the workspace
             for (const pkg of metadata.packages) {
@@ -331,6 +354,13 @@ export class CargoWorkspace {
         if (this._currentTarget !== target) {
             this._currentTarget = target;
             this._onDidChangeTarget.fire(this._currentTarget);
+        }
+    }
+
+    setSelectedPackage(packageName: string | undefined): void {
+        if (this._selectedPackage !== packageName) {
+            this._selectedPackage = packageName;
+            this._onDidChangeSelectedPackage.fire(this._selectedPackage);
         }
     }
 

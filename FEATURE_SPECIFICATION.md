@@ -26,7 +26,6 @@ The extension will have three main tree panes in the extension sidebar:
   - **Command Line Impact:** Selected package adds `-p <package>` to cargo commands
 
 #### Build Target Selection
-- **Dependencies:** Depends on Package selection
 - **When "All" Package Selected:**
   - Display: Only "All" option available
   - No specific target specification in commands
@@ -42,11 +41,9 @@ The extension will have three main tree panes in the extension sidebar:
     - bin: `--bin <target_name>`
     - example: `--example <target_name>`
     - benchmark: `--bench <target_name>`
-
-#### Action Buttons
-- **Build Button:** Each build target item has inline action button
-- **Command Generation:** `cargo build [profile] [package] [target]` based on selections
-- **Trigger:** Right-side button on build target tree items
+- **Button that will trigger 'cargo build' command:**
+  - Should respect target selection as described above
+- **Implementation:** Dropdown/quick pick interface
 
 ### 2. Project Outline Pane
 **Purpose:** Read-only project structure overview

@@ -25,6 +25,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
 
     private workspace?: CargoWorkspace;
     private isRefreshing = false;
+    private subscriptions: vscode.Disposable[] = [];
 
     constructor() { }
 
@@ -40,7 +41,24 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
     }
 
     updateWorkspace(workspace: CargoWorkspace | undefined): void {
+        // Dispose existing subscriptions
+        for (const subscription of this.subscriptions) {
+            subscription.dispose();
+        }
+        this.subscriptions = [];
+
         this.workspace = workspace;
+
+        // Set up new subscriptions
+        if (this.workspace) {
+            this.subscriptions.push(
+                this.workspace.onDidChangeProfile(() => this.refresh()),
+                this.workspace.onDidChangeSelectedPackage(() => this.refresh()),
+                this.workspace.onDidChangeTarget(() => this.refresh()),
+                this.workspace.onDidChangeTargets(() => this.refresh())
+            );
+        }
+
         this.refresh();
     }
 
@@ -68,18 +86,6 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
     private createRootNodes(): ProjectStatusNode[] {
         const nodes: ProjectStatusNode[] = [];
 
-        // Workspace node
-        const workspaceNode = new ProjectStatusNode(
-            'Workspace',
-            vscode.TreeItemCollapsibleState.Expanded,
-            'workspace',
-            undefined,
-            this.workspace?.workspaceRoot ? vscode.workspace.asRelativePath(this.workspace.workspaceRoot) : undefined,
-            this.workspace?.workspaceRoot
-        );
-        workspaceNode.iconPath = new vscode.ThemeIcon('folder');
-        nodes.push(workspaceNode);
-
         // Build Configuration node
         const configNode = new ProjectStatusNode(
             'Build Configuration',
@@ -89,14 +95,23 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         configNode.iconPath = new vscode.ThemeIcon('settings-gear');
         nodes.push(configNode);
 
-        // Actions node
-        const actionsNode = new ProjectStatusNode(
-            'Actions',
+        // Package Selection node
+        const packageNode = new ProjectStatusNode(
+            'Package Selection',
             vscode.TreeItemCollapsibleState.Expanded,
-            'actions'
+            'packageSelection'
         );
-        actionsNode.iconPath = new vscode.ThemeIcon('play');
-        nodes.push(actionsNode);
+        packageNode.iconPath = new vscode.ThemeIcon('package');
+        nodes.push(packageNode);
+
+        // Build Target Selection node
+        const targetNode = new ProjectStatusNode(
+            'Build Target Selection',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'targetSelection'
+        );
+        targetNode.iconPath = new vscode.ThemeIcon('target');
+        nodes.push(targetNode);
 
         return nodes;
     }
@@ -107,45 +122,15 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         }
 
         switch (element.contextValue) {
-            case 'workspace':
-                return this.createWorkspaceChildren();
             case 'buildConfiguration':
                 return this.createBuildConfigurationChildren();
-            case 'actions':
-                return this.createActionsChildren();
+            case 'packageSelection':
+                return this.createPackageSelectionChildren();
+            case 'targetSelection':
+                return this.createTargetSelectionChildren();
             default:
                 return [];
         }
-    }
-
-    private createWorkspaceChildren(): ProjectStatusNode[] {
-        if (!this.workspace) {
-            return [];
-        }
-
-        const nodes: ProjectStatusNode[] = [];
-
-        // Project node
-        const projectName = this.workspace.manifest?.package?.name ||
-            this.workspace.workspaceMembers[0] ||
-            'Unknown Project';
-        const cargoTomlPath = `${this.workspace.workspaceRoot}/Cargo.toml`;
-        const projectNode = new ProjectStatusNode(
-            projectName,
-            vscode.TreeItemCollapsibleState.None,
-            'project',
-            {
-                command: 'vscode.open',
-                title: 'Open Cargo.toml',
-                arguments: [vscode.Uri.file(cargoTomlPath)]
-            },
-            'Active Project',
-            'Click to open Cargo.toml'
-        );
-        projectNode.iconPath = new vscode.ThemeIcon('package');
-        nodes.push(projectNode);
-
-        return nodes;
     }
 
     private createBuildConfigurationChildren(): ProjectStatusNode[] {
@@ -171,21 +156,153 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         profileNode.iconPath = new vscode.ThemeIcon('settings');
         nodes.push(profileNode);
 
-        // Default target node
-        const defaultTarget = this.workspace.currentTarget;
-        const targetNode = new ProjectStatusNode(
-            defaultTarget?.name || '[No Target Selected]',
+        return nodes;
+    }
+
+    private createPackageSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const nodes: ProjectStatusNode[] = [];
+
+        if (this.workspace.isWorkspace) {
+            // Multi-package workspace - show current selection with dropdown
+            const selectedPackage = this.workspace.selectedPackage;
+            const displayName = selectedPackage || 'All packages';
+
+            const packageNode = new ProjectStatusNode(
+                displayName,
+                vscode.TreeItemCollapsibleState.None,
+                'package',
+                {
+                    command: 'cargo-tools.selectPackage',
+                    title: 'Change Package Selection'
+                },
+                'Package Selection',
+                'Click to change package selection'
+            );
+            packageNode.iconPath = new vscode.ThemeIcon('package');
+            nodes.push(packageNode);
+        } else {
+            // Single package - read-only display
+            const defaultNode = new ProjectStatusNode(
+                'default',
+                vscode.TreeItemCollapsibleState.None,
+                'package-default',
+                undefined,
+                'Single package',
+                'Single package project'
+            );
+            defaultNode.iconPath = new vscode.ThemeIcon('package');
+            nodes.push(defaultNode);
+        }
+
+        return nodes;
+    }
+
+    private createTargetSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const nodes: ProjectStatusNode[] = [];
+
+        // Add "All" option
+        const allNode = new ProjectStatusNode(
+            'All',
             vscode.TreeItemCollapsibleState.None,
-            'defaultTarget',
-            {
-                command: 'cargo-tools.selectTarget',
-                title: 'Change Default Target'
-            },
-            'Default Target',
-            'Click to change default target'
+            'target-all',
+            undefined,
+            'All targets',
+            'Build all targets (no target specification)'
         );
-        targetNode.iconPath = new vscode.ThemeIcon('target');
-        nodes.push(targetNode);
+        allNode.iconPath = new vscode.ThemeIcon('target');
+        nodes.push(allNode);
+
+        // Group targets by type
+        const targetsByType = new Map<string, string[]>();
+
+        for (const target of this.workspace.targets) {
+            for (const kind of target.kind) {
+                if (!targetsByType.has(kind)) {
+                    targetsByType.set(kind, []);
+                }
+                targetsByType.get(kind)!.push(target.name);
+            }
+        }
+
+        // Add library if exists
+        if (targetsByType.has('lib')) {
+            const libNode = new ProjectStatusNode(
+                'lib',
+                vscode.TreeItemCollapsibleState.None,
+                'target-lib',
+                undefined,
+                'Library target',
+                'Build library (--lib)'
+            );
+            libNode.iconPath = new vscode.ThemeIcon('library');
+            nodes.push(libNode);
+        }
+
+        // Add binaries group
+        if (targetsByType.has('bin')) {
+            const binTargets = targetsByType.get('bin')!;
+            if (binTargets.length === 1) {
+                const binNode = new ProjectStatusNode(
+                    `bin: ${binTargets[0]}`,
+                    vscode.TreeItemCollapsibleState.None,
+                    'target-bin',
+                    undefined,
+                    'Binary target',
+                    `Build binary: ${binTargets[0]}`
+                );
+                binNode.iconPath = new vscode.ThemeIcon('file-binary');
+                nodes.push(binNode);
+            } else {
+                const binsNode = new ProjectStatusNode(
+                    'bins',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    'target-bins-group',
+                    undefined,
+                    `${binTargets.length} binaries`,
+                    'Binary targets group'
+                );
+                binsNode.iconPath = new vscode.ThemeIcon('file-binary');
+                nodes.push(binsNode);
+            }
+        }
+
+        // Add examples group
+        if (targetsByType.has('example')) {
+            const exampleTargets = targetsByType.get('example')!;
+            const examplesNode = new ProjectStatusNode(
+                'examples',
+                vscode.TreeItemCollapsibleState.Collapsed,
+                'target-examples-group',
+                undefined,
+                `${exampleTargets.length} examples`,
+                'Example targets group'
+            );
+            examplesNode.iconPath = new vscode.ThemeIcon('file-code');
+            nodes.push(examplesNode);
+        }
+
+        // Add benchmarks group
+        if (targetsByType.has('bench')) {
+            const benchTargets = targetsByType.get('bench')!;
+            const benchmarksNode = new ProjectStatusNode(
+                'benchmarks',
+                vscode.TreeItemCollapsibleState.Collapsed,
+                'target-benchmarks-group',
+                undefined,
+                `${benchTargets.length} benchmarks`,
+                'Benchmark targets group'
+            );
+            benchmarksNode.iconPath = new vscode.ThemeIcon('dashboard');
+            nodes.push(benchmarksNode);
+        }
 
         return nodes;
     }
