@@ -543,8 +543,8 @@ export class CargoExtensionManager implements vscode.Disposable {
         });
 
         if (selected) {
-            // TODO: Store build target selection and update UI
-            vscode.window.showInformationMessage(`Selected build target: ${selected.label}`);
+            // Store build target selection
+            this.cargoWorkspace.setSelectedBuildTarget(selected.label);
         }
     }
 
@@ -600,8 +600,8 @@ export class CargoExtensionManager implements vscode.Disposable {
         });
 
         if (selected) {
-            // TODO: Store run target selection and update UI
-            vscode.window.showInformationMessage(`Selected run target: ${selected.label}`);
+            // Store run target selection
+            this.cargoWorkspace.setSelectedRunTarget(selected.label);
         }
     }
 
@@ -646,8 +646,8 @@ export class CargoExtensionManager implements vscode.Disposable {
         });
 
         if (selected) {
-            // TODO: Store benchmark target selection and update UI
-            vscode.window.showInformationMessage(`Selected benchmark target: ${selected.label}`);
+            // Store benchmark target selection
+            this.cargoWorkspace.setSelectedBenchmarkTarget(selected.label);
         }
     }
 

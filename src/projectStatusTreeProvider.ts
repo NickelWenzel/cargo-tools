@@ -56,7 +56,10 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 this.workspace.onDidChangeProfile(() => this.refresh()),
                 this.workspace.onDidChangeSelectedPackage(() => this.refresh()),
                 this.workspace.onDidChangeTarget(() => this.refresh()),
-                this.workspace.onDidChangeTargets(() => this.refresh())
+                this.workspace.onDidChangeTargets(() => this.refresh()),
+                this.workspace.onDidChangeSelectedBuildTarget(() => this.refresh()),
+                this.workspace.onDidChangeSelectedRunTarget(() => this.refresh()),
+                this.workspace.onDidChangeSelectedBenchmarkTarget(() => this.refresh())
             );
         }
 
@@ -129,6 +132,12 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 return this.createPackageSelectionChildren();
             case 'targetSelection':
                 return this.createTargetSelectionChildren();
+            case 'buildTargetSelection':
+                return this.createBuildTargetSelectionChildren();
+            case 'runTargetSelection':
+                return this.createRunTargetSelectionChildren();
+            case 'benchmarkTargetSelection':
+                return this.createBenchmarkTargetSelectionChildren();
             default:
                 return [];
         }
@@ -212,13 +221,10 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         // Build Target Selection
         const buildTargetNode = new ProjectStatusNode(
             'Build Target Selection',
-            vscode.TreeItemCollapsibleState.None,
+            vscode.TreeItemCollapsibleState.Expanded,
             'buildTargetSelection',
-            {
-                command: 'cargo-tools.selectBuildTarget',
-                title: 'Select Build Target'
-            },
-            'Click to select build target',
+            undefined,
+            'Build target selection',
             'Select which target to build'
         );
         buildTargetNode.iconPath = new vscode.ThemeIcon('tools');
@@ -227,13 +233,10 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         // Run Target Selection
         const runTargetNode = new ProjectStatusNode(
             'Run Target Selection',
-            vscode.TreeItemCollapsibleState.None,
+            vscode.TreeItemCollapsibleState.Expanded,
             'runTargetSelection',
-            {
-                command: 'cargo-tools.selectRunTarget',
-                title: 'Select Run Target'
-            },
-            'Click to select run target',
+            undefined,
+            'Run target selection',
             'Select which target to run'
         );
         runTargetNode.iconPath = new vscode.ThemeIcon('play');
@@ -242,13 +245,10 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         // Benchmark Target Selection
         const benchmarkTargetNode = new ProjectStatusNode(
             'Benchmark Target Selection',
-            vscode.TreeItemCollapsibleState.None,
+            vscode.TreeItemCollapsibleState.Expanded,
             'benchmarkTargetSelection',
-            {
-                command: 'cargo-tools.selectBenchmarkTarget',
-                title: 'Select Benchmark Target'
-            },
-            'Click to select benchmark target',
+            undefined,
+            'Benchmark target selection',
             'Select which benchmark to run'
         );
         benchmarkTargetNode.iconPath = new vscode.ThemeIcon('dashboard');
@@ -321,5 +321,242 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         nodes.push(benchNode);
 
         return nodes;
+    }
+
+    private createBuildTargetSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const selectedBuildTarget = this.workspace.selectedBuildTarget;
+
+        if (selectedBuildTarget) {
+            // Show selected target with command to change selection
+            const node = new ProjectStatusNode(
+                selectedBuildTarget,
+                vscode.TreeItemCollapsibleState.None,
+                'selected-build-target',
+                {
+                    command: 'cargo-tools.selectBuildTarget',
+                    title: 'Change Build Target'
+                },
+                `Selected build target: ${selectedBuildTarget}`,
+                `Click to change build target`
+            );
+            node.iconPath = new vscode.ThemeIcon('check');
+            return [node];
+        } else {
+            // Show default "All" or disabled state
+            const selectedPackage = this.workspace.selectedPackage;
+            if (!selectedPackage) {
+                // "All" packages selected - show "All targets" option
+                const node = new ProjectStatusNode(
+                    'All targets',
+                    vscode.TreeItemCollapsibleState.None,
+                    'default-build-target',
+                    {
+                        command: 'cargo-tools.selectBuildTarget',
+                        title: 'Select Build Target'
+                    },
+                    'Build all targets (default)',
+                    'Click to select specific build target'
+                );
+                node.iconPath = new vscode.ThemeIcon('target');
+                return [node];
+            } else {
+                // Specific package selected - show "All targets in package" option
+                const node = new ProjectStatusNode(
+                    'All targets',
+                    vscode.TreeItemCollapsibleState.None,
+                    'default-build-target',
+                    {
+                        command: 'cargo-tools.selectBuildTarget',
+                        title: 'Select Build Target'
+                    },
+                    `Build all targets in ${selectedPackage} (default)`,
+                    'Click to select specific build target'
+                );
+                node.iconPath = new vscode.ThemeIcon('target');
+                return [node];
+            }
+        }
+    }
+
+    private createRunTargetSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const selectedRunTarget = this.workspace.selectedRunTarget;
+
+        if (selectedRunTarget) {
+            // Show selected target with command to change selection
+            const node = new ProjectStatusNode(
+                selectedRunTarget,
+                vscode.TreeItemCollapsibleState.None,
+                'selected-run-target',
+                {
+                    command: 'cargo-tools.selectRunTarget',
+                    title: 'Change Run Target'
+                },
+                `Selected run target: ${selectedRunTarget}`,
+                `Click to change run target`
+            );
+            node.iconPath = new vscode.ThemeIcon('check');
+            return [node];
+        } else {
+            // Show disabled or default state
+            const selectedPackage = this.workspace.selectedPackage;
+            if (!selectedPackage) {
+                // "All" packages selected - disabled
+                const node = new ProjectStatusNode(
+                    'Disabled when "All" packages selected',
+                    vscode.TreeItemCollapsibleState.None,
+                    'disabled-run-target',
+                    undefined,
+                    'Select a specific package to run targets',
+                    'Run targets require a specific package selection'
+                );
+                node.iconPath = new vscode.ThemeIcon('circle-slash');
+                return [node];
+            } else {
+                // Specific package selected - check if runnable targets exist
+                const packageTargets = this.getTargetsForPackage(selectedPackage);
+                const targetsByType = this.groupTargetsByType(packageTargets);
+                const hasRunnableTargets = targetsByType.has('bin') || targetsByType.has('example');
+
+                if (hasRunnableTargets) {
+                    // Show default "Auto-detect" option
+                    const node = new ProjectStatusNode(
+                        'Auto-detect',
+                        vscode.TreeItemCollapsibleState.None,
+                        'default-run-target',
+                        {
+                            command: 'cargo-tools.selectRunTarget',
+                            title: 'Select Run Target'
+                        },
+                        'Auto-detect run target (default)',
+                        'Click to select specific run target'
+                    );
+                    node.iconPath = new vscode.ThemeIcon('play');
+                    return [node];
+                } else {
+                    // No runnable targets in package
+                    const node = new ProjectStatusNode(
+                        'No runnable targets in package',
+                        vscode.TreeItemCollapsibleState.None,
+                        'no-run-targets',
+                        undefined,
+                        'No binaries or examples to run',
+                        'This package has no runnable targets'
+                    );
+                    node.iconPath = new vscode.ThemeIcon('circle-slash');
+                    return [node];
+                }
+            }
+        }
+    }
+
+    private createBenchmarkTargetSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const selectedBenchmarkTarget = this.workspace.selectedBenchmarkTarget;
+
+        if (selectedBenchmarkTarget) {
+            // Show selected target with command to change selection
+            const node = new ProjectStatusNode(
+                selectedBenchmarkTarget,
+                vscode.TreeItemCollapsibleState.None,
+                'selected-benchmark-target',
+                {
+                    command: 'cargo-tools.selectBenchmarkTarget',
+                    title: 'Change Benchmark Target'
+                },
+                `Selected benchmark target: ${selectedBenchmarkTarget}`,
+                `Click to change benchmark target`
+            );
+            node.iconPath = new vscode.ThemeIcon('check');
+            return [node];
+        } else {
+            // Show default "All" or disabled state
+            const selectedPackage = this.workspace.selectedPackage;
+            if (!selectedPackage) {
+                // "All" packages selected - show "All benchmarks" option
+                const node = new ProjectStatusNode(
+                    'All benchmarks',
+                    vscode.TreeItemCollapsibleState.None,
+                    'default-benchmark-target',
+                    {
+                        command: 'cargo-tools.selectBenchmarkTarget',
+                        title: 'Select Benchmark Target'
+                    },
+                    'Run all benchmarks (default)',
+                    'Click to select specific benchmark target'
+                );
+                node.iconPath = new vscode.ThemeIcon('dashboard');
+                return [node];
+            } else {
+                // Specific package selected - check if benchmark targets exist
+                const packageTargets = this.getTargetsForPackage(selectedPackage);
+                const targetsByType = this.groupTargetsByType(packageTargets);
+                const hasBenchmarkTargets = targetsByType.has('bench');
+
+                if (hasBenchmarkTargets) {
+                    // Show default "All benchmarks in package" option
+                    const node = new ProjectStatusNode(
+                        'All benchmarks',
+                        vscode.TreeItemCollapsibleState.None,
+                        'default-benchmark-target',
+                        {
+                            command: 'cargo-tools.selectBenchmarkTarget',
+                            title: 'Select Benchmark Target'
+                        },
+                        `Run all benchmarks in ${selectedPackage} (default)`,
+                        'Click to select specific benchmark target'
+                    );
+                    node.iconPath = new vscode.ThemeIcon('dashboard');
+                    return [node];
+                } else {
+                    // No benchmark targets in package
+                    const node = new ProjectStatusNode(
+                        'No benchmarks in package',
+                        vscode.TreeItemCollapsibleState.None,
+                        'no-benchmark-targets',
+                        undefined,
+                        'No benchmark targets',
+                        'This package has no benchmark targets'
+                    );
+                    node.iconPath = new vscode.ThemeIcon('circle-slash');
+                    return [node];
+                }
+            }
+        }
+    }
+
+    private getTargetsForPackage(packageName: string): CargoTarget[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        return this.workspace.targets.filter(target => target.packageName === packageName);
+    }
+
+    private groupTargetsByType(targets: CargoTarget[]): Map<string, CargoTarget[]> {
+        const groups = new Map<string, CargoTarget[]>();
+
+        for (const target of targets) {
+            const types = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
+
+            for (const type of types) {
+                if (!groups.has(type)) {
+                    groups.set(type, []);
+                }
+                groups.get(type)!.push(target);
+            }
+        }
+
+        return groups;
     }
 }

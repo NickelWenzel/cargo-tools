@@ -56,15 +56,24 @@ export class CargoWorkspace {
     private _currentTarget: CargoTarget | null = null;
     private _selectedPackage: string | undefined = undefined; // undefined means "All"
     private _workspacePackageNames: string[] = []; // Package names from cargo metadata
+    private _selectedBuildTarget: string | null = null; // Selected build target
+    private _selectedRunTarget: string | null = null; // Selected run target
+    private _selectedBenchmarkTarget: string | null = null; // Selected benchmark target
     private _onDidChangeProfile = new vscode.EventEmitter<CargoProfile>();
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeTargets = new vscode.EventEmitter<CargoTarget[]>();
     private _onDidChangeSelectedPackage = new vscode.EventEmitter<string | undefined>();
+    private _onDidChangeSelectedBuildTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedRunTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedBenchmarkTarget = new vscode.EventEmitter<string | null>();
 
     readonly onDidChangeProfile = this._onDidChangeProfile.event;
     readonly onDidChangeTarget = this._onDidChangeTarget.event;
     readonly onDidChangeTargets = this._onDidChangeTargets.event;
     readonly onDidChangeSelectedPackage = this._onDidChangeSelectedPackage.event;
+    readonly onDidChangeSelectedBuildTarget = this._onDidChangeSelectedBuildTarget.event;
+    readonly onDidChangeSelectedRunTarget = this._onDidChangeSelectedRunTarget.event;
+    readonly onDidChangeSelectedBenchmarkTarget = this._onDidChangeSelectedBenchmarkTarget.event;
 
     constructor(workspaceRoot: string) {
         this._workspaceRoot = workspaceRoot;
@@ -92,6 +101,18 @@ export class CargoWorkspace {
 
     get selectedPackage(): string | undefined {
         return this._selectedPackage;
+    }
+
+    get selectedBuildTarget(): string | null {
+        return this._selectedBuildTarget;
+    }
+
+    get selectedRunTarget(): string | null {
+        return this._selectedRunTarget;
+    }
+
+    get selectedBenchmarkTarget(): string | null {
+        return this._selectedBenchmarkTarget;
     }
 
     get isWorkspace(): boolean {
@@ -360,7 +381,57 @@ export class CargoWorkspace {
     setSelectedPackage(packageName: string | undefined): void {
         if (this._selectedPackage !== packageName) {
             this._selectedPackage = packageName;
+
+            // Reset target selections when package changes
+            // because targets are package-specific
+            this.resetTargetSelections();
+
             this._onDidChangeSelectedPackage.fire(this._selectedPackage);
+        }
+    }
+
+    setSelectedBuildTarget(targetName: string | null): void {
+        if (this._selectedBuildTarget !== targetName) {
+            this._selectedBuildTarget = targetName;
+            this._onDidChangeSelectedBuildTarget.fire(this._selectedBuildTarget);
+        }
+    }
+
+    setSelectedRunTarget(targetName: string | null): void {
+        if (this._selectedRunTarget !== targetName) {
+            this._selectedRunTarget = targetName;
+            this._onDidChangeSelectedRunTarget.fire(this._selectedRunTarget);
+        }
+    }
+
+    setSelectedBenchmarkTarget(targetName: string | null): void {
+        if (this._selectedBenchmarkTarget !== targetName) {
+            this._selectedBenchmarkTarget = targetName;
+            this._onDidChangeSelectedBenchmarkTarget.fire(this._selectedBenchmarkTarget);
+        }
+    }
+
+    private resetTargetSelections(): void {
+        // Reset all target selections when package changes
+        // This ensures that selected targets are valid for the new package context
+
+        const oldBuildTarget = this._selectedBuildTarget;
+        const oldRunTarget = this._selectedRunTarget;
+        const oldBenchmarkTarget = this._selectedBenchmarkTarget;
+
+        this._selectedBuildTarget = null;
+        this._selectedRunTarget = null;
+        this._selectedBenchmarkTarget = null;
+
+        // Fire events only if there were actual changes
+        if (oldBuildTarget !== null) {
+            this._onDidChangeSelectedBuildTarget.fire(this._selectedBuildTarget);
+        }
+        if (oldRunTarget !== null) {
+            this._onDidChangeSelectedRunTarget.fire(this._selectedRunTarget);
+        }
+        if (oldBenchmarkTarget !== null) {
+            this._onDidChangeSelectedBenchmarkTarget.fire(this._selectedBenchmarkTarget);
         }
     }
 
