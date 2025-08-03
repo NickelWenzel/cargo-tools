@@ -235,7 +235,7 @@
       "view/title": [
         {
           "command": "cargo-tools.refresh",
-          "when": "view == cargoToolsProjectStatus || view == cargoToolsProjectOutline",
+          "when": "view == cargoToolsProjectStatus",
           "group": "navigation"
         },
         {
@@ -249,31 +249,6 @@
           "command": "cargo-tools.pinnedCommands.remove",
           "when": "view == cargoToolsPinnedCommands && viewItem == pinnedCommand",
           "group": "inline"
-        },
-        {
-          "command": "cargo-tools.buildTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget/",
-          "group": "target@1"
-        },
-        {
-          "command": "cargo-tools.runTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isExecutable/",
-          "group": "target@2"
-        },
-        {
-          "command": "cargo-tools.testTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isTest/",
-          "group": "target@3"
-        },
-        {
-          "command": "cargo-tools.debugTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isExecutable/",
-          "group": "target@4"
-        },
-        {
-          "command": "cargo-tools.setAsDefaultTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget/",
-          "group": "default@1"
         }
       ],
       "commandPalette": [
