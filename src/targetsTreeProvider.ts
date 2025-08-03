@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
-import { CargoTarget } from './cargoTarget';
+import { CargoTarget, TargetActionType } from './cargoTarget';
 
 export class TargetTreeItem extends vscode.TreeItem {
     constructor(
@@ -10,9 +10,12 @@ export class TargetTreeItem extends vscode.TreeItem {
         super(target.displayName, vscode.TreeItemCollapsibleState.None);
 
         this.tooltip = `Target: ${target.name}\nKind: ${target.kind.join(', ')}\nPath: ${target.srcPath}`;
-        
+
         // Build context value with target capabilities for context menu
+        // Build context value for menu contributions
         const contextParts = ['cargoTarget'];
+
+        // Add traditional type-based contexts for backward compatibility
         if (target.isExecutable) {
             contextParts.push('cargoTarget.isExecutable');
         }
@@ -25,13 +28,14 @@ export class TargetTreeItem extends vscode.TreeItem {
         if (target.isExample) {
             contextParts.push('cargoTarget.isExample');
         }
+
+        // Add action-based contexts for new features
+        const supportedActions = target.supportedActionTypes;
+        for (const action of supportedActions) {
+            contextParts.push(`cargoTarget.supports${action.charAt(0).toUpperCase() + action.slice(1)}`);
+        }
+
         this.contextValue = contextParts.join(' && ');
-        
-        this.command = {
-            command: 'cargo-tools.selectTarget',
-            title: 'Select Target',
-            arguments: [target]
-        };
 
         // Set icon based on target type following CMake Tools patterns
         if (target.isExecutable) {

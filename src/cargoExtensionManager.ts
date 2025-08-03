@@ -2,12 +2,11 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTaskProvider } from './cargoTaskProvider';
-import { StatusBarProvider } from './statusBarProvider';
 import { ProfilesTreeProvider } from './profilesTreeProvider';
 import { TargetsTreeProvider } from './targetsTreeProvider';
 import { WorkspaceTreeProvider } from './workspaceTreeProvider';
 import { CargoProfile } from './cargoProfile';
-import { CargoTarget } from './cargoTarget';
+import { CargoTarget, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
 
 /**
@@ -29,7 +28,6 @@ export class CargoExtensionManager implements vscode.Disposable {
     // Core components
     private cargoWorkspace?: CargoWorkspace;
     private taskProvider?: CargoTaskProvider;
-    private statusBarProvider?: StatusBarProvider;
     private profilesTreeProvider?: ProfilesTreeProvider;
     private targetsTreeProvider?: TargetsTreeProvider;
     private workspaceTreeProvider?: WorkspaceTreeProvider;
@@ -37,11 +35,18 @@ export class CargoExtensionManager implements vscode.Disposable {
     // Configuration management
     private readonly workspaceConfig: CargoConfigurationReader = CargoConfigurationReader.create();
 
+    // Default target tracking for each action type
+    private defaultTargets: Map<TargetActionType, CargoTarget | null> = new Map([
+        [TargetActionType.Build, null],
+        [TargetActionType.Run, null],
+        [TargetActionType.Test, null],
+        [TargetActionType.Bench, null]
+    ]);
+
     // Subscriptions for cleanup
     private subscriptions: vscode.Disposable[] = [];
     private workspaceSubscriptions: vscode.Disposable[] = [];
     private commandsRegistered = false; // Guard flag to prevent double registration
-    private statusBarCreated = false; // Guard flag to prevent double status bar creation
 
     private constructor(private readonly extensionContext: vscode.ExtensionContext) { }
 
@@ -127,11 +132,6 @@ export class CargoExtensionManager implements vscode.Disposable {
             }),
 
             // UI configuration monitoring
-            this.workspaceConfig.onChange('statusBar', async (statusBarConfig) => {
-                console.log(`Status bar configuration changed:`, statusBarConfig);
-                this.updateStatusBarVisibility(statusBarConfig);
-            }),
-
             this.workspaceConfig.onChange('treeView', async (treeViewConfig) => {
                 console.log(`Tree view configuration changed:`, treeViewConfig);
                 this.updateTreeViewVisibility(treeViewConfig);
@@ -153,14 +153,6 @@ export class CargoExtensionManager implements vscode.Disposable {
     private async initializeWorkspaceComponents(): Promise<void> {
         if (!this.cargoWorkspace) {
             return;
-        }
-
-        // Initialize status bar with workspace (only once)
-        if (!this.statusBarCreated) {
-            this.statusBarProvider = new StatusBarProvider(this.cargoWorkspace);
-            this.subscriptions.push(this.statusBarProvider);
-            this.statusBarCreated = true;
-            console.log('Status bar provider created');
         }
 
         // Initialize tree providers with workspace
@@ -217,19 +209,20 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         // List of commands to register - matches CMake Tools pattern
         const commands: (keyof CargoExtensionManager)[] = [
-            'build',
-            'run',
-            'test',
-            'debug',
-            'clean',
             'selectProfile',
-            'selectTarget',
             'refresh',
-            'buildTarget',
-            'runTarget',
-            'testTarget',
-            'debugTarget',
-            'setAsDefaultTarget'
+            'executeDefaultBuild',
+            'executeDefaultRun',
+            'executeDefaultTest',
+            'executeDefaultBench',
+            'setAsDefaultBuildTarget',
+            'setAsDefaultRunTarget',
+            'setAsDefaultTestTarget',
+            'setAsDefaultBenchTarget',
+            'executeBuildAction',
+            'executeRunAction',
+            'executeTestAction',
+            'executeBenchAction'
         ];
 
         // Clear any existing command registrations to prevent duplicates
@@ -364,16 +357,6 @@ export class CargoExtensionManager implements vscode.Disposable {
     /**
      * Update status bar visibility based on configuration
      */
-    private updateStatusBarVisibility(config: { visible: boolean; showProfile: boolean; showTarget: boolean }): void {
-        if (!this.statusBarProvider) {
-            return;
-        }
-
-        // Note: Current StatusBarProvider doesn't have visibility controls
-        // This is a placeholder for future enhancement
-        console.log('Status bar visibility updated:', config);
-    }
-
     /**
      * Update tree view visibility based on configuration
      */
@@ -423,75 +406,6 @@ export class CargoExtensionManager implements vscode.Disposable {
     }
 
     // Command implementations
-    async build(): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        const target = this.cargoWorkspace.currentTarget;
-        const profile = this.cargoWorkspace.currentProfile;
-
-        await this.executeCargoCommand('build');
-    }
-
-    async run(): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        const target = this.cargoWorkspace.currentTarget;
-        if (!target || !target.isExecutable) {
-            throw new Error('Selected target is not executable');
-        }
-
-        await this.executeCargoCommand('run');
-    }
-
-    async test(): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        await this.executeCargoCommand('test');
-    }
-
-    async debug(): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        const target = this.cargoWorkspace.currentTarget;
-        if (!target || !target.isExecutable) {
-            throw new Error('Selected target is not executable');
-        }
-
-        // Build first
-        await this.executeCargoCommand('build');
-
-        // Start debugging session
-        const debugConfig = {
-            name: 'Debug Rust',
-            type: 'cppdbg',
-            request: 'launch',
-            program: this.getTargetExecutablePath(),
-            cwd: this.cargoWorkspace.workspaceRoot,
-            args: [],
-            stopAtEntry: false,
-            environment: [],
-            console: 'integratedTerminal'
-        };
-
-        await vscode.debug.startDebugging(undefined, debugConfig);
-    }
-
-    async clean(): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        await this.executeCargoCommand('clean');
-    }
-
     async selectProfile(): Promise<void> {
         if (!this.cargoWorkspace) {
             return;
@@ -512,31 +426,121 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
     }
 
-    async selectTarget(): Promise<void> {
-        if (!this.cargoWorkspace) {
-            return;
-        }
-
-        const targets = this.cargoWorkspace.targets;
-        const items = targets.map(target => ({
-            label: target.name,
-            description: `${target.kind} in ${target.packageName || 'main'}`,
-            target: target
-        }));
-
-        const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: 'Select a target'
-        });
-
-        if (selected) {
-            await this.cargoWorkspace.setTarget(selected.target);
-        }
-    }
-
     async refresh(): Promise<void> {
         if (this.cargoWorkspace) {
             await this.cargoWorkspace.initialize();
             vscode.window.showInformationMessage('Cargo workspace refreshed');
+        }
+    }
+
+    // Default target management
+
+    /**
+     * Set the default target for a specific action type
+     */
+    async setDefaultTarget(actionType: TargetActionType, target: CargoTarget | null): Promise<void> {
+        if (target && !target.supportsActionType(actionType)) {
+            throw new Error(`Target ${target.name} does not support action type ${actionType}`);
+        }
+
+        this.defaultTargets.set(actionType, target);
+
+        // Store in workspace state for persistence
+        const key = `cargo-tools.defaultTarget.${actionType}`;
+        await this.extensionContext.workspaceState.update(key, target ? {
+            name: target.name,
+            packageName: target.packageName,
+            kind: target.kind
+        } : null);
+
+        vscode.window.showInformationMessage(
+            target
+                ? `Set ${target.name} as default ${actionType} target`
+                : `Cleared default ${actionType} target`
+        );
+    }
+
+    /**
+     * Get the default target for a specific action type
+     */
+    getDefaultTarget(actionType: TargetActionType): CargoTarget | null {
+        return this.defaultTargets.get(actionType) || null;
+    }
+
+    /**
+     * Execute an action using the default target for that action type
+     */
+    async executeDefaultAction(actionType: TargetActionType): Promise<void> {
+        const defaultTarget = this.getDefaultTarget(actionType);
+
+        if (!defaultTarget) {
+            // No default target set, show selection dialog
+            await this.selectAndExecuteAction(actionType);
+            return;
+        }
+
+        await this.executeTargetAction(defaultTarget, actionType);
+    }
+
+    /**
+     * Execute a specific action on a specific target
+     */
+    async executeTargetAction(target: CargoTarget, actionType: TargetActionType): Promise<void> {
+        if (!target.supportsActionType(actionType)) {
+            throw new Error(`Target ${target.name} does not support action type ${actionType}`);
+        }
+
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        const command = target.getCargoCommand(actionType);
+        const targetArgs = target.getTargetArgs(actionType);
+
+        await this.executeCargoCommandForTarget(command, target);
+    }
+
+    /**
+     * Show target selection dialog for a specific action type and execute
+     */
+    async selectAndExecuteAction(actionType: TargetActionType): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        // Filter targets that support the action type
+        const supportedTargets = this.cargoWorkspace.targets.filter(target =>
+            target.supportsActionType(actionType)
+        );
+
+        if (supportedTargets.length === 0) {
+            vscode.window.showWarningMessage(`No targets support ${actionType} action`);
+            return;
+        }
+
+        const items = supportedTargets.map(target => ({
+            label: target.name,
+            description: `${target.kind.join(', ')} in ${target.packageName || 'main'}`,
+            detail: `Supports: ${target.supportedActionTypes.join(', ')}`,
+            target: target
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: `Select a target to ${actionType}`
+        });
+
+        if (selected) {
+            await this.executeTargetAction(selected.target, actionType);
+
+            // Optionally ask to set as default
+            const setAsDefault = await vscode.window.showInformationMessage(
+                `Set ${selected.target.name} as default ${actionType} target?`,
+                'Yes', 'No'
+            );
+
+            if (setAsDefault === 'Yes') {
+                await this.setDefaultTarget(actionType, selected.target);
+            }
         }
     }
 
@@ -586,98 +590,56 @@ export class CargoExtensionManager implements vscode.Disposable {
         terminal.show();
     }
 
-    /**
-     * Get the executable path for the current target
-     */
-    private getTargetExecutablePath(): string {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
+    // Command wrappers for new action-based commands
 
-        const target = this.cargoWorkspace.currentTarget;
-        if (!target) {
-            throw new Error('No target selected');
-        }
-
-        const profile = this.cargoWorkspace.currentProfile === CargoProfile.release ? 'release' : 'debug';
-        return path.join(this.cargoWorkspace.workspaceRoot, 'target', profile, target.name);
+    async executeDefaultBuild(): Promise<void> {
+        await this.executeDefaultAction(TargetActionType.Build);
     }
 
-    // Target-specific commands following CMake Tools patterns
-    async buildTarget(target: CargoTarget): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        const kindStr = target.kind && Array.isArray(target.kind) ? target.kind.join(', ') : 'unknown';
-        console.log(`Building target: ${target.name} (${kindStr})`);
-        await this.executeCargoCommandForTarget('build', target);
+    async executeDefaultRun(): Promise<void> {
+        await this.executeDefaultAction(TargetActionType.Run);
     }
 
-    async runTarget(target: CargoTarget): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        if (!target.isExecutable && !target.isExample) {
-            throw new Error(`Target ${target.name} is not executable`);
-        }
-
-        console.log(`Running target: ${target.name}`);
-        await this.executeCargoCommandForTarget('run', target);
+    async executeDefaultTest(): Promise<void> {
+        await this.executeDefaultAction(TargetActionType.Test);
     }
 
-    async testTarget(target: CargoTarget): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        if (!target.isTest) {
-            throw new Error(`Target ${target.name} is not a test target`);
-        }
-
-        console.log(`Testing target: ${target.name}`);
-        await this.executeCargoCommandForTarget('test', target);
+    async executeDefaultBench(): Promise<void> {
+        await this.executeDefaultAction(TargetActionType.Bench);
     }
 
-    async debugTarget(target: CargoTarget): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
+    // Context menu command wrappers for specific targets
 
-        if (!target.isExecutable) {
-            throw new Error(`Target ${target.name} is not executable`);
-        }
-
-        console.log(`Debugging target: ${target.name}`);
-
-        // Build the target first
-        await this.executeCargoCommandForTarget('build', target);
-
-        // Start debugging session for the specific target
-        const debugConfig = {
-            name: `Debug ${target.name}`,
-            type: 'cppdbg',
-            request: 'launch',
-            program: this.getTargetExecutablePathForTarget(target),
-            cwd: this.cargoWorkspace.workspaceRoot,
-            args: [],
-            stopAtEntry: false,
-            environment: [],
-            console: 'integratedTerminal'
-        };
-
-        await vscode.debug.startDebugging(undefined, debugConfig);
+    async setAsDefaultBuildTarget(target: CargoTarget): Promise<void> {
+        await this.setDefaultTarget(TargetActionType.Build, target);
     }
 
-    async setAsDefaultTarget(target: CargoTarget): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
+    async setAsDefaultRunTarget(target: CargoTarget): Promise<void> {
+        await this.setDefaultTarget(TargetActionType.Run, target);
+    }
 
-        console.log(`Setting default target: ${target.name}`);
-        this.cargoWorkspace.setTarget(target);
-        vscode.window.showInformationMessage(`Set ${target.name} as default target`);
+    async setAsDefaultTestTarget(target: CargoTarget): Promise<void> {
+        await this.setDefaultTarget(TargetActionType.Test, target);
+    }
+
+    async setAsDefaultBenchTarget(target: CargoTarget): Promise<void> {
+        await this.setDefaultTarget(TargetActionType.Bench, target);
+    }
+
+    async executeBuildAction(target: CargoTarget): Promise<void> {
+        await this.executeTargetAction(target, TargetActionType.Build);
+    }
+
+    async executeRunAction(target: CargoTarget): Promise<void> {
+        await this.executeTargetAction(target, TargetActionType.Run);
+    }
+
+    async executeTestAction(target: CargoTarget): Promise<void> {
+        await this.executeTargetAction(target, TargetActionType.Test);
+    }
+
+    async executeBenchAction(target: CargoTarget): Promise<void> {
+        await this.executeTargetAction(target, TargetActionType.Bench);
     }
 
     /**
@@ -831,9 +793,6 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         // Reset command registration flag
         this.commandsRegistered = false;
-
-        // Reset status bar creation flag
-        this.statusBarCreated = false;
 
         // Clear singleton instance
         CargoExtensionManager.instance = undefined;

@@ -6,13 +6,11 @@ import { CargoProfile } from './cargoProfile';
 import { ProfilesTreeProvider } from './profilesTreeProvider';
 import { TargetsTreeProvider } from './targetsTreeProvider';
 import { WorkspaceTreeProvider } from './workspaceTreeProvider';
-import { StatusBarProvider } from './statusBarProvider';
 import { CargoTaskProvider } from './cargoTaskProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
 
 let extensionManager: CargoExtensionManager | undefined;
 let cargoWorkspace: CargoWorkspace | undefined;
-let statusBarProvider: StatusBarProvider | undefined;
 
 // Helper function to check if we're in a workspace
 function isWorkspace(workspace: CargoWorkspace): boolean {
@@ -91,9 +89,6 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		treeDataProvider: workspaceProvider,
 		showCollapseAll: true
 	});
-
-	// NOTE: Status bar provider is now managed by Extension Manager to prevent duplicates
-	// statusBarProvider = new StatusBarProvider(cargoWorkspace);
 
 	// Register task provider
 	const taskProvider = new CargoTaskProvider(cargoWorkspace);
@@ -213,39 +208,6 @@ function registerCommands(
 			if (profile) {
 				workspace.setProfile(profile);
 				vscode.window.showInformationMessage(`Build profile set to: ${CargoProfile.getDisplayName(profile)}`);
-			}
-		})
-	);
-
-	// Select target command
-	context.subscriptions.push(
-		vscode.commands.registerCommand('cargo-tools.selectTarget', async (target?: any) => {
-			if (!target) {
-				const targets = workspace.targets;
-				if (targets.length === 0) {
-					vscode.window.showWarningMessage('No targets found in workspace');
-					return;
-				}
-
-				const items = targets.map(t => ({
-					label: t.name,
-					description: t.kind.join(', '),
-					detail: t.srcPath,
-					target: t
-				}));
-
-				const selected = await vscode.window.showQuickPick(items, {
-					placeHolder: 'Select build target'
-				});
-
-				if (selected) {
-					target = selected.target;
-				}
-			}
-
-			if (target) {
-				workspace.setTarget(target);
-				vscode.window.showInformationMessage(`Build target set to: ${target.name}`);
 			}
 		})
 	);
@@ -467,12 +429,6 @@ export async function deactivate(): Promise<void> {
 		if (extensionManager) {
 			await extensionManager.asyncDispose();
 			extensionManager = undefined;
-		}
-
-		// Dispose legacy components if they exist
-		if (statusBarProvider) {
-			statusBarProvider.dispose();
-			statusBarProvider = undefined;
 		}
 
 		// Clear workspace reference
