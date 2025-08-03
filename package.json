@@ -171,6 +171,29 @@
         "title": "Bench",
         "category": "Cargo Tools",
         "icon": "$(dashboard)"
+      },
+      {
+        "command": "cargo-tools.pinnedCommands.add",
+        "title": "Add Command",
+        "category": "Cargo Tools",
+        "icon": "$(add)"
+      },
+      {
+        "command": "cargo-tools.pinnedCommands.remove",
+        "title": "Remove Command",
+        "category": "Cargo Tools",
+        "icon": "$(remove)"
+      },
+      {
+        "command": "cargo-tools.pinnedCommands.run",
+        "title": "Run Command",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.executePinnedCommand",
+        "title": "Execute Pinned Command",
+        "category": "Cargo Tools"
       }
     ],
     "viewsContainers": {
@@ -205,6 +228,21 @@
           "id": "cargoToolsWorkspace",
           "name": "Workspace",
           "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "id": "cargoToolsProjectStatus",
+          "name": "Project Status",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "id": "cargoToolsProjectOutline",
+          "name": "Project Outline",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "id": "cargoToolsPinnedCommands",
+          "name": "Pinned Commands",
+          "when": "cargoTools:workspaceHasCargo"
         }
       ]
     },
@@ -212,7 +250,12 @@
       "view/title": [
         {
           "command": "cargo-tools.refresh",
-          "when": "view == cargoToolsProfiles || view == cargoToolsTargets || view == cargoToolsWorkspace",
+          "when": "view == cargoToolsProfiles || view == cargoToolsTargets || view == cargoToolsWorkspace || view == cargoToolsProjectStatus || view == cargoToolsProjectOutline",
+          "group": "navigation"
+        },
+        {
+          "command": "cargo-tools.pinnedCommands.add",
+          "when": "view == cargoToolsPinnedCommands",
           "group": "navigation"
         }
       ],
@@ -286,6 +329,36 @@
           "command": "cargo-tools.executeBenchAction",
           "when": "view == cargoToolsTargets && viewItem =~ /cargoTarget.*supportsBench/",
           "group": "execute@4"
+        },
+        {
+          "command": "cargo-tools.pinnedCommands.remove",
+          "when": "view == cargoToolsPinnedCommands && viewItem == pinnedCommand",
+          "group": "inline"
+        },
+        {
+          "command": "cargo-tools.buildTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget/",
+          "group": "target@1"
+        },
+        {
+          "command": "cargo-tools.runTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isExecutable/",
+          "group": "target@2"
+        },
+        {
+          "command": "cargo-tools.testTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isTest/",
+          "group": "target@3"
+        },
+        {
+          "command": "cargo-tools.debugTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isExecutable/",
+          "group": "target@4"
+        },
+        {
+          "command": "cargo-tools.setAsDefaultTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget/",
+          "group": "default@1"
         }
       ],
       "commandPalette": [
@@ -299,6 +372,10 @@
         },
         {
           "command": "cargo-tools.runBench",
+          "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "command": "cargo-tools.pinnedCommands.add",
           "when": "cargoTools:workspaceHasCargo"
         }
       ]
@@ -375,6 +452,14 @@
           "type": "boolean",
           "default": true,
           "description": "Group targets by workspace member in the BUILD TARGETS tree view. When enabled, targets are first organized by workspace member, then by type (bin, lib, etc.). When disabled, targets are grouped directly by type."
+        },
+        "cargoTools.pinnedCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "List of command IDs to pin to the Pinned Commands view"
         }
       }
     },

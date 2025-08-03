@@ -6,6 +6,9 @@ import { CargoProfile } from './cargoProfile';
 import { ProfilesTreeProvider } from './profilesTreeProvider';
 import { TargetsTreeProvider } from './targetsTreeProvider';
 import { WorkspaceTreeProvider } from './workspaceTreeProvider';
+import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
+import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
+import { PinnedCommands } from './pinnedCommandsTreeProvider';
 import { CargoTaskProvider } from './cargoTaskProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
 
@@ -69,12 +72,22 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		return {};
 	}
 
-	// Create tree providers
+	// Create tree providers (both old and new)
 	const profilesProvider = new ProfilesTreeProvider(cargoWorkspace);
 	const targetsProvider = new TargetsTreeProvider(cargoWorkspace);
 	const workspaceProvider = new WorkspaceTreeProvider(cargoWorkspace);
 
-	// Register tree views
+	// New tree providers for the modern UI
+	const projectStatusProvider = new ProjectStatusTreeProvider();
+	const projectOutlineProvider = new ProjectOutlineTreeProvider();
+	const pinnedCommands = new PinnedCommands(context);
+
+	// Update providers with workspace
+	projectStatusProvider.updateWorkspace(cargoWorkspace);
+	projectOutlineProvider.updateWorkspace(cargoWorkspace);
+	await pinnedCommands.getTreeDataProvider().initialize();
+
+	// Register tree views (legacy views for backwards compatibility)
 	vscode.window.createTreeView('cargoToolsProfiles', {
 		treeDataProvider: profilesProvider,
 		showCollapseAll: false
@@ -90,6 +103,42 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		showCollapseAll: true
 	});
 
+	// Register new tree views
+	vscode.window.createTreeView('cargoToolsProjectStatus', {
+		treeDataProvider: projectStatusProvider,
+		showCollapseAll: false,
+		canSelectMany: false
+	});
+
+	vscode.window.createTreeView('cargoToolsProjectOutline', {
+		treeDataProvider: projectOutlineProvider,
+		showCollapseAll: true,
+		canSelectMany: false
+	});
+
+	vscode.window.createTreeView('cargoToolsPinnedCommands', {
+		treeDataProvider: pinnedCommands.getTreeDataProvider(),
+		showCollapseAll: false,
+		canSelectMany: false
+	});
+
+	// Subscribe to workspace changes to update providers
+	if (cargoWorkspace) {
+		cargoWorkspace.onDidChangeTargets(() => {
+			projectStatusProvider.refresh();
+			projectOutlineProvider.refresh();
+		});
+
+		cargoWorkspace.onDidChangeProfile(() => {
+			projectStatusProvider.refresh();
+		});
+
+		cargoWorkspace.onDidChangeTarget(() => {
+			projectStatusProvider.refresh();
+			projectOutlineProvider.refresh();
+		});
+	}
+
 	// Register task provider
 	const taskProvider = new CargoTaskProvider(cargoWorkspace);
 	context.subscriptions.push(
@@ -102,7 +151,10 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 
 	return {
 		extensionManager,
-		workspace: cargoWorkspace
+		workspace: cargoWorkspace,
+		projectStatusProvider,
+		projectOutlineProvider,
+		pinnedCommands
 	};
 }
 
