@@ -200,6 +200,9 @@ export class CargoExtensionManager implements vscode.Disposable {
         const commands: (keyof CargoExtensionManager)[] = [
             'selectProfile',
             'selectPackage',
+            'selectBuildTarget',
+            'selectRunTarget',
+            'selectBenchmarkTarget',
             'refresh',
             'executeDefaultBuild',
             'executeDefaultRun',
@@ -459,6 +462,192 @@ export class CargoExtensionManager implements vscode.Disposable {
             // Set the selected package in the workspace
             // We'll need to add this method to CargoWorkspace
             await this.cargoWorkspace.setSelectedPackage(selected.package);
+        }
+    }
+
+    async selectBuildTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const items: vscode.QuickPickItem[] = [];
+        const selectedPackage = this.cargoWorkspace.selectedPackage;
+
+        if (!selectedPackage) {
+            // "All" Package Selected - only show "All" option
+            items.push({
+                label: 'All',
+                description: 'Build all targets (no target specification)',
+                detail: 'All targets'
+            });
+        } else {
+            // Specific Package Selected - show categorized targets
+            const packageTargets = this.getTargetsForPackage(selectedPackage);
+            const targetsByType = this.groupTargetsByType(packageTargets);
+
+            // Add "All" option
+            items.push({
+                label: 'All',
+                description: 'Build all targets in package (no target specification)',
+                detail: 'All targets'
+            });
+
+            // Add library if exists
+            if (targetsByType.has('lib')) {
+                items.push({
+                    label: 'lib',
+                    description: 'Build library (--lib)',
+                    detail: 'Library target'
+                });
+            }
+
+            // Add binaries
+            if (targetsByType.has('bin')) {
+                const binTargets = targetsByType.get('bin')!;
+                for (const target of binTargets) {
+                    items.push({
+                        label: target.name,
+                        description: `Build binary: ${target.name} (--bin ${target.name})`,
+                        detail: 'Binary target'
+                    });
+                }
+            }
+
+            // Add examples
+            if (targetsByType.has('example')) {
+                const exampleTargets = targetsByType.get('example')!;
+                for (const target of exampleTargets) {
+                    items.push({
+                        label: target.name,
+                        description: `Build example: ${target.name} (--example ${target.name})`,
+                        detail: 'Example target'
+                    });
+                }
+            }
+
+            // Add benchmarks
+            if (targetsByType.has('bench')) {
+                const benchTargets = targetsByType.get('bench')!;
+                for (const target of benchTargets) {
+                    items.push({
+                        label: target.name,
+                        description: `Build benchmark: ${target.name} (--bench ${target.name})`,
+                        detail: 'Benchmark target'
+                    });
+                }
+            }
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a build target'
+        });
+
+        if (selected) {
+            // TODO: Store build target selection and update UI
+            vscode.window.showInformationMessage(`Selected build target: ${selected.label}`);
+        }
+    }
+
+    async selectRunTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const items: vscode.QuickPickItem[] = [];
+        const selectedPackage = this.cargoWorkspace.selectedPackage;
+
+        if (!selectedPackage) {
+            // "All" Package Selected - disabled
+            vscode.window.showWarningMessage('Select a specific package to run targets');
+            return;
+        } else {
+            // Specific Package Selected - show bins and examples
+            const packageTargets = this.getTargetsForPackage(selectedPackage);
+            const targetsByType = this.groupTargetsByType(packageTargets);
+
+            // Add binaries
+            if (targetsByType.has('bin')) {
+                const binTargets = targetsByType.get('bin')!;
+                for (const target of binTargets) {
+                    items.push({
+                        label: target.name,
+                        description: `Run binary: ${target.name} (--bin ${target.name})`,
+                        detail: 'Binary target'
+                    });
+                }
+            }
+
+            // Add examples
+            if (targetsByType.has('example')) {
+                const exampleTargets = targetsByType.get('example')!;
+                for (const target of exampleTargets) {
+                    items.push({
+                        label: target.name,
+                        description: `Run example: ${target.name} (--example ${target.name})`,
+                        detail: 'Example target'
+                    });
+                }
+            }
+
+            if (items.length === 0) {
+                vscode.window.showInformationMessage('No runnable targets in selected package');
+                return;
+            }
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a target to run'
+        });
+
+        if (selected) {
+            // TODO: Store run target selection and update UI
+            vscode.window.showInformationMessage(`Selected run target: ${selected.label}`);
+        }
+    }
+
+    async selectBenchmarkTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const items: vscode.QuickPickItem[] = [];
+        const selectedPackage = this.cargoWorkspace.selectedPackage;
+
+        if (!selectedPackage) {
+            // "All" Package Selected - only show "All" option
+            items.push({
+                label: 'All',
+                description: 'Run all benchmarks (no target specification)',
+                detail: 'All benchmarks'
+            });
+        } else {
+            // Specific Package Selected - show benchmarks from selected package
+            const packageTargets = this.getTargetsForPackage(selectedPackage);
+            const targetsByType = this.groupTargetsByType(packageTargets);
+
+            // Add benchmarks
+            if (targetsByType.has('bench')) {
+                const benchTargets = targetsByType.get('bench')!;
+                for (const target of benchTargets) {
+                    items.push({
+                        label: target.name,
+                        description: `Run benchmark: ${target.name} (--bench ${target.name})`,
+                        detail: 'Benchmark target'
+                    });
+                }
+            } else {
+                vscode.window.showInformationMessage('No benchmark targets in selected package');
+                return;
+            }
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a benchmark target'
+        });
+
+        if (selected) {
+            // TODO: Store benchmark target selection and update UI
+            vscode.window.showInformationMessage(`Selected benchmark target: ${selected.label}`);
         }
     }
 
@@ -847,5 +1036,30 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.dispose();
 
         console.log('Cargo Tools extension manager async disposed');
+    }
+
+    private getTargetsForPackage(packageName: string): CargoTarget[] {
+        if (!this.cargoWorkspace) {
+            return [];
+        }
+
+        return this.cargoWorkspace.targets.filter(target => target.packageName === packageName);
+    }
+
+    private groupTargetsByType(targets: CargoTarget[]): Map<string, CargoTarget[]> {
+        const groups = new Map<string, CargoTarget[]>();
+
+        for (const target of targets) {
+            const types = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
+
+            for (const type of types) {
+                if (!groups.has(type)) {
+                    groups.set(type, []);
+                }
+                groups.get(type)!.push(target);
+            }
+        }
+
+        return groups;
     }
 }

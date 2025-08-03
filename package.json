@@ -41,6 +41,24 @@
         "icon": "$(package)"
       },
       {
+        "command": "cargo-tools.selectBuildTarget",
+        "title": "Select Build Target",
+        "category": "Cargo Tools",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "cargo-tools.selectRunTarget",
+        "title": "Select Run Target",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.selectBenchmarkTarget",
+        "title": "Select Benchmark Target",
+        "category": "Cargo Tools",
+        "icon": "$(dashboard)"
+      },
+      {
         "command": "cargo-tools.refresh",
         "title": "Refresh",
         "category": "Cargo Tools",
