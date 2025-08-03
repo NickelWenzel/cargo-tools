@@ -25,7 +25,9 @@ The extension will have three main tree panes in the extension sidebar:
   - Individual packages listed below
   - **Command Line Impact:** Selected package adds `-p <package>` to cargo commands
 
-#### Build Target Selection
+#### Target Selection
+
+##### Build Target Selection
 - **When "All" Package Selected:**
   - Display: Only "All" option available
   - No specific target specification in commands
@@ -40,6 +42,30 @@ The extension will have three main tree panes in the extension sidebar:
     - lib: `--lib`
     - bin: `--bin <target_name>`
     - example: `--example <target_name>`
+    - benchmark: `--bench <target_name>`
+- **Button that will trigger 'cargo build' command:**
+  - Should respect target selection as described above
+- **Implementation:** Dropdown/quick pick interface
+
+##### Run Target Selection
+- **When "All" Package Selected:**
+  - Disabled
+- **When Specific Package Selected:**
+  - Display "bins" and "examples" from selected package:
+  - **Command Line Impact:** 
+    - bin: `--bin <target_name>`
+    - example: `--example <target_name>`
+- **Button that will trigger 'cargo run' command:**
+  - Should respect target selection as described above
+- **Implementation:** Dropdown/quick pick interface
+
+##### Benchmark Target Selection
+- **When "All" Package Selected:**
+  - Display: Only "All" option available
+  - No specific target specification in commands
+- **When Specific Package Selected:**
+  - Display "benchmarks" from selected package
+  - **Command Line Impact:** 
     - benchmark: `--bench <target_name>`
 - **Button that will trigger 'cargo build' command:**
   - Should respect target selection as described above

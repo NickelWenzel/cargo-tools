@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoProfile } from './cargoProfile';
+import { CargoTarget } from './cargoTarget';
 
 export class ProjectStatusNode extends vscode.TreeItem {
     constructor(
@@ -104,9 +105,9 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         packageNode.iconPath = new vscode.ThemeIcon('package');
         nodes.push(packageNode);
 
-        // Build Target Selection node
+        // Target Selection node (parent for all target types)
         const targetNode = new ProjectStatusNode(
-            'Build Target Selection',
+            'Target Selection',
             vscode.TreeItemCollapsibleState.Expanded,
             'targetSelection'
         );
@@ -128,6 +129,21 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 return this.createPackageSelectionChildren();
             case 'targetSelection':
                 return this.createTargetSelectionChildren();
+            case 'buildTargetSelection':
+                return this.createBuildTargetSelectionChildren();
+            case 'runTargetSelection':
+                return this.createRunTargetSelectionChildren();
+            case 'benchmarkTargetSelection':
+                return this.createBenchmarkTargetSelectionChildren();
+            case 'build-target-bins-group':
+            case 'run-target-bins-group':
+                return this.createBinaryTargetChildren();
+            case 'build-target-examples-group':
+            case 'run-target-examples-group':
+                return this.createExampleTargetChildren();
+            case 'build-target-benchmarks-group':
+            case 'benchmark-target-benchmarks-group':
+                return this.createBenchmarkTargetChildren();
             default:
                 return [];
         }
@@ -208,101 +224,32 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
 
         const nodes: ProjectStatusNode[] = [];
 
-        // Add "All" option
-        const allNode = new ProjectStatusNode(
-            'All',
-            vscode.TreeItemCollapsibleState.None,
-            'target-all',
-            undefined,
-            'All targets',
-            'Build all targets (no target specification)'
+        // Build Target Selection
+        const buildTargetNode = new ProjectStatusNode(
+            'Build Target Selection',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'buildTargetSelection'
         );
-        allNode.iconPath = new vscode.ThemeIcon('target');
-        nodes.push(allNode);
+        buildTargetNode.iconPath = new vscode.ThemeIcon('tools');
+        nodes.push(buildTargetNode);
 
-        // Group targets by type
-        const targetsByType = new Map<string, string[]>();
+        // Run Target Selection
+        const runTargetNode = new ProjectStatusNode(
+            'Run Target Selection',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'runTargetSelection'
+        );
+        runTargetNode.iconPath = new vscode.ThemeIcon('play');
+        nodes.push(runTargetNode);
 
-        for (const target of this.workspace.targets) {
-            for (const kind of target.kind) {
-                if (!targetsByType.has(kind)) {
-                    targetsByType.set(kind, []);
-                }
-                targetsByType.get(kind)!.push(target.name);
-            }
-        }
-
-        // Add library if exists
-        if (targetsByType.has('lib')) {
-            const libNode = new ProjectStatusNode(
-                'lib',
-                vscode.TreeItemCollapsibleState.None,
-                'target-lib',
-                undefined,
-                'Library target',
-                'Build library (--lib)'
-            );
-            libNode.iconPath = new vscode.ThemeIcon('library');
-            nodes.push(libNode);
-        }
-
-        // Add binaries group
-        if (targetsByType.has('bin')) {
-            const binTargets = targetsByType.get('bin')!;
-            if (binTargets.length === 1) {
-                const binNode = new ProjectStatusNode(
-                    `bin: ${binTargets[0]}`,
-                    vscode.TreeItemCollapsibleState.None,
-                    'target-bin',
-                    undefined,
-                    'Binary target',
-                    `Build binary: ${binTargets[0]}`
-                );
-                binNode.iconPath = new vscode.ThemeIcon('file-binary');
-                nodes.push(binNode);
-            } else {
-                const binsNode = new ProjectStatusNode(
-                    'bins',
-                    vscode.TreeItemCollapsibleState.Collapsed,
-                    'target-bins-group',
-                    undefined,
-                    `${binTargets.length} binaries`,
-                    'Binary targets group'
-                );
-                binsNode.iconPath = new vscode.ThemeIcon('file-binary');
-                nodes.push(binsNode);
-            }
-        }
-
-        // Add examples group
-        if (targetsByType.has('example')) {
-            const exampleTargets = targetsByType.get('example')!;
-            const examplesNode = new ProjectStatusNode(
-                'examples',
-                vscode.TreeItemCollapsibleState.Collapsed,
-                'target-examples-group',
-                undefined,
-                `${exampleTargets.length} examples`,
-                'Example targets group'
-            );
-            examplesNode.iconPath = new vscode.ThemeIcon('file-code');
-            nodes.push(examplesNode);
-        }
-
-        // Add benchmarks group
-        if (targetsByType.has('bench')) {
-            const benchTargets = targetsByType.get('bench')!;
-            const benchmarksNode = new ProjectStatusNode(
-                'benchmarks',
-                vscode.TreeItemCollapsibleState.Collapsed,
-                'target-benchmarks-group',
-                undefined,
-                `${benchTargets.length} benchmarks`,
-                'Benchmark targets group'
-            );
-            benchmarksNode.iconPath = new vscode.ThemeIcon('dashboard');
-            nodes.push(benchmarksNode);
-        }
+        // Benchmark Target Selection
+        const benchmarkTargetNode = new ProjectStatusNode(
+            'Benchmark Target Selection',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'benchmarkTargetSelection'
+        );
+        benchmarkTargetNode.iconPath = new vscode.ThemeIcon('dashboard');
+        nodes.push(benchmarkTargetNode);
 
         return nodes;
     }
@@ -371,5 +318,343 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         nodes.push(benchNode);
 
         return nodes;
+    }
+
+    private createBuildTargetSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const nodes: ProjectStatusNode[] = [];
+        const selectedPackage = this.workspace.selectedPackage;
+
+        if (!selectedPackage) {
+            // "All" Package Selected - only show "All" option
+            const allNode = new ProjectStatusNode(
+                'All',
+                vscode.TreeItemCollapsibleState.None,
+                'build-target-all',
+                undefined,
+                'All targets',
+                'Build all targets (no target specification)'
+            );
+            allNode.iconPath = new vscode.ThemeIcon('target');
+            nodes.push(allNode);
+        } else {
+            // Specific Package Selected - show categorized targets
+            const packageTargets = this.getTargetsForPackage(selectedPackage);
+
+            // Add "All" option
+            const allNode = new ProjectStatusNode(
+                'All',
+                vscode.TreeItemCollapsibleState.None,
+                'build-target-all',
+                undefined,
+                'All targets',
+                'Build all targets in package (no target specification)'
+            );
+            allNode.iconPath = new vscode.ThemeIcon('target');
+            nodes.push(allNode);
+
+            // Group targets by type
+            const targetsByType = this.groupTargetsByType(packageTargets);
+
+            // Add library if exists
+            if (targetsByType.has('lib')) {
+                const libNode = new ProjectStatusNode(
+                    'lib',
+                    vscode.TreeItemCollapsibleState.None,
+                    'build-target-lib',
+                    undefined,
+                    'Library target',
+                    'Build library (--lib)'
+                );
+                libNode.iconPath = new vscode.ThemeIcon('library');
+                nodes.push(libNode);
+            }
+
+            // Add binaries group
+            if (targetsByType.has('bin')) {
+                const binTargets = targetsByType.get('bin')!;
+                const binsNode = new ProjectStatusNode(
+                    'bins',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    'build-target-bins-group',
+                    undefined,
+                    `${binTargets.length} binaries`,
+                    'Binary targets group'
+                );
+                binsNode.iconPath = new vscode.ThemeIcon('file-binary');
+                nodes.push(binsNode);
+            }
+
+            // Add examples group
+            if (targetsByType.has('example')) {
+                const exampleTargets = targetsByType.get('example')!;
+                const examplesNode = new ProjectStatusNode(
+                    'examples',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    'build-target-examples-group',
+                    undefined,
+                    `${exampleTargets.length} examples`,
+                    'Example targets group'
+                );
+                examplesNode.iconPath = new vscode.ThemeIcon('file-code');
+                nodes.push(examplesNode);
+            }
+
+            // Add benchmarks group
+            if (targetsByType.has('bench')) {
+                const benchTargets = targetsByType.get('bench')!;
+                const benchmarksNode = new ProjectStatusNode(
+                    'benchmarks',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    'build-target-benchmarks-group',
+                    undefined,
+                    `${benchTargets.length} benchmarks`,
+                    'Benchmark targets group'
+                );
+                benchmarksNode.iconPath = new vscode.ThemeIcon('dashboard');
+                nodes.push(benchmarksNode);
+            }
+        }
+
+        return nodes;
+    }
+
+    private createRunTargetSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const nodes: ProjectStatusNode[] = [];
+        const selectedPackage = this.workspace.selectedPackage;
+
+        if (!selectedPackage) {
+            // "All" Package Selected - disabled
+            const disabledNode = new ProjectStatusNode(
+                'Disabled when "All" packages selected',
+                vscode.TreeItemCollapsibleState.None,
+                'run-target-disabled',
+                undefined,
+                'Select a specific package to run targets',
+                'Run targets require a specific package selection'
+            );
+            disabledNode.iconPath = new vscode.ThemeIcon('circle-slash');
+            nodes.push(disabledNode);
+        } else {
+            // Specific Package Selected - show bins and examples
+            const packageTargets = this.getTargetsForPackage(selectedPackage);
+            const targetsByType = this.groupTargetsByType(packageTargets);
+
+            // Add binaries group
+            if (targetsByType.has('bin')) {
+                const binTargets = targetsByType.get('bin')!;
+                const binsNode = new ProjectStatusNode(
+                    'bins',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    'run-target-bins-group',
+                    undefined,
+                    `${binTargets.length} binaries`,
+                    'Runnable binary targets'
+                );
+                binsNode.iconPath = new vscode.ThemeIcon('file-binary');
+                nodes.push(binsNode);
+            }
+
+            // Add examples group
+            if (targetsByType.has('example')) {
+                const exampleTargets = targetsByType.get('example')!;
+                const examplesNode = new ProjectStatusNode(
+                    'examples',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    'run-target-examples-group',
+                    undefined,
+                    `${exampleTargets.length} examples`,
+                    'Runnable example targets'
+                );
+                examplesNode.iconPath = new vscode.ThemeIcon('file-code');
+                nodes.push(examplesNode);
+            }
+
+            if (!targetsByType.has('bin') && !targetsByType.has('example')) {
+                const noTargetsNode = new ProjectStatusNode(
+                    'No runnable targets in package',
+                    vscode.TreeItemCollapsibleState.None,
+                    'run-target-none',
+                    undefined,
+                    'No binaries or examples to run',
+                    'This package has no runnable targets'
+                );
+                noTargetsNode.iconPath = new vscode.ThemeIcon('circle-slash');
+                nodes.push(noTargetsNode);
+            }
+        }
+
+        return nodes;
+    }
+
+    private createBenchmarkTargetSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const nodes: ProjectStatusNode[] = [];
+        const selectedPackage = this.workspace.selectedPackage;
+
+        if (!selectedPackage) {
+            // "All" Package Selected - only show "All" option
+            const allNode = new ProjectStatusNode(
+                'All',
+                vscode.TreeItemCollapsibleState.None,
+                'benchmark-target-all',
+                undefined,
+                'All benchmarks',
+                'Run all benchmarks (no target specification)'
+            );
+            allNode.iconPath = new vscode.ThemeIcon('dashboard');
+            nodes.push(allNode);
+        } else {
+            // Specific Package Selected - show benchmarks from selected package
+            const packageTargets = this.getTargetsForPackage(selectedPackage);
+            const targetsByType = this.groupTargetsByType(packageTargets);
+
+            // Add benchmarks group
+            if (targetsByType.has('bench')) {
+                const benchTargets = targetsByType.get('bench')!;
+                const benchmarksNode = new ProjectStatusNode(
+                    'benchmarks',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    'benchmark-target-benchmarks-group',
+                    undefined,
+                    `${benchTargets.length} benchmarks`,
+                    'Benchmark targets'
+                );
+                benchmarksNode.iconPath = new vscode.ThemeIcon('dashboard');
+                nodes.push(benchmarksNode);
+            } else {
+                const noBenchmarksNode = new ProjectStatusNode(
+                    'No benchmarks in package',
+                    vscode.TreeItemCollapsibleState.None,
+                    'benchmark-target-none',
+                    undefined,
+                    'No benchmark targets',
+                    'This package has no benchmark targets'
+                );
+                noBenchmarksNode.iconPath = new vscode.ThemeIcon('circle-slash');
+                nodes.push(noBenchmarksNode);
+            }
+        }
+
+        return nodes;
+    }
+
+    private getTargetsForPackage(packageName: string): CargoTarget[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        return this.workspace.targets.filter(target => target.packageName === packageName);
+    }
+
+    private groupTargetsByType(targets: CargoTarget[]): Map<string, CargoTarget[]> {
+        const groups = new Map<string, CargoTarget[]>();
+
+        for (const target of targets) {
+            const types = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
+
+            for (const type of types) {
+                if (!groups.has(type)) {
+                    groups.set(type, []);
+                }
+                groups.get(type)!.push(target);
+            }
+        }
+
+        return groups;
+    }
+
+    private createBinaryTargetChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const selectedPackage = this.workspace.selectedPackage;
+        if (!selectedPackage) {
+            return [];
+        }
+
+        const packageTargets = this.getTargetsForPackage(selectedPackage);
+        const targetsByType = this.groupTargetsByType(packageTargets);
+        const binTargets = targetsByType.get('bin') || [];
+
+        return binTargets.map(target => {
+            const node = new ProjectStatusNode(
+                target.name,
+                vscode.TreeItemCollapsibleState.None,
+                'binary-target',
+                undefined,
+                `Binary: ${target.name}`,
+                `Binary target: ${target.name}`
+            );
+            node.iconPath = new vscode.ThemeIcon('file-binary');
+            return node;
+        });
+    }
+
+    private createExampleTargetChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const selectedPackage = this.workspace.selectedPackage;
+        if (!selectedPackage) {
+            return [];
+        }
+
+        const packageTargets = this.getTargetsForPackage(selectedPackage);
+        const targetsByType = this.groupTargetsByType(packageTargets);
+        const exampleTargets = targetsByType.get('example') || [];
+
+        return exampleTargets.map(target => {
+            const node = new ProjectStatusNode(
+                target.name,
+                vscode.TreeItemCollapsibleState.None,
+                'example-target',
+                undefined,
+                `Example: ${target.name}`,
+                `Example target: ${target.name}`
+            );
+            node.iconPath = new vscode.ThemeIcon('file-code');
+            return node;
+        });
+    }
+
+    private createBenchmarkTargetChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const selectedPackage = this.workspace.selectedPackage;
+        if (!selectedPackage) {
+            return [];
+        }
+
+        const packageTargets = this.getTargetsForPackage(selectedPackage);
+        const targetsByType = this.groupTargetsByType(packageTargets);
+        const benchTargets = targetsByType.get('bench') || [];
+
+        return benchTargets.map(target => {
+            const node = new ProjectStatusNode(
+                target.name,
+                vscode.TreeItemCollapsibleState.None,
+                'benchmark-target',
+                undefined,
+                `Benchmark: ${target.name}`,
+                `Benchmark target: ${target.name}`
+            );
+            node.iconPath = new vscode.ThemeIcon('dashboard');
+            return node;
+        });
     }
 }
