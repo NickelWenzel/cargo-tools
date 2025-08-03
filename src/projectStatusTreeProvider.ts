@@ -59,7 +59,8 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 this.workspace.onDidChangeTargets(() => this.refresh()),
                 this.workspace.onDidChangeSelectedBuildTarget(() => this.refresh()),
                 this.workspace.onDidChangeSelectedRunTarget(() => this.refresh()),
-                this.workspace.onDidChangeSelectedBenchmarkTarget(() => this.refresh())
+                this.workspace.onDidChangeSelectedBenchmarkTarget(() => this.refresh()),
+                this.workspace.onDidChangeSelectedFeatures(() => this.refresh())
             );
         }
 
@@ -117,6 +118,15 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         targetNode.iconPath = new vscode.ThemeIcon('target');
         nodes.push(targetNode);
 
+        // Feature Selection node
+        const featureNode = new ProjectStatusNode(
+            'Feature Selection',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'featureSelection'
+        );
+        featureNode.iconPath = new vscode.ThemeIcon('symbol-misc');
+        nodes.push(featureNode);
+
         return nodes;
     }
 
@@ -138,6 +148,8 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 return this.createRunTargetSelectionChildren();
             case 'benchmarkTargetSelection':
                 return this.createBenchmarkTargetSelectionChildren();
+            case 'featureSelection':
+                return this.createFeatureSelectionChildren();
             default:
                 return [];
         }
@@ -533,6 +545,80 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 }
             }
         }
+    }
+
+    private createFeatureSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const availableFeatures = this.workspace.getAvailableFeatures();
+        const selectedFeatures = this.workspace.selectedFeatures;
+        const nodes: ProjectStatusNode[] = [];
+
+        // Add a status node showing current selection summary
+        const selectedCount = selectedFeatures.size;
+        let statusLabel: string;
+        let statusIcon: string;
+
+        if (selectedCount === 0) {
+            statusLabel = 'No features selected (default)';
+            statusIcon = 'circle-outline';
+        } else if (selectedFeatures.has('all-features')) {
+            statusLabel = 'All features selected';
+            statusIcon = 'check-all';
+        } else {
+            statusLabel = `${selectedCount} feature${selectedCount > 1 ? 's' : ''} selected`;
+            statusIcon = 'check';
+        }
+
+        const statusNode = new ProjectStatusNode(
+            statusLabel,
+            vscode.TreeItemCollapsibleState.None,
+            'feature-status',
+            undefined,
+            statusLabel,
+            'Current feature selection status'
+        );
+        statusNode.iconPath = new vscode.ThemeIcon(statusIcon);
+        nodes.push(statusNode);
+
+        // Add separator (empty node for visual spacing)
+        const separatorNode = new ProjectStatusNode(
+            '────────────',
+            vscode.TreeItemCollapsibleState.None,
+            'feature-separator',
+            undefined,
+            '',
+            ''
+        );
+        separatorNode.iconPath = new vscode.ThemeIcon('blank');
+        nodes.push(separatorNode);
+
+        // Add feature toggle options
+        for (const feature of availableFeatures) {
+            const isSelected = selectedFeatures.has(feature);
+            const label = feature === 'all-features' ? 'All features' : feature;
+
+            const node = new ProjectStatusNode(
+                label,
+                vscode.TreeItemCollapsibleState.None,
+                'feature-item',
+                {
+                    command: 'cargo-tools.toggleFeature',
+                    title: `Toggle ${feature}`,
+                    arguments: [feature]
+                },
+                isSelected ? `✓ ${label}` : `  ${label}`,
+                `Click to ${isSelected ? 'unselect' : 'select'} ${feature}`
+            );
+
+            // Use checkbox icons to indicate selection state
+            node.iconPath = new vscode.ThemeIcon(isSelected ? 'check' : 'circle-outline');
+            nodes.push(node);
+        }
+
+        return nodes;
     }
 
     private getTargetsForPackage(packageName: string): CargoTarget[] {

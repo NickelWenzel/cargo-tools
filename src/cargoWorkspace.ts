@@ -24,6 +24,7 @@ interface CargoMetadataPackage {
     edition: string;
     manifest_path: string;
     targets: CargoMetadataTarget[];
+    features?: Record<string, string[]>;
 }
 
 interface CargoMetadata {
@@ -56,9 +57,11 @@ export class CargoWorkspace {
     private _currentTarget: CargoTarget | null = null;
     private _selectedPackage: string | undefined = undefined; // undefined means "All"
     private _workspacePackageNames: string[] = []; // Package names from cargo metadata
+    private _packageFeatures: Map<string, string[]> = new Map(); // Features available for each package
     private _selectedBuildTarget: string | null = null; // Selected build target
     private _selectedRunTarget: string | null = null; // Selected run target
     private _selectedBenchmarkTarget: string | null = null; // Selected benchmark target
+    private _selectedFeatures: Set<string> = new Set(); // Selected features, default to none (no features selected)
     private _onDidChangeProfile = new vscode.EventEmitter<CargoProfile>();
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeTargets = new vscode.EventEmitter<CargoTarget[]>();
@@ -66,6 +69,7 @@ export class CargoWorkspace {
     private _onDidChangeSelectedBuildTarget = new vscode.EventEmitter<string | null>();
     private _onDidChangeSelectedRunTarget = new vscode.EventEmitter<string | null>();
     private _onDidChangeSelectedBenchmarkTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedFeatures = new vscode.EventEmitter<Set<string>>();
 
     readonly onDidChangeProfile = this._onDidChangeProfile.event;
     readonly onDidChangeTarget = this._onDidChangeTarget.event;
@@ -74,6 +78,7 @@ export class CargoWorkspace {
     readonly onDidChangeSelectedBuildTarget = this._onDidChangeSelectedBuildTarget.event;
     readonly onDidChangeSelectedRunTarget = this._onDidChangeSelectedRunTarget.event;
     readonly onDidChangeSelectedBenchmarkTarget = this._onDidChangeSelectedBenchmarkTarget.event;
+    readonly onDidChangeSelectedFeatures = this._onDidChangeSelectedFeatures.event;
 
     constructor(workspaceRoot: string) {
         this._workspaceRoot = workspaceRoot;
@@ -113,6 +118,10 @@ export class CargoWorkspace {
 
     get selectedBenchmarkTarget(): string | null {
         return this._selectedBenchmarkTarget;
+    }
+
+    get selectedFeatures(): Set<string> {
+        return this._selectedFeatures;
     }
 
     get isWorkspace(): boolean {
@@ -211,6 +220,7 @@ export class CargoWorkspace {
     private async discoverTargets(): Promise<void> {
         this._targets = [];
         this._workspacePackageNames = [];
+        this._packageFeatures.clear(); // Clear package features before discovery
 
         try {
             // Use cargo metadata to get accurate target information
@@ -240,6 +250,11 @@ export class CargoWorkspace {
 
                 if (!isWorkspaceMember) {
                     continue;
+                }
+
+                // Collect features for this package
+                if (pkg.features) {
+                    this._packageFeatures.set(pkg.name, Object.keys(pkg.features));
                 }
 
                 // Process targets for this package
@@ -418,10 +433,12 @@ export class CargoWorkspace {
         const oldBuildTarget = this._selectedBuildTarget;
         const oldRunTarget = this._selectedRunTarget;
         const oldBenchmarkTarget = this._selectedBenchmarkTarget;
+        const oldFeatures = new Set(this._selectedFeatures);
 
         this._selectedBuildTarget = null;
         this._selectedRunTarget = null;
         this._selectedBenchmarkTarget = null;
+        this._selectedFeatures = new Set(); // Reset to default (no features selected)
 
         // Fire events only if there were actual changes
         if (oldBuildTarget !== null) {
@@ -433,6 +450,75 @@ export class CargoWorkspace {
         if (oldBenchmarkTarget !== null) {
             this._onDidChangeSelectedBenchmarkTarget.fire(this._selectedBenchmarkTarget);
         }
+
+        // Check if features actually changed
+        if (oldFeatures.size !== this._selectedFeatures.size ||
+            !Array.from(oldFeatures).every(f => this._selectedFeatures.has(f))) {
+            this._onDidChangeSelectedFeatures.fire(this._selectedFeatures);
+        }
+    }
+
+    /**
+     * Get available features for a specific package
+     */
+    getPackageFeatures(packageName: string): string[] {
+        return this._packageFeatures.get(packageName) || [];
+    }
+
+    /**
+     * Get all available features for the current package context
+     */
+    getAvailableFeatures(): string[] {
+        const features = ['all-features']; // Always include all-features option
+
+        if (this._selectedPackage && this._selectedPackage !== 'All') {
+            // When a specific package is selected, show its features
+            const packageFeatures = this.getPackageFeatures(this._selectedPackage);
+            features.push(...packageFeatures);
+        }
+        // When "All" is selected, only show "all-features"
+
+        return features;
+    }
+
+    /**
+     * Set selected features
+     */
+    setSelectedFeatures(features: Set<string>): void {
+        this._selectedFeatures = new Set(features);
+        this._onDidChangeSelectedFeatures.fire(this._selectedFeatures);
+    }
+
+    /**
+     * Toggle a feature selection
+     */
+    toggleFeature(feature: string): void {
+        const newFeatures = new Set(this._selectedFeatures);
+
+        if (feature === 'all-features') {
+            // If toggling all-features
+            if (newFeatures.has('all-features')) {
+                // If all-features is currently selected, deselect it (allow empty selection)
+                newFeatures.clear();
+            } else {
+                // If all-features is not selected, select it and clear others
+                newFeatures.clear();
+                newFeatures.add('all-features');
+            }
+        } else {
+            // If toggling a specific feature
+            if (newFeatures.has(feature)) {
+                // Deselect the feature
+                newFeatures.delete(feature);
+            } else {
+                // Select the feature and remove all-features
+                newFeatures.delete('all-features');
+                newFeatures.add(feature);
+            }
+            // Note: Empty selection is now allowed as the default state
+        }
+
+        this.setSelectedFeatures(newFeatures);
     }
 
     async refresh(): Promise<void> {

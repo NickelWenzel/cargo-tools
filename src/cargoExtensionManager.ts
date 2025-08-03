@@ -203,6 +203,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectBuildTarget',
             'selectRunTarget',
             'selectBenchmarkTarget',
+            'toggleFeature',
             'refresh',
             'executeDefaultBuild',
             'executeDefaultRun',
@@ -649,6 +650,14 @@ export class CargoExtensionManager implements vscode.Disposable {
             // Store benchmark target selection
             this.cargoWorkspace.setSelectedBenchmarkTarget(selected.label);
         }
+    }
+
+    async toggleFeature(feature: string): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        this.cargoWorkspace.toggleFeature(feature);
     }
 
     async refresh(): Promise<void> {

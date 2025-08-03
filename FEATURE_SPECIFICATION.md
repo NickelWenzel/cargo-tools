@@ -71,6 +71,17 @@ The extension will have three main tree panes in the extension sidebar:
   - Should respect target selection as described above
 - **Implementation:** Dropdown/quick pick interface
 
+##### Feature Selection
+- A list of selectable items
+  - Implemented as a checkbox
+- Always has item "all features" which is the default selection
+- **When "All" Package Selected:**
+  - Don't show any other item
+- **When Specific Package Selected:**
+  - Show the features of the selected package as selectable items as well
+- This should also react to changes in the package selection
+
+
 ### 2. Project Outline Pane
 **Purpose:** Read-only project structure overview
 
