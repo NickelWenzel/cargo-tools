@@ -95,21 +95,21 @@ The extension will have three main tree panes in the extension sidebar:
 
 #### Selection State Mirroring
 The Project Outline Pane reflects the current selections from the Project Status Pane:
-- **Package Selection:** Visually indicated using colored package icons
-- **Build Target Selection:** Show which build target is currently selected using build icons
-- **Run Target Selection:** Show which run target is currently selected using play icons
-- **Benchmark Target Selection:** Show which benchmark target is currently selected using pulse icons
+- **Package Selection:** Visually indicated using package emoji (📦) on the right side of labels
+- **Build Target Selection:** Show which build target is currently selected using hammer emoji (🔨) 
+- **Run Target Selection:** Show which run target is currently selected using rocket emoji (🚀)
+- **Benchmark Target Selection:** Show which benchmark target is currently selected using lightning emoji (⚡)
 - **Feature Selection:** Show which features are currently selected (both at root and package level)
 
 #### Visual Indicators
-- **Package Selection:** Uses colored `package` icon with active selection color
-- **Build Target Selection:** Uses colored `tools` icon with active selection color
-- **Run Target Selection:** Uses colored `play` icon with active selection color
-- **Benchmark Target Selection:** Uses colored `pulse` icon with active selection color
+- **Package Selection:** Uses package emoji (📦) on the right side of selected package labels
+- **Build Target Selection:** Uses hammer emoji (🔨) on the right side of selected build target labels
+- **Run Target Selection:** Uses rocket emoji (🚀) on the right side of selected run target labels
+- **Benchmark Target Selection:** Uses lightning emoji (⚡) on the right side of selected benchmark target labels
 - **Default Targets:** Uses `star` icon with highlight color
 - **Feature Selection:** Uses checkmark icons for selected features
 - **State Synchronization:** Real-time updates when selections change in Project Status Pane
-- **Icon Reference:** Based on microsoft/vscode-cmake-tools visual patterns
+- **Icon Reference:** Label emoji pattern follows microsoft/vscode-cmake-tools visual patterns
 - **Hierarchical Context:** Clear visual hierarchy showing project → packages → targets/features
 
 #### Root Features Node Behavior

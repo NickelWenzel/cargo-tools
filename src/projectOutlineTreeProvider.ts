@@ -174,8 +174,14 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 // Check if this package is selected
                 const isSelectedPackage = this.workspace.selectedPackage === memberName;
 
+                let label = memberName;
+                // Add package selection indicator to the right of the label (CMake Tools pattern)
+                if (isSelectedPackage) {
+                    label += ' 📦'; // Package emoji for selected package
+                }
+
                 const memberNode = new ProjectOutlineNode(
-                    memberName,
+                    label,
                     vscode.TreeItemCollapsibleState.Expanded,
                     'workspaceMember',
                     undefined,
@@ -185,12 +191,8 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     { memberName, targets }
                 );
 
-                // Use icon to indicate selection state
-                if (isSelectedPackage) {
-                    memberNode.iconPath = new vscode.ThemeIcon('package', new vscode.ThemeColor('list.activeSelectionForeground'));
-                } else {
-                    memberNode.iconPath = new vscode.ThemeIcon('package');
-                }
+                // Always use the default package icon
+                memberNode.iconPath = new vscode.ThemeIcon('package');
 
                 nodes.push(memberNode);
             }
@@ -269,7 +271,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             const isDefault = this.workspace?.currentTarget === target;
             let label = target.name;
 
-            // Check selection states for icon styling
+            // Check selection states for right-side icon indicators
             let isBuildTarget = false;
             let isRunTarget = false;
             let isBenchTarget = false;
@@ -282,6 +284,17 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
             if (isDefault) {
                 label += ' (default)';
+            }
+
+            // Add selection indicator icons to the right of the label (CMake Tools pattern)
+            if (isBuildTarget) {
+                label += ' 🔨'; // Hammer icon for build targets
+            }
+            if (isRunTarget) {
+                label += ' 🚀'; // Rocket icon for run targets  
+            }
+            if (isBenchTarget) {
+                label += ' ⚡'; // Lightning bolt icon for benchmark targets
             }
 
             const targetNode = new ProjectOutlineNode(
@@ -299,23 +312,8 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 target
             );
 
-            // Set icon based on target type and selection state
-            if (isBuildTarget) {
-                // Use build icon (similar to CMake Tools)
-                targetNode.iconPath = new vscode.ThemeIcon('tools', new vscode.ThemeColor('list.activeSelectionForeground'));
-            } else if (isRunTarget) {
-                // Use run/play icon (similar to CMake Tools)
-                targetNode.iconPath = new vscode.ThemeIcon('play', new vscode.ThemeColor('list.activeSelectionForeground'));
-            } else if (isBenchTarget) {
-                // Use benchmark/stopwatch icon 
-                targetNode.iconPath = new vscode.ThemeIcon('pulse', new vscode.ThemeColor('list.activeSelectionForeground'));
-            } else if (isDefault) {
-                // Use star for default target
-                targetNode.iconPath = new vscode.ThemeIcon('star', new vscode.ThemeColor('list.highlightForeground'));
-            } else {
-                // Use default target type icon
-                targetNode.iconPath = this.getIconForTarget(target);
-            }
+            // Always use the default target type icon for the main iconPath
+            targetNode.iconPath = this.getIconForTarget(target);
 
             return targetNode;
         });

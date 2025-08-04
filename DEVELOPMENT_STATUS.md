@@ -8,6 +8,17 @@
 
 ### ✅ Recently Completed (August 4, 2025)
 
+#### **Project Outline Right-Side Icon Indicators**
+- **Status**: ✅ **COMPLETE** - Moved selection indicators to right side of labels
+- **Location**: Project Outline Pane
+- **Behavior**: 
+  - **CMake Tools Pattern**: Icons appear on the right side of item labels (like CMake Tools)
+  - **Package Selection**: Package emoji (📦) on right side of selected packages
+  - **Build Targets**: Hammer emoji (🔨) on right side of selected build targets
+  - **Run Targets**: Rocket emoji (🚀) on right side of selected run targets
+  - **Benchmark Targets**: Lightning emoji (⚡) on right side of selected benchmark targets
+  - **Default Icons**: Maintains proper target type icons on the left (file icon slot)
+
 #### **Project Outline Visual Refinements**
 - **Status**: ✅ **COMPLETE** - Enhanced with icon-based selection indicators
 - **Location**: Project Outline Pane
@@ -46,9 +57,9 @@
 - `src/projectStatusTreeProvider.ts` - Refined Feature Selection UI (previous commit)
 
 #### **Technical Implementation**:
-- **Icon-Based Indicators**: VS Code ThemeIcon with ThemeColor for selection states
-- **Root Features Behavior**: Consistent "all features" content regardless of package selection
-- **CMake Tools Patterns**: Icon choices and color schemes inspired by CMake Tools reference
+- **Icon-Based Indicators**: Uses emojis on the right side of item labels (CMake Tools pattern)
+- **Right-Side Indicators**: Package (📦), Build (🔨), Run (🚀), Benchmark (⚡) emojis
+- **Default Icon Preservation**: Target type icons remain on the left side as primary identifiers
 - **Project Structure**: Root node shows project name, hierarchical organization
 - **Features Integration**: Root "Features" node + package-specific feature nodes
 - **Selection Mirroring**: Real-time visual indicators for selected targets and features
