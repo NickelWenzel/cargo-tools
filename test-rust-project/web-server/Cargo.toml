@@ -1,0 +1,21 @@
+[package]
+name = "web-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[example]]
+name = "simple-server"
+path = "examples/simple.rs"
+
+[dependencies]
+core = { path = "../core" }
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"

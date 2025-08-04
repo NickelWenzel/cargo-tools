@@ -1,0 +1,739 @@
+import * as assert from 'assert';
+import { CargoTarget, TargetActionType } from '../cargoTarget';
+import { CargoProfile } from '../cargoProfile';
+import { CargoWorkspace } from '../cargoWorkspace';
+import { CargoExtensionManager } from '../cargoExtensionManager';
+
+/**
+ * Unit tests for command line argument generation logic
+ * These tests focus on the core business logic without complex VS Code dependencies
+ */
+suite('Cargo Command Line Argument Generation Unit Tests', () => {
+
+    suite('CargoTarget Property Tests', () => {
+        test('should correctly identify binary targets', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            assert.strictEqual(target.isExecutable, true);
+            assert.strictEqual(target.isLibrary, false);
+            assert.strictEqual(target.isTest, false);
+            assert.strictEqual(target.isExample, false);
+            assert.strictEqual(target.isBench, false);
+        });
+
+        test('should correctly identify library targets', () => {
+            const target = new CargoTarget(
+                'mylib',
+                ['lib'],
+                '/path/to/src/lib.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            assert.strictEqual(target.isExecutable, false);
+            assert.strictEqual(target.isLibrary, true);
+            assert.strictEqual(target.isTest, false);
+            assert.strictEqual(target.isExample, false);
+            assert.strictEqual(target.isBench, false);
+        });
+
+        test('should correctly identify test targets', () => {
+            const target = new CargoTarget(
+                'integration-test',
+                ['test'],
+                '/path/to/tests/integration-test.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            assert.strictEqual(target.isExecutable, false);
+            assert.strictEqual(target.isLibrary, false);
+            assert.strictEqual(target.isTest, true);
+            assert.strictEqual(target.isExample, false);
+            assert.strictEqual(target.isBench, false);
+        });
+
+        test('should correctly identify example targets', () => {
+            const target = new CargoTarget(
+                'my-example',
+                ['example'],
+                '/path/to/examples/my-example.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            assert.strictEqual(target.isExecutable, false);
+            assert.strictEqual(target.isLibrary, false);
+            assert.strictEqual(target.isTest, false);
+            assert.strictEqual(target.isExample, true);
+            assert.strictEqual(target.isBench, false);
+        });
+
+        test('should correctly identify bench targets', () => {
+            const target = new CargoTarget(
+                'my-bench',
+                ['bench'],
+                '/path/to/benches/my-bench.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            assert.strictEqual(target.isExecutable, false);
+            assert.strictEqual(target.isLibrary, false);
+            assert.strictEqual(target.isTest, false);
+            assert.strictEqual(target.isExample, false);
+            assert.strictEqual(target.isBench, true);
+        });
+
+        test('should handle undefined kind gracefully', () => {
+            const target = new CargoTarget(
+                'broken-target',
+                undefined as any,
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            assert.strictEqual(target.isExecutable, false);
+            assert.strictEqual(target.isLibrary, false);
+            assert.strictEqual(target.isTest, false);
+            assert.strictEqual(target.isExample, false);
+            assert.strictEqual(target.isBench, false);
+        });
+
+        test('should handle empty kind array gracefully', () => {
+            const target = new CargoTarget(
+                'empty-target',
+                [],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            assert.strictEqual(target.isExecutable, false);
+            assert.strictEqual(target.isLibrary, false);
+            assert.strictEqual(target.isTest, false);
+            assert.strictEqual(target.isExample, false);
+            assert.strictEqual(target.isBench, false);
+        });
+    });
+
+    suite('Target Action Type Support Tests', () => {
+        test('should return correct supported action types for binary target', () => {
+            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const supportedActions = target.supportedActionTypes;
+
+            assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
+            assert.ok(supportedActions.includes(TargetActionType.Run), 'Should support run action');
+            assert.ok(!supportedActions.includes(TargetActionType.Test), 'Should not support test action');
+            assert.ok(!supportedActions.includes(TargetActionType.Bench), 'Should not support bench action');
+        });
+
+        test('should return correct supported action types for library target', () => {
+            const target = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const supportedActions = target.supportedActionTypes;
+
+            assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
+            assert.ok(!supportedActions.includes(TargetActionType.Run), 'Should not support run action');
+            assert.ok(!supportedActions.includes(TargetActionType.Test), 'Should not support test action');
+            assert.ok(!supportedActions.includes(TargetActionType.Bench), 'Should not support bench action');
+        });
+
+        test('should return correct supported action types for test target', () => {
+            const target = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const supportedActions = target.supportedActionTypes;
+
+            assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
+            assert.ok(!supportedActions.includes(TargetActionType.Run), 'Should not support run action');
+            assert.ok(supportedActions.includes(TargetActionType.Test), 'Should support test action');
+            assert.ok(!supportedActions.includes(TargetActionType.Bench), 'Should not support bench action');
+        });
+
+        test('should return correct supported action types for bench target', () => {
+            const target = new CargoTarget('my-bench', ['bench'], '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
+            const supportedActions = target.supportedActionTypes;
+
+            assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
+            assert.ok(!supportedActions.includes(TargetActionType.Run), 'Should not support run action');
+            assert.ok(!supportedActions.includes(TargetActionType.Test), 'Should not support test action');
+            assert.ok(supportedActions.includes(TargetActionType.Bench), 'Should support bench action');
+        });
+
+        test('should return correct supported action types for example target', () => {
+            const target = new CargoTarget('my-example', ['example'], '/test/examples/my-example.rs', '2021', 'my-package', '/test');
+            const supportedActions = target.supportedActionTypes;
+
+            assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
+            assert.ok(supportedActions.includes(TargetActionType.Run), 'Should support run action');
+            assert.ok(!supportedActions.includes(TargetActionType.Test), 'Should not support test action');
+            assert.ok(!supportedActions.includes(TargetActionType.Bench), 'Should not support bench action');
+        });
+
+        test('should correctly check if target supports specific action type', () => {
+            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+
+            assert.ok(binaryTarget.supportsActionType(TargetActionType.Build), 'Binary should support build');
+            assert.ok(binaryTarget.supportsActionType(TargetActionType.Run), 'Binary should support run');
+            assert.ok(!binaryTarget.supportsActionType(TargetActionType.Test), 'Binary should not support test');
+            assert.ok(!binaryTarget.supportsActionType(TargetActionType.Bench), 'Binary should not support bench');
+        });
+
+        test('should return correct cargo command for action types', () => {
+            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Build), 'build');
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Run), 'run');
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Test), 'test');
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Bench), 'bench');
+        });
+
+        test('should return correct target arguments for different action types', () => {
+            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const exampleTarget = new CargoTarget('my-example', ['example'], '/test/examples/my-example.rs', '2021', 'my-package', '/test');
+
+            // Binary target args
+            assert.deepStrictEqual(binaryTarget.getTargetArgs(TargetActionType.Build), ['--bin', 'my-app']);
+            assert.deepStrictEqual(binaryTarget.getTargetArgs(TargetActionType.Run), ['--bin', 'my-app']);
+
+            // Library target args
+            assert.deepStrictEqual(libTarget.getTargetArgs(TargetActionType.Build), ['--lib']);
+
+            // Test target args
+            assert.deepStrictEqual(testTarget.getTargetArgs(TargetActionType.Test), ['--test', 'my-test']);
+
+            // Example target args
+            assert.deepStrictEqual(exampleTarget.getTargetArgs(TargetActionType.Build), ['--example', 'my-example']);
+            assert.deepStrictEqual(exampleTarget.getTargetArgs(TargetActionType.Run), ['--example', 'my-example']);
+        });
+    });
+
+    suite('Command Line Argument Generation Logic', () => {
+        /**
+         * Test helper to simulate the getCargoArgsForTarget logic without dependencies
+         */
+        function getCargoArgsForTarget(
+            command: string,
+            target: CargoTarget,
+            options: {
+                profile?: CargoProfile;
+                isWorkspace?: boolean;
+                features?: string[];
+                allFeatures?: boolean;
+                noDefaultFeatures?: boolean;
+                commandArgs?: string[];
+                usePackageFlag?: boolean;
+            } = {}
+        ): string[] {
+            const args = [command];
+
+            // Add profile
+            if (options.profile === CargoProfile.release) {
+                args.push('--release');
+            }
+
+            // For workspace projects, add package specification
+            if (target.packageName && options.isWorkspace && options.usePackageFlag) {
+                args.push('-p', target.packageName);
+            }
+
+            // Add target-specific flags
+            if (command !== 'clean' && target.kind && Array.isArray(target.kind)) {
+                if (target.kind.includes('bin')) {
+                    args.push('--bin', target.name);
+                } else if (target.kind.includes('lib')) {
+                    args.push('--lib');
+                } else if (target.kind.includes('example')) {
+                    args.push('--example', target.name);
+                } else if (target.kind.includes('test')) {
+                    args.push('--test', target.name);
+                } else if (target.kind.includes('bench')) {
+                    args.push('--bench', target.name);
+                }
+            }
+
+            // Add features and other configuration
+            const features = options.features || [];
+            if (features && Array.isArray(features) && features.length > 0) {
+                args.push('--features', features.join(','));
+            }
+
+            if (options.allFeatures) {
+                args.push('--all-features');
+            }
+
+            if (options.noDefaultFeatures) {
+                args.push('--no-default-features');
+            }
+
+            // Add command-specific arguments from configuration
+            const commandArgs = options.commandArgs;
+            if (commandArgs && Array.isArray(commandArgs)) {
+                args.push(...commandArgs);
+            }
+
+            return args;
+        }
+
+        test('should generate correct args for binary target build', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev
+            });
+
+            const expectedArgs = ['build', '--bin', 'my-app'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should generate correct args for binary target build with release profile', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.release
+            });
+
+            const expectedArgs = ['build', '--release', '--bin', 'my-app'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should generate correct args for workspace member with package flag', () => {
+            const target = new CargoTarget(
+                'worker',
+                ['bin'],
+                '/path/to/workspace/worker/src/main.rs',
+                '2021',
+                'worker-package',
+                '/path/to/workspace/worker'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev,
+                isWorkspace: true,
+                usePackageFlag: true
+            });
+
+            const expectedArgs = ['build', '-p', 'worker-package', '--bin', 'worker'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should generate correct args for library target', () => {
+            const target = new CargoTarget(
+                'mylib',
+                ['lib'],
+                '/path/to/src/lib.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev
+            });
+
+            const expectedArgs = ['build', '--lib'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should generate correct args for example target', () => {
+            const target = new CargoTarget(
+                'my-example',
+                ['example'],
+                '/path/to/examples/my-example.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev
+            });
+
+            const expectedArgs = ['build', '--example', 'my-example'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should generate correct args for test target', () => {
+            const target = new CargoTarget(
+                'integration-test',
+                ['test'],
+                '/path/to/tests/integration-test.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('test', target, {
+                profile: CargoProfile.dev
+            });
+
+            const expectedArgs = ['test', '--test', 'integration-test'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should generate correct args for bench target', () => {
+            const target = new CargoTarget(
+                'my-bench',
+                ['bench'],
+                '/path/to/benches/my-bench.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev
+            });
+
+            const expectedArgs = ['build', '--bench', 'my-bench'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should include features in args', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev,
+                features: ['feature1', 'feature2']
+            });
+
+            const expectedArgs = ['build', '--bin', 'my-app', '--features', 'feature1,feature2'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should include all-features flag', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev,
+                allFeatures: true
+            });
+
+            const expectedArgs = ['build', '--bin', 'my-app', '--all-features'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should include no-default-features flag', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev,
+                noDefaultFeatures: true
+            });
+
+            const expectedArgs = ['build', '--bin', 'my-app', '--no-default-features'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should include additional build args', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev,
+                commandArgs: ['--verbose', '--color', 'always']
+            });
+
+            const expectedArgs = ['build', '--bin', 'my-app', '--verbose', '--color', 'always'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should handle run command for binary targets', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('run', target, {
+                profile: CargoProfile.dev
+            });
+
+            const expectedArgs = ['run', '--bin', 'my-app'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should handle clean command without target flags', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const args = getCargoArgsForTarget('clean', target, {
+                profile: CargoProfile.dev
+            });
+
+            const expectedArgs = ['clean'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+
+        test('should skip package flag when not in workspace mode', () => {
+            const target = new CargoTarget(
+                'worker',
+                ['bin'],
+                '/path/to/workspace/worker/src/main.rs',
+                '2021',
+                'worker-package',
+                '/path/to/workspace/worker'
+            );
+
+            const args = getCargoArgsForTarget('build', target, {
+                profile: CargoProfile.dev,
+                isWorkspace: true,
+                usePackageFlag: false  // Simulating execution from package directory
+            });
+
+            const expectedArgs = ['build', '--bin', 'worker'];
+            assert.deepStrictEqual(args, expectedArgs);
+        });
+    });
+
+    suite('Working Directory Logic Tests', () => {
+        /**
+         * Test helper to simulate the getWorkingDirectoryForTarget logic
+         */
+        function getWorkingDirectoryForTarget(
+            target: CargoTarget,
+            options: {
+                isWorkspace?: boolean;
+                workspaceRoot?: string;
+            } = {}
+        ): string {
+            const workspaceRoot = options.workspaceRoot || '/default/workspace';
+
+            // For workspace members, use the package path if available
+            if (target.packagePath && options.isWorkspace) {
+                return target.packagePath;
+            }
+
+            // For single-package projects or when package path is not available, use workspace root
+            return workspaceRoot;
+        }
+
+        test('should return workspace root for single-package project', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package',
+                '/path/to/package'
+            );
+
+            const workingDir = getWorkingDirectoryForTarget(target, {
+                isWorkspace: false,
+                workspaceRoot: '/path/to/workspace'
+            });
+
+            assert.strictEqual(workingDir, '/path/to/workspace');
+        });
+
+        test('should return package path for workspace member', () => {
+            const target = new CargoTarget(
+                'worker',
+                ['bin'],
+                '/path/to/workspace/worker/src/main.rs',
+                '2021',
+                'worker-package',
+                '/path/to/workspace/worker'
+            );
+
+            const workingDir = getWorkingDirectoryForTarget(target, {
+                isWorkspace: true,
+                workspaceRoot: '/path/to/workspace'
+            });
+
+            assert.strictEqual(workingDir, '/path/to/workspace/worker');
+        });
+
+        test('should return workspace root when package path is not available', () => {
+            const target = new CargoTarget(
+                'my-app',
+                ['bin'],
+                '/path/to/src/main.rs',
+                '2021',
+                'my-package'
+                // No packagePath provided
+            );
+
+            const workingDir = getWorkingDirectoryForTarget(target, {
+                isWorkspace: true,
+                workspaceRoot: '/path/to/workspace'
+            });
+
+            assert.strictEqual(workingDir, '/path/to/workspace');
+        });
+    });
+
+    suite('Extension Manager Integration Tests', () => {
+        // Note: These tests focus on the CargoExtensionManager's internal logic
+        // without requiring full VS Code integration, as the manager is a singleton
+        // that requires a VS Code context to create. For true integration testing,
+        // see extension.test.ts
+
+        test('should support action type checking for targets', () => {
+            // Test that target action type logic works correctly
+            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const benchTarget = new CargoTarget('my-bench', ['bench'], '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
+
+            // Binary targets should support build and run
+            assert.ok(binaryTarget.supportsActionType(TargetActionType.Build));
+            assert.ok(binaryTarget.supportsActionType(TargetActionType.Run));
+            assert.ok(!binaryTarget.supportsActionType(TargetActionType.Test));
+            assert.ok(!binaryTarget.supportsActionType(TargetActionType.Bench));
+
+            // Test targets should support build and test
+            assert.ok(testTarget.supportsActionType(TargetActionType.Build));
+            assert.ok(!testTarget.supportsActionType(TargetActionType.Run));
+            assert.ok(testTarget.supportsActionType(TargetActionType.Test));
+            assert.ok(!testTarget.supportsActionType(TargetActionType.Bench));
+
+            // Library targets should only support build
+            assert.ok(libTarget.supportsActionType(TargetActionType.Build));
+            assert.ok(!libTarget.supportsActionType(TargetActionType.Run));
+            assert.ok(!libTarget.supportsActionType(TargetActionType.Test));
+            assert.ok(!libTarget.supportsActionType(TargetActionType.Bench));
+
+            // Bench targets should support build and bench
+            assert.ok(benchTarget.supportsActionType(TargetActionType.Build));
+            assert.ok(!benchTarget.supportsActionType(TargetActionType.Run));
+            assert.ok(!benchTarget.supportsActionType(TargetActionType.Test));
+            assert.ok(benchTarget.supportsActionType(TargetActionType.Bench));
+        });
+
+        test('should generate correct cargo commands for action types', () => {
+            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Build), 'build');
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Run), 'run');
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Test), 'test');
+            assert.strictEqual(target.getCargoCommand(TargetActionType.Bench), 'bench');
+        });
+
+        test('should generate correct target arguments for action types', () => {
+            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const exampleTarget = new CargoTarget('my-example', ['example'], '/test/examples/my-example.rs', '2021', 'my-package', '/test');
+            const benchTarget = new CargoTarget('my-bench', ['bench'], '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
+
+            // Binary target args
+            assert.deepStrictEqual(binaryTarget.getTargetArgs(TargetActionType.Build), ['--bin', 'my-app']);
+            assert.deepStrictEqual(binaryTarget.getTargetArgs(TargetActionType.Run), ['--bin', 'my-app']);
+
+            // Library target args
+            assert.deepStrictEqual(libTarget.getTargetArgs(TargetActionType.Build), ['--lib']);
+
+            // Test target args
+            assert.deepStrictEqual(testTarget.getTargetArgs(TargetActionType.Test), ['--test', 'my-test']);
+
+            // Example target args
+            assert.deepStrictEqual(exampleTarget.getTargetArgs(TargetActionType.Build), ['--example', 'my-example']);
+            assert.deepStrictEqual(exampleTarget.getTargetArgs(TargetActionType.Run), ['--example', 'my-example']);
+
+            // Bench target args
+            assert.deepStrictEqual(benchTarget.getTargetArgs(TargetActionType.Bench), ['--bench', 'my-bench']);
+        });
+
+        test('should validate package context is included in target arguments', () => {
+            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+
+            // The package context should be accessible for command building
+            assert.strictEqual(target.packageName, 'my-package');
+            assert.strictEqual(target.packagePath, '/test');
+
+            // Verify the target contains all necessary information for package-aware commands
+            assert.ok(target.packageName !== undefined);
+            assert.ok(target.packagePath !== undefined);
+        });
+
+        test('should distinguish between different target types for context menus', () => {
+            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+
+            // Each target type should have different supported actions
+            const binaryActions = binaryTarget.supportedActionTypes;
+            const libActions = libTarget.supportedActionTypes;
+            const testActions = testTarget.supportedActionTypes;
+
+            // Binary targets support build and run
+            assert.ok(binaryActions.includes(TargetActionType.Build));
+            assert.ok(binaryActions.includes(TargetActionType.Run));
+            assert.strictEqual(binaryActions.length, 2);
+
+            // Library targets only support build
+            assert.ok(libActions.includes(TargetActionType.Build));
+            assert.strictEqual(libActions.length, 1);
+
+            // Test targets support build and test
+            assert.ok(testActions.includes(TargetActionType.Build));
+            assert.ok(testActions.includes(TargetActionType.Test));
+            assert.strictEqual(testActions.length, 2);
+        });
+    });
+});

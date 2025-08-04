@@ -8,6 +8,31 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+interface CargoMetadataTarget {
+    name: string;
+    kind: string[];
+    crate_types: string[];
+    src_path: string;
+    edition: string;
+    doctest: boolean;
+    test: boolean;
+}
+
+interface CargoMetadataPackage {
+    name: string;
+    version: string;
+    edition: string;
+    manifest_path: string;
+    targets: CargoMetadataTarget[];
+    features?: Record<string, string[]>;
+}
+
+interface CargoMetadata {
+    packages: CargoMetadataPackage[];
+    workspace_members: string[];
+    workspace_root: string;
+}
+
 export interface CargoManifest {
     package?: {
         name: string;
@@ -30,13 +55,30 @@ export class CargoWorkspace {
     private _targets: CargoTarget[] = [];
     private _currentProfile: CargoProfile = CargoProfile.dev;
     private _currentTarget: CargoTarget | null = null;
+    private _selectedPackage: string | undefined = undefined; // undefined means "All"
+    private _workspacePackageNames: string[] = []; // Package names from cargo metadata
+    private _packageFeatures: Map<string, string[]> = new Map(); // Features available for each package
+    private _selectedBuildTarget: string | null = null; // Selected build target
+    private _selectedRunTarget: string | null = null; // Selected run target
+    private _selectedBenchmarkTarget: string | null = null; // Selected benchmark target
+    private _selectedFeatures: Set<string> = new Set(); // Selected features, default to none (no features selected)
     private _onDidChangeProfile = new vscode.EventEmitter<CargoProfile>();
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeTargets = new vscode.EventEmitter<CargoTarget[]>();
+    private _onDidChangeSelectedPackage = new vscode.EventEmitter<string | undefined>();
+    private _onDidChangeSelectedBuildTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedRunTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedBenchmarkTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedFeatures = new vscode.EventEmitter<Set<string>>();
 
     readonly onDidChangeProfile = this._onDidChangeProfile.event;
     readonly onDidChangeTarget = this._onDidChangeTarget.event;
     readonly onDidChangeTargets = this._onDidChangeTargets.event;
+    readonly onDidChangeSelectedPackage = this._onDidChangeSelectedPackage.event;
+    readonly onDidChangeSelectedBuildTarget = this._onDidChangeSelectedBuildTarget.event;
+    readonly onDidChangeSelectedRunTarget = this._onDidChangeSelectedRunTarget.event;
+    readonly onDidChangeSelectedBenchmarkTarget = this._onDidChangeSelectedBenchmarkTarget.event;
+    readonly onDidChangeSelectedFeatures = this._onDidChangeSelectedFeatures.event;
 
     constructor(workspaceRoot: string) {
         this._workspaceRoot = workspaceRoot;
@@ -60,6 +102,61 @@ export class CargoWorkspace {
 
     get currentTarget(): CargoTarget | null {
         return this._currentTarget;
+    }
+
+    get selectedPackage(): string | undefined {
+        return this._selectedPackage;
+    }
+
+    get selectedBuildTarget(): string | null {
+        return this._selectedBuildTarget;
+    }
+
+    get selectedRunTarget(): string | null {
+        return this._selectedRunTarget;
+    }
+
+    get selectedBenchmarkTarget(): string | null {
+        return this._selectedBenchmarkTarget;
+    }
+
+    get selectedFeatures(): Set<string> {
+        return this._selectedFeatures;
+    }
+
+    get isWorkspace(): boolean {
+        return this._manifest?.workspace !== undefined;
+    }
+
+    get projectName(): string {
+        // For workspace projects, use the workspace root directory name
+        if (this.isWorkspace) {
+            return path.basename(this._workspaceRoot);
+        }
+        // For single-package projects, use the package name from manifest
+        return this._manifest?.package?.name || path.basename(this._workspaceRoot);
+    }
+
+    get workspaceMembers(): string[] {
+        // Use package names from cargo metadata if available, fallback to TOML parsing
+        return this._workspacePackageNames.length > 0
+            ? this._workspacePackageNames
+            : this._manifest?.workspace?.members || [];
+    }
+
+    getWorkspaceMembers(): Map<string, CargoTarget[]> {
+        const members = new Map<string, CargoTarget[]>();
+
+        for (const target of this._targets) {
+            const memberName = target.packageName || 'default';
+
+            if (!members.has(memberName)) {
+                members.set(memberName, []);
+            }
+            members.get(memberName)!.push(target);
+        }
+
+        return members;
     }
 
     async initialize(): Promise<void> {
@@ -131,70 +228,161 @@ export class CargoWorkspace {
 
     private async discoverTargets(): Promise<void> {
         this._targets = [];
+        this._workspacePackageNames = [];
+        this._packageFeatures.clear(); // Clear package features before discovery
 
         try {
+            // Use cargo metadata to get accurate target information
             const { stdout } = await execAsync('cargo metadata --format-version 1 --no-deps', {
                 cwd: this._workspaceRoot
             });
 
-            const metadata = JSON.parse(stdout);
+            const metadata: CargoMetadata = JSON.parse(stdout);
 
-            for (const target of metadata.targets || []) {
-                const cargoTarget = new CargoTarget(
-                    target.name,
-                    target.kind,
-                    target.src_path,
-                    target.edition || '2021'
-                );
-                this._targets.push(cargoTarget);
+            // Extract workspace package names from metadata
+            const workspacePackageNames = new Set<string>();
+            for (const pkg of metadata.packages) {
+                const isWorkspaceMember = metadata.workspace_members.some(member => member.includes(pkg.name)) ||
+                    pkg.manifest_path.startsWith(metadata.workspace_root);
+                if (isWorkspaceMember) {
+                    workspacePackageNames.add(pkg.name);
+                }
             }
-        } catch (error) {
-            console.error('Failed to discover targets:', error);
+            this._workspacePackageNames = Array.from(workspacePackageNames).sort();
 
+            // Process each package in the workspace
+            for (const pkg of metadata.packages) {
+                // For single-package workspaces, process all packages that match the workspace root
+                // For multi-package workspaces, only process workspace members
+                const isWorkspaceMember = metadata.workspace_members.some(member => member.includes(pkg.name)) ||
+                    pkg.manifest_path.startsWith(metadata.workspace_root);
+
+                if (!isWorkspaceMember) {
+                    continue;
+                }
+
+                // Collect features for this package
+                if (pkg.features) {
+                    this._packageFeatures.set(pkg.name, Object.keys(pkg.features));
+                }
+
+                // Process targets for this package
+                for (const target of pkg.targets) {
+                    // Get package directory from manifest path
+                    const packagePath = path.dirname(pkg.manifest_path);
+
+                    const cargoTarget = new CargoTarget(
+                        target.name,
+                        Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'],
+                        target.src_path,
+                        target.edition || pkg.edition || '2021',
+                        pkg.name,
+                        packagePath
+                    );
+                    this._targets.push(cargoTarget);
+                }
+            }
+
+            this._onDidChangeTargets.fire(this._targets);
+        } catch (error) {
+            console.error('Failed to discover targets using cargo metadata:', error);
             // Fallback to manual discovery
             await this.discoverTargetsManually();
         }
-
-        this._onDidChangeTargets.fire(this._targets);
     }
 
     private async discoverTargetsManually(): Promise<void> {
-        // Look for common target patterns
+        // Fallback manual discovery when cargo metadata fails
         const srcDir = path.join(this._workspaceRoot, 'src');
+        const packageName = this._manifest?.package?.name || path.basename(this._workspaceRoot);
+        const packagePath = this._workspaceRoot; // For manual discovery, package path is workspace root
 
         if (fs.existsSync(srcDir)) {
             // Check for main.rs (binary target)
             const mainPath = path.join(srcDir, 'main.rs');
             if (fs.existsSync(mainPath)) {
-                const packageName = this._manifest?.package?.name || path.basename(this._workspaceRoot);
-                this._targets.push(new CargoTarget(packageName, ['bin'], mainPath));
+                this._targets.push(new CargoTarget(packageName, ['bin'], mainPath, '2021', packageName, packagePath));
             }
 
             // Check for lib.rs (library target)
             const libPath = path.join(srcDir, 'lib.rs');
             if (fs.existsSync(libPath)) {
-                const libName = this._manifest?.lib?.name || this._manifest?.package?.name || path.basename(this._workspaceRoot);
-                this._targets.push(new CargoTarget(libName, ['lib'], libPath));
+                const libName = this._manifest?.lib?.name || packageName;
+                this._targets.push(new CargoTarget(libName, ['lib'], libPath, '2021', packageName, packagePath));
             }
 
-            // Check for bin directory
+            // Check for bin directory (additional binary targets)
             const binDir = path.join(srcDir, 'bin');
             if (fs.existsSync(binDir)) {
-                const binFiles = await fs.promises.readdir(binDir);
-                for (const file of binFiles) {
-                    if (file.endsWith('.rs')) {
-                        const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file)));
+                try {
+                    const binFiles = await fs.promises.readdir(binDir);
+                    for (const file of binFiles) {
+                        if (file.endsWith('.rs')) {
+                            const name = path.basename(file, '.rs');
+                            this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file), '2021', packageName, packagePath));
+                        }
                     }
+                } catch (error) {
+                    console.error('Failed to read bin directory:', error);
                 }
             }
         }
+
+        // Check for examples directory
+        const examplesDir = path.join(this._workspaceRoot, 'examples');
+        if (fs.existsSync(examplesDir)) {
+            try {
+                const exampleFiles = await fs.promises.readdir(examplesDir);
+                for (const file of exampleFiles) {
+                    if (file.endsWith('.rs')) {
+                        const name = path.basename(file, '.rs');
+                        this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file), '2021', packageName, packagePath));
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to read examples directory:', error);
+            }
+        }
+
+        // Check for tests directory
+        const testsDir = path.join(this._workspaceRoot, 'tests');
+        if (fs.existsSync(testsDir)) {
+            try {
+                const testFiles = await fs.promises.readdir(testsDir);
+                for (const file of testFiles) {
+                    if (file.endsWith('.rs')) {
+                        const name = path.basename(file, '.rs');
+                        this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file), '2021', packageName, packagePath));
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to read tests directory:', error);
+            }
+        }
+
+        // Check for benches directory
+        const benchesDir = path.join(this._workspaceRoot, 'benches');
+        if (fs.existsSync(benchesDir)) {
+            try {
+                const benchFiles = await fs.promises.readdir(benchesDir);
+                for (const file of benchFiles) {
+                    if (file.endsWith('.rs')) {
+                        const name = path.basename(file, '.rs');
+                        this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file), '2021', packageName, packagePath));
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to read benches directory:', error);
+            }
+        }
+
+        this._onDidChangeTargets.fire(this._targets);
     }
 
     private setDefaultTarget(): void {
         if (this._targets.length > 0) {
             // Prefer binary targets over library targets
-            const binTarget = this._targets.find(t => t.kind.includes('bin'));
+            const binTarget = this._targets.find(t => t.kind && Array.isArray(t.kind) && t.kind.includes('bin'));
             this._currentTarget = binTarget || this._targets[0];
             this._onDidChangeTarget.fire(this._currentTarget);
         }
@@ -214,8 +402,141 @@ export class CargoWorkspace {
         }
     }
 
+    setSelectedPackage(packageName: string | undefined): void {
+        if (this._selectedPackage !== packageName) {
+            this._selectedPackage = packageName;
+
+            // Reset target selections when package changes
+            // because targets are package-specific
+            this.resetTargetSelections();
+
+            this._onDidChangeSelectedPackage.fire(this._selectedPackage);
+        }
+    }
+
+    setSelectedBuildTarget(targetName: string | null): void {
+        if (this._selectedBuildTarget !== targetName) {
+            this._selectedBuildTarget = targetName;
+            this._onDidChangeSelectedBuildTarget.fire(this._selectedBuildTarget);
+        }
+    }
+
+    setSelectedRunTarget(targetName: string | null): void {
+        if (this._selectedRunTarget !== targetName) {
+            this._selectedRunTarget = targetName;
+            this._onDidChangeSelectedRunTarget.fire(this._selectedRunTarget);
+        }
+    }
+
+    setSelectedBenchmarkTarget(targetName: string | null): void {
+        if (this._selectedBenchmarkTarget !== targetName) {
+            this._selectedBenchmarkTarget = targetName;
+            this._onDidChangeSelectedBenchmarkTarget.fire(this._selectedBenchmarkTarget);
+        }
+    }
+
+    private resetTargetSelections(): void {
+        // Reset all target selections when package changes
+        // This ensures that selected targets are valid for the new package context
+
+        const oldBuildTarget = this._selectedBuildTarget;
+        const oldRunTarget = this._selectedRunTarget;
+        const oldBenchmarkTarget = this._selectedBenchmarkTarget;
+        const oldFeatures = new Set(this._selectedFeatures);
+
+        this._selectedBuildTarget = null;
+        this._selectedRunTarget = null;
+        this._selectedBenchmarkTarget = null;
+        this._selectedFeatures = new Set(); // Reset to default (no features selected)
+
+        // Fire events only if there were actual changes
+        if (oldBuildTarget !== null) {
+            this._onDidChangeSelectedBuildTarget.fire(this._selectedBuildTarget);
+        }
+        if (oldRunTarget !== null) {
+            this._onDidChangeSelectedRunTarget.fire(this._selectedRunTarget);
+        }
+        if (oldBenchmarkTarget !== null) {
+            this._onDidChangeSelectedBenchmarkTarget.fire(this._selectedBenchmarkTarget);
+        }
+
+        // Check if features actually changed
+        if (oldFeatures.size !== this._selectedFeatures.size ||
+            !Array.from(oldFeatures).every(f => this._selectedFeatures.has(f))) {
+            this._onDidChangeSelectedFeatures.fire(this._selectedFeatures);
+        }
+    }
+
+    /**
+     * Get available features for a specific package
+     */
+    getPackageFeatures(packageName: string): string[] {
+        return this._packageFeatures.get(packageName) || [];
+    }
+
+    /**
+     * Get all available features for the current package context
+     */
+    getAvailableFeatures(): string[] {
+        const features = ['all-features']; // Always include all-features option
+
+        if (this._selectedPackage && this._selectedPackage !== 'All') {
+            // When a specific package is selected, show its features
+            const packageFeatures = this.getPackageFeatures(this._selectedPackage);
+            features.push(...packageFeatures);
+        }
+        // When "All" is selected, only show "all-features"
+
+        return features;
+    }
+
+    /**
+     * Set selected features
+     */
+    setSelectedFeatures(features: Set<string>): void {
+        this._selectedFeatures = new Set(features);
+        this._onDidChangeSelectedFeatures.fire(this._selectedFeatures);
+    }
+
+    /**
+     * Toggle a feature selection
+     */
+    toggleFeature(feature: string): void {
+        const newFeatures = new Set(this._selectedFeatures);
+
+        if (feature === 'all-features') {
+            // If toggling all-features
+            if (newFeatures.has('all-features')) {
+                // If all-features is currently selected, deselect it (allow empty selection)
+                newFeatures.clear();
+            } else {
+                // If all-features is not selected, select it and clear others
+                newFeatures.clear();
+                newFeatures.add('all-features');
+            }
+        } else {
+            // If toggling a specific feature
+            if (newFeatures.has(feature)) {
+                // Deselect the feature
+                newFeatures.delete(feature);
+            } else {
+                // Select the feature and remove all-features
+                newFeatures.delete('all-features');
+                newFeatures.add(feature);
+            }
+            // Note: Empty selection is now allowed as the default state
+        }
+
+        this.setSelectedFeatures(newFeatures);
+    }
+
     async refresh(): Promise<void> {
         await this.loadManifest();
+        await this.discoverTargets();
+        this.setDefaultTarget();
+    }
+
+    async refreshTargets(): Promise<void> {
         await this.discoverTargets();
         this.setDefaultTarget();
     }
@@ -230,10 +551,12 @@ export class CargoWorkspace {
 
         // Add target
         if (this._currentTarget && command !== 'clean') {
-            if (this._currentTarget.kind.includes('bin')) {
-                args.push('--bin', this._currentTarget.name);
-            } else if (this._currentTarget.kind.includes('lib')) {
-                args.push('--lib');
+            if (this._currentTarget.kind && Array.isArray(this._currentTarget.kind)) {
+                if (this._currentTarget.kind.includes('bin')) {
+                    args.push('--bin', this._currentTarget.name);
+                } else if (this._currentTarget.kind.includes('lib')) {
+                    args.push('--lib');
+                }
             }
         }
 
