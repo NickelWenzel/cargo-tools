@@ -128,6 +128,15 @@ export class CargoWorkspace {
         return this._manifest?.workspace !== undefined;
     }
 
+    get projectName(): string {
+        // For workspace projects, use the workspace root directory name
+        if (this.isWorkspace) {
+            return path.basename(this._workspaceRoot);
+        }
+        // For single-package projects, use the package name from manifest
+        return this._manifest?.package?.name || path.basename(this._workspaceRoot);
+    }
+
     get workspaceMembers(): string[] {
         // Use package names from cargo metadata if available, fallback to TOML parsing
         return this._workspacePackageNames.length > 0

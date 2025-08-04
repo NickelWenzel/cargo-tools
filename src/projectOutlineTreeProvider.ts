@@ -30,6 +30,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     private workspace?: CargoWorkspace;
     private groupByWorkspaceMember: boolean = true;
     private isRefreshing = false;
+    private subscriptions: vscode.Disposable[] = [];
 
     constructor() {
         // Load configuration
@@ -60,7 +61,24 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     }
 
     updateWorkspace(workspace: CargoWorkspace | undefined): void {
+        // Dispose existing subscriptions
+        this.subscriptions.forEach(sub => sub.dispose());
+        this.subscriptions = [];
+
         this.workspace = workspace;
+
+        // Set up new subscriptions if workspace is available
+        if (workspace) {
+            this.subscriptions.push(
+                workspace.onDidChangeSelectedPackage(() => this.refresh()),
+                workspace.onDidChangeSelectedBuildTarget(() => this.refresh()),
+                workspace.onDidChangeSelectedRunTarget(() => this.refresh()),
+                workspace.onDidChangeSelectedBenchmarkTarget(() => this.refresh()),
+                workspace.onDidChangeSelectedFeatures(() => this.refresh()),
+                workspace.onDidChangeTargets(() => this.refresh())
+            );
+        }
+
         this.refresh();
     }
 
@@ -90,7 +108,63 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             return [];
         }
 
+        // Single root node: Project name
+        const projectNode = new ProjectOutlineNode(
+            this.workspace.projectName,
+            vscode.TreeItemCollapsibleState.Expanded,
+            'project',
+            undefined,
+            undefined,
+            `${this.workspace.targets.length} targets`,
+            `Rust project: ${this.workspace.projectName}`,
+            { projectName: this.workspace.projectName }
+        );
+        projectNode.iconPath = new vscode.ThemeIcon('symbol-package');
+
+        return [projectNode];
+    }
+
+    private getChildNodes(element: ProjectOutlineNode): ProjectOutlineNode[] {
+        if (!this.workspace || !element.data) {
+            return [];
+        }
+
+        switch (element.contextValue) {
+            case 'project':
+                return this.createProjectChildren();
+            case 'workspaceMember':
+                return this.createWorkspaceMemberChildren(element.data);
+            case 'targetType':
+                return this.createTargetTypeChildren(element.data);
+            case 'targetTypeGroup':
+                return this.createTargetNodes(element.data.targets);
+            case 'features':
+                return this.createFeatureNodes(element.data);
+            default:
+                return [];
+        }
+    }
+
+    private createProjectChildren(): ProjectOutlineNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
         const nodes: ProjectOutlineNode[] = [];
+
+        // Add root-level Features node 
+        const rootFeaturesNode = new ProjectOutlineNode(
+            'Features',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'features',
+            undefined,
+            undefined,
+            'Project features',
+            'Features available for the entire project',
+            { packageName: undefined, features: this.workspace.getAvailableFeatures() }
+        );
+        rootFeaturesNode.iconPath = new vscode.ThemeIcon('settings-gear');
+        nodes.push(rootFeaturesNode);
 
         if (this.groupByWorkspaceMember && this.workspace.isWorkspace) {
             // Group by workspace member
@@ -133,26 +207,30 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         return nodes;
     }
 
-    private getChildNodes(element: ProjectOutlineNode): ProjectOutlineNode[] {
-        if (!this.workspace || !element.data) {
-            return [];
-        }
-
-        switch (element.contextValue) {
-            case 'workspaceMember':
-                return this.createWorkspaceMemberChildren(element.data);
-            case 'targetType':
-                return this.createTargetTypeChildren(element.data);
-            case 'targetTypeGroup':
-                return this.createTargetNodes(element.data.targets);
-            default:
-                return [];
-        }
-    }
-
     private createWorkspaceMemberChildren(data: { memberName: string; targets: CargoTarget[] }): ProjectOutlineNode[] {
-        const targetsByType = this.groupTargetsByType(data.targets);
         const nodes: ProjectOutlineNode[] = [];
+
+        // Add Features node for this package
+        if (this.workspace) {
+            const packageFeatures = this.workspace.getPackageFeatures(data.memberName);
+            if (packageFeatures.length > 0) {
+                const featuresNode = new ProjectOutlineNode(
+                    'Features',
+                    vscode.TreeItemCollapsibleState.Expanded,
+                    'features',
+                    undefined,
+                    undefined,
+                    `${packageFeatures.length} features`,
+                    `Features available for package ${data.memberName}`,
+                    { packageName: data.memberName, features: packageFeatures }
+                );
+                featuresNode.iconPath = new vscode.ThemeIcon('settings-gear');
+                nodes.push(featuresNode);
+            }
+        }
+
+        // Add target groups
+        const targetsByType = this.groupTargetsByType(data.targets);
 
         for (const [type, targets] of targetsByType) {
             const typeNode = new ProjectOutlineNode(
@@ -179,7 +257,29 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     private createTargetNodes(targets: CargoTarget[]): ProjectOutlineNode[] {
         return targets.map(target => {
             const isDefault = this.workspace?.currentTarget === target;
-            const label = isDefault ? `${target.name} (default)` : target.name;
+            let label = target.name;
+            let contextIndicators: string[] = [];
+
+            // Add selection state indicators
+            if (this.workspace) {
+                if (this.workspace.selectedBuildTarget === target.name) {
+                    contextIndicators.push('Build');
+                }
+                if (this.workspace.selectedRunTarget === target.name) {
+                    contextIndicators.push('Run');
+                }
+                if (this.workspace.selectedBenchmarkTarget === target.name) {
+                    contextIndicators.push('Bench');
+                }
+            }
+
+            if (isDefault) {
+                label += ' (default)';
+            }
+
+            if (contextIndicators.length > 0) {
+                label += ` [${contextIndicators.join(', ')}]`;
+            }
 
             const targetNode = new ProjectOutlineNode(
                 label,
@@ -198,11 +298,42 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
             targetNode.iconPath = this.getIconForTarget(target);
 
-            if (isDefault) {
+            if (isDefault || contextIndicators.length > 0) {
                 targetNode.iconPath = new vscode.ThemeIcon('star', new vscode.ThemeColor('list.highlightForeground'));
             }
 
             return targetNode;
+        });
+    }
+
+    private createFeatureNodes(data: { packageName: string | undefined; features: string[] }): ProjectOutlineNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        return data.features.map(feature => {
+            const selectedFeatures = this.workspace!.selectedFeatures;
+            const isSelected = selectedFeatures.has(feature);
+            const label = feature === 'all-features' ? 'All features' : feature;
+            
+            // Add visual indicator for selected features
+            const displayLabel = isSelected ? `✓ ${label}` : `  ${label}`;
+
+            const featureNode = new ProjectOutlineNode(
+                displayLabel,
+                vscode.TreeItemCollapsibleState.None,
+                'feature',
+                undefined,
+                undefined,
+                undefined,
+                isSelected ? `Selected feature: ${feature}` : `Available feature: ${feature}`,
+                { feature, packageName: data.packageName }
+            );
+
+            // Use appropriate icon for selection state
+            featureNode.iconPath = new vscode.ThemeIcon(isSelected ? 'check' : 'circle-outline');
+
+            return featureNode;
         });
     }
 
@@ -314,5 +445,10 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         const kinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
         const kindStr = kinds.join(', ');
         return `${target.name} (${kindStr})\nPackage: ${target.packageName}\nPath: ${target.srcPath}`;
+    }
+
+    dispose(): void {
+        this.subscriptions.forEach(sub => sub.dispose());
+        this.subscriptions = [];
     }
 }

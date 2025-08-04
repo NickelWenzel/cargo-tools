@@ -83,18 +83,34 @@ The extension will have three main tree panes in the extension sidebar:
 
 
 ### 2. Project Outline Pane
-**Purpose:** Read-only project structure overview
+**Purpose:** Read-only project structure overview with selection state mirroring
 
-#### Content
-- **Based On:** Current "Build Targets" tree view
-- **Functionality:** 
-  - Same tree structure and organization
-  - Same workspace member grouping
-  - Same target type categorization
-- **Interactions:** 
-  - **Removed:** All context menu actions
-  - **Retained:** Tree expansion/collapse only
-- **Goal:** Pure informational view of project structure
+#### Content Structure
+- **Root Node:** Project name (from Cargo.toml name field)
+- **Package Organization:** Same workspace member grouping as current tree view
+- **Target Categorization:** Same target type categorization (bins, examples, benchmarks, etc.)
+- **Features Integration:**
+  - **Root Level:** "Features" node containing "All features" item
+  - **Package Level:** Each package has its own "Features" node with package-specific features
+
+#### Selection State Mirroring
+The Project Outline Pane reflects the current selections from the Project Status Pane:
+- **Package Selection:** Highlight/indicate currently selected package
+- **Build Target Selection:** Show which build target is currently selected
+- **Run Target Selection:** Show which run target is currently selected  
+- **Benchmark Target Selection:** Show which benchmark target is currently selected
+- **Feature Selection:** Show which features are currently selected (both at root and package level)
+
+#### Visual Indicators
+- **Selected Items:** Use visual indicators (icons, highlighting, or styling) to show current selections
+- **State Synchronization:** Real-time updates when selections change in Project Status Pane
+- **Hierarchical Context:** Clear visual hierarchy showing project → packages → targets/features
+
+#### Interactions
+- **Removed:** All context menu actions (compared to current Build Targets tree)
+- **Retained:** Tree expansion/collapse only
+- **Read-Only:** Pure informational view - no selection changes possible from this pane
+- **Goal:** Comprehensive project structure overview with current configuration state visibility
 
 ### 3. Pinned Commands Pane
 **Purpose:** Quick access to frequently used commands (future implementation)
