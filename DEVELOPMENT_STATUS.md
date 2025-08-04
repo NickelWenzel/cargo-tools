@@ -4,9 +4,20 @@
 **Branch:** refine  
 **Commit:** [latest]
 
-## 🎯 Current Status: Project Outline Enhanced & Icon Refinements COMPLETE
+## 🎯 Current Status: Library Target Selection Indicator Fix COMPLETE
 
 ### ✅ Recently Completed (August 4, 2025)
+
+#### **Library Target Selection Indicator Fix**
+- **Status**: ✅ **COMPLETE** - Fixed library target selection indicators to respect package scope
+- **Issue**: When "lib" was selected as build target, all library targets showed indicators regardless of package
+- **Solution**: Added package scope validation - only library targets in the selected package show indicators
+- **Location**: Project Outline Pane > Build Target indicators
+- **Behavior**: 
+  - **Package-Scoped Matching**: When "lib" is selected as build target, only library targets in the selected package show hammer emoji (🔨)
+  - **No Global Indicators**: Library targets in other packages don't show indicators when "lib" is selected
+  - **Package Requirement**: Library target indicators only appear when a specific package is selected (not "All")
+  - **Consistent Display**: Library targets now properly show selection state scoped to the current package context
 
 #### **Project Outline Right-Side Icon Indicators**
 - **Status**: ✅ **COMPLETE** - Moved selection indicators to right side of labels
@@ -51,12 +62,15 @@
   - Maintains all toggle functionality and state management
 
 #### **Key Files Modified**:
-- `src/projectOutlineTreeProvider.ts` - Enhanced with icon-based selection indicators and root features refinement
-- `src/cargoWorkspace.ts` - Added projectName getter method
-- `FEATURE_SPECIFICATION.md` - Updated with icon-based visual indicators
-- `src/projectStatusTreeProvider.ts` - Refined Feature Selection UI (previous commit)
+- `src/projectOutlineTreeProvider.ts` - Fixed library target selection indicator logic
+- `FEATURE_SPECIFICATION.md` - Updated documentation for library target handling
+- `src/projectOutlineTreeProvider.ts` - Enhanced with icon-based selection indicators and root features refinement (previous)
+- `src/cargoWorkspace.ts` - Added projectName getter method (previous)
+- `src/projectStatusTreeProvider.ts` - Refined Feature Selection UI (previous)
 
 #### **Technical Implementation**:
+- **Library Target Fix**: Special case handling for "lib" build target selection matching library targets
+- **Icon Consistency**: All target types now show proper selection indicators regardless of naming
 - **Icon-Based Indicators**: Uses emojis on the right side of item labels (CMake Tools pattern)
 - **Right-Side Indicators**: Package (📦), Build (🔨), Run (🚀), Benchmark (⚡) emojis
 - **Default Icon Preservation**: Target type icons remain on the left side as primary identifiers

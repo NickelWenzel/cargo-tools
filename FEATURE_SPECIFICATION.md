@@ -96,7 +96,8 @@ The extension will have three main tree panes in the extension sidebar:
 #### Selection State Mirroring
 The Project Outline Pane reflects the current selections from the Project Status Pane:
 - **Package Selection:** Visually indicated using package emoji (📦) on the right side of labels
-- **Build Target Selection:** Show which build target is currently selected using hammer emoji (🔨) 
+- **Build Target Selection:** Show which build target is currently selected using hammer emoji (🔨)
+  - Handles special case: when "lib" is selected as build target, only library targets in the selected package show the indicator
 - **Run Target Selection:** Show which run target is currently selected using rocket emoji (🚀)
 - **Benchmark Target Selection:** Show which benchmark target is currently selected using lightning emoji (⚡)
 - **Feature Selection:** Show which features are currently selected (both at root and package level)
