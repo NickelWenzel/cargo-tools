@@ -161,7 +161,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             undefined,
             'Project features',
             'Features available for the entire project',
-            { packageName: undefined, features: this.workspace.getAvailableFeatures() }
+            { packageName: undefined, features: ['all-features'] }
         );
         rootFeaturesNode.iconPath = new vscode.ThemeIcon('settings-gear');
         nodes.push(rootFeaturesNode);
@@ -171,6 +171,9 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             const workspaceMembers = this.workspace.getWorkspaceMembers();
 
             for (const [memberName, targets] of workspaceMembers) {
+                // Check if this package is selected
+                const isSelectedPackage = this.workspace.selectedPackage === memberName;
+
                 const memberNode = new ProjectOutlineNode(
                     memberName,
                     vscode.TreeItemCollapsibleState.Expanded,
@@ -181,7 +184,14 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     `Workspace member: ${memberName}`,
                     { memberName, targets }
                 );
-                memberNode.iconPath = new vscode.ThemeIcon('package');
+
+                // Use icon to indicate selection state
+                if (isSelectedPackage) {
+                    memberNode.iconPath = new vscode.ThemeIcon('package', new vscode.ThemeColor('list.activeSelectionForeground'));
+                } else {
+                    memberNode.iconPath = new vscode.ThemeIcon('package');
+                }
+
                 nodes.push(memberNode);
             }
         } else {
@@ -258,27 +268,20 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         return targets.map(target => {
             const isDefault = this.workspace?.currentTarget === target;
             let label = target.name;
-            let contextIndicators: string[] = [];
 
-            // Add selection state indicators
+            // Check selection states for icon styling
+            let isBuildTarget = false;
+            let isRunTarget = false;
+            let isBenchTarget = false;
+
             if (this.workspace) {
-                if (this.workspace.selectedBuildTarget === target.name) {
-                    contextIndicators.push('Build');
-                }
-                if (this.workspace.selectedRunTarget === target.name) {
-                    contextIndicators.push('Run');
-                }
-                if (this.workspace.selectedBenchmarkTarget === target.name) {
-                    contextIndicators.push('Bench');
-                }
+                isBuildTarget = this.workspace.selectedBuildTarget === target.name;
+                isRunTarget = this.workspace.selectedRunTarget === target.name;
+                isBenchTarget = this.workspace.selectedBenchmarkTarget === target.name;
             }
 
             if (isDefault) {
                 label += ' (default)';
-            }
-
-            if (contextIndicators.length > 0) {
-                label += ` [${contextIndicators.join(', ')}]`;
             }
 
             const targetNode = new ProjectOutlineNode(
@@ -296,10 +299,22 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 target
             );
 
-            targetNode.iconPath = this.getIconForTarget(target);
-
-            if (isDefault || contextIndicators.length > 0) {
+            // Set icon based on target type and selection state
+            if (isBuildTarget) {
+                // Use build icon (similar to CMake Tools)
+                targetNode.iconPath = new vscode.ThemeIcon('tools', new vscode.ThemeColor('list.activeSelectionForeground'));
+            } else if (isRunTarget) {
+                // Use run/play icon (similar to CMake Tools)
+                targetNode.iconPath = new vscode.ThemeIcon('play', new vscode.ThemeColor('list.activeSelectionForeground'));
+            } else if (isBenchTarget) {
+                // Use benchmark/stopwatch icon 
+                targetNode.iconPath = new vscode.ThemeIcon('pulse', new vscode.ThemeColor('list.activeSelectionForeground'));
+            } else if (isDefault) {
+                // Use star for default target
                 targetNode.iconPath = new vscode.ThemeIcon('star', new vscode.ThemeColor('list.highlightForeground'));
+            } else {
+                // Use default target type icon
+                targetNode.iconPath = this.getIconForTarget(target);
             }
 
             return targetNode;
@@ -315,7 +330,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             const selectedFeatures = this.workspace!.selectedFeatures;
             const isSelected = selectedFeatures.has(feature);
             const label = feature === 'all-features' ? 'All features' : feature;
-            
+
             // Add visual indicator for selected features
             const displayLabel = isSelected ? `✓ ${label}` : `  ${label}`;
 

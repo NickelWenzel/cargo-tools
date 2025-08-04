@@ -2,13 +2,26 @@
 
 **Last Updated:** August 4, 2025  
 **Branch:** refine  
-**Commit:** f2afda9
+**Commit:** [latest]
 
-## 🎯 Current Status: Project Outline Enhanced COMPLETE
+## 🎯 Current Status: Project Outline Enhanced & Icon Refinements COMPLETE
 
 ### ✅ Recently Completed (August 4, 2025)
 
-#### **Project Outline Pane Enhancement**
+#### **Project Outline Visual Refinements**
+- **Status**: ✅ **COMPLETE** - Enhanced with icon-based selection indicators
+- **Location**: Project Outline Pane
+- **Behavior**: 
+  - **Root Features Node**: Only shows "All features" (never changes with package selection)
+  - **Icon-Based Selection**: Uses icons instead of text for selection state:
+    - Package selection: Colored `package` icons
+    - Build targets: Colored `tools` icons  
+    - Run targets: Colored `play` icons
+    - Benchmark targets: Colored `pulse` icons
+    - Default targets: `star` icons
+  - **CMake Tools Reference**: Icon patterns inspired by microsoft/vscode-cmake-tools
+
+#### **Project Outline Pane Enhancement** 
 - **Status**: ✅ **COMPLETE** - Enhanced with project structure and selection mirroring
 - **Location**: Project Outline Pane
 - **Behavior**: 
@@ -27,17 +40,19 @@
   - Maintains all toggle functionality and state management
 
 #### **Key Files Modified**:
-- `src/projectOutlineTreeProvider.ts` - Enhanced with project root, features, and selection mirroring
+- `src/projectOutlineTreeProvider.ts` - Enhanced with icon-based selection indicators and root features refinement
 - `src/cargoWorkspace.ts` - Added projectName getter method
-- `FEATURE_SPECIFICATION.md` - Updated with enhanced Project Outline requirements
+- `FEATURE_SPECIFICATION.md` - Updated with icon-based visual indicators
 - `src/projectStatusTreeProvider.ts` - Refined Feature Selection UI (previous commit)
 
 #### **Technical Implementation**:
+- **Icon-Based Indicators**: VS Code ThemeIcon with ThemeColor for selection states
+- **Root Features Behavior**: Consistent "all features" content regardless of package selection
+- **CMake Tools Patterns**: Icon choices and color schemes inspired by CMake Tools reference
 - **Project Structure**: Root node shows project name, hierarchical organization
 - **Features Integration**: Root "Features" node + package-specific feature nodes
 - **Selection Mirroring**: Real-time visual indicators for selected targets and features
 - **Event Subscriptions**: Automatic UI updates when Project Status selections change
-- **Visual Indicators**: Icons, highlighting, and labels show current configuration state
 
 ## 📋 Feature Specification Compliance
 
