@@ -556,45 +556,6 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         const selectedFeatures = this.workspace.selectedFeatures;
         const nodes: ProjectStatusNode[] = [];
 
-        // Add a status node showing current selection summary
-        const selectedCount = selectedFeatures.size;
-        let statusLabel: string;
-        let statusIcon: string;
-
-        if (selectedCount === 0) {
-            statusLabel = 'No features selected (default)';
-            statusIcon = 'circle-outline';
-        } else if (selectedFeatures.has('all-features')) {
-            statusLabel = 'All features selected';
-            statusIcon = 'check-all';
-        } else {
-            statusLabel = `${selectedCount} feature${selectedCount > 1 ? 's' : ''} selected`;
-            statusIcon = 'check';
-        }
-
-        const statusNode = new ProjectStatusNode(
-            statusLabel,
-            vscode.TreeItemCollapsibleState.None,
-            'feature-status',
-            undefined,
-            statusLabel,
-            'Current feature selection status'
-        );
-        statusNode.iconPath = new vscode.ThemeIcon(statusIcon);
-        nodes.push(statusNode);
-
-        // Add separator (empty node for visual spacing)
-        const separatorNode = new ProjectStatusNode(
-            '────────────',
-            vscode.TreeItemCollapsibleState.None,
-            'feature-separator',
-            undefined,
-            '',
-            ''
-        );
-        separatorNode.iconPath = new vscode.ThemeIcon('blank');
-        nodes.push(separatorNode);
-
         // Add feature toggle options
         for (const feature of availableFeatures) {
             const isSelected = selectedFeatures.has(feature);
