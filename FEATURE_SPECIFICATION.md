@@ -168,6 +168,82 @@ The Project Outline Pane provides comprehensive context menus for direct selecti
 - **Placeholder:** "No pinned commands" or similar
 - **Future:** Will contain user-customizable quick access commands
 
+## Status Bar Integration
+
+### Overview
+The status bar provides quick access to all selection controls from the Project Status pane, following the microsoft/vscode-cmake-tools pattern for consistency and familiarity.
+
+### Status Bar Buttons
+
+#### Button Layout (Left to Right)
+1. **Build Profile Button**
+   - **Icon:** `$(gear)`
+   - **Text:** Current profile (`[dev]` or `[release]`)
+   - **Command:** `cargo-tools.selectProfile`
+   - **Tooltip:** "Click to change the active build profile"
+
+2. **Package Selection Button**
+   - **Icon:** `$(package)`
+   - **Text:** Current package (`[All]` or `[package-name]`)
+   - **Command:** `cargo-tools.selectPackage`
+   - **Tooltip:** "Click to change the active package"
+
+3. **Build Target Button**
+   - **Icon:** `$(tools)`
+   - **Text:** Current build target (`[All]`, `[lib]`, `[bin-name]`, etc.)
+   - **Command:** `cargo-tools.selectBuildTarget`
+   - **Tooltip:** "Click to change the active build target"
+
+4. **Run Target Button**
+   - **Icon:** `$(play)`
+   - **Text:** Current run target (`[bin-name]`, `[example-name]`, etc.)
+   - **Command:** `cargo-tools.selectRunTarget`
+   - **Tooltip:** "Click to change the active run target"
+   - **Visibility:** Hidden when "All" package is selected
+
+5. **Benchmark Target Button**
+   - **Icon:** `$(zap)`
+   - **Text:** Current benchmark target (`[All]`, `[bench-name]`, etc.)
+   - **Command:** `cargo-tools.selectBenchmarkTarget`
+   - **Tooltip:** "Click to change the active benchmark target"
+   - **Visibility:** Hidden when "All" package is selected
+
+6. **Features Button**
+   - **Icon:** `$(list-unordered)`
+   - **Text:** Current feature selection (`[no features]`, `[all-features]`, `[feature1, feature2]`)
+   - **Command:** `cargo-tools.selectFeatures`
+   - **Tooltip:** "Click to change the active features"
+
+### Button Behavior
+
+#### Text Display Modes
+- **Normal:** Full text with brackets (e.g., `[dev]`, `[package-name]`)
+- **Compact:** Truncated text for long names (e.g., `[very-long-pac...]`)
+- **Icon:** Icon only (for space-constrained scenarios)
+
+#### State Synchronization
+- **Real-time Updates:** All buttons update immediately when selections change in Project Status or Project Outline panes
+- **Bidirectional Sync:** Changes made via status bar buttons are reflected in all other UI components
+- **Event-driven:** Uses the same event system as tree panes for consistency
+
+#### Visibility Rules
+- **Package-dependent Buttons:** Run and Benchmark target buttons are hidden when "All" package is selected
+- **Configuration-driven:** Button visibility can be controlled via VS Code settings
+- **Space Management:** Buttons adapt to available space using text truncation
+
+### Integration Benefits
+
+#### User Experience
+- **Quick Access:** Direct selection without opening tree panes
+- **Visual Feedback:** Immediate indication of current configuration
+- **Space Efficient:** Compact display of essential information
+- **Familiar Pattern:** Follows established CMake Tools UX patterns
+
+#### Technical Implementation
+- **Shared State:** Uses the same CargoWorkspace state as tree panes
+- **Event Consistency:** Participates in the same reactive update system
+- **Command Reuse:** Leverages existing selection commands from tree panes
+
 ## Implementation Guidelines
 
 ### Reference Implementation

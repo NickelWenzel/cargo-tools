@@ -29,7 +29,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 
 		// Initialize and start the extension manager
 		extensionManager = await CargoExtensionManager.create(context);
-		await extensionManager.init();
 
 		console.log('Cargo Tools extension fully initialized!');
 		return setup(context);

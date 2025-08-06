@@ -53,6 +53,12 @@
         "icon": "$(dashboard)"
       },
       {
+        "command": "cargo-tools.selectFeatures",
+        "title": "Select Features",
+        "category": "Cargo Tools",
+        "icon": "$(list-unordered)"
+      },
+      {
         "command": "cargo-tools.refresh",
         "title": "Refresh",
         "category": "Cargo Tools",

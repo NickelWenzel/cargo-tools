@@ -5,6 +5,7 @@ import { CargoTaskProvider } from './cargoTaskProvider';
 import { CargoProfile } from './cargoProfile';
 import { CargoTarget, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
+import { StatusBarProvider } from './statusBarProvider';
 
 /**
  * Generates a unique correlation ID for tracking commands and operations
@@ -25,6 +26,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     // Core components
     private cargoWorkspace?: CargoWorkspace;
     private taskProvider?: CargoTaskProvider;
+    private statusBarProvider?: StatusBarProvider;
 
     // Configuration management
     private readonly workspaceConfig: CargoConfigurationReader = CargoConfigurationReader.create();
@@ -137,8 +139,11 @@ export class CargoExtensionManager implements vscode.Disposable {
      * Initialize all extension components
      */
     private async initializeComponents(): Promise<void> {
-        // Components will be initialized after workspace is available
-        // since they depend on CargoWorkspace instance
+        // Initialize status bar provider (doesn't depend on workspace)
+        this.statusBarProvider = new StatusBarProvider(this.workspaceConfig);
+        this.subscriptions.push(this.statusBarProvider);
+
+        // Components that depend on workspace will be initialized after workspace is available
     }
 
     /**
@@ -203,6 +208,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectBuildTarget',
             'selectRunTarget',
             'selectBenchmarkTarget',
+            'selectFeatures',
             'toggleFeature',
             'refresh',
             'executeDefaultBuild',
@@ -365,43 +371,108 @@ export class CargoExtensionManager implements vscode.Disposable {
         // Subscribe to workspace events - tree providers will auto-refresh via their own subscriptions
         const targetChangedSub = this.cargoWorkspace.onDidChangeTarget((target: CargoTarget | null) => {
             console.log('Target changed:', target?.name || 'none');
-            // Status bar updates automatically via its own subscription
+            this.updateStatusBar();
         });
 
         const profileChangedSub = this.cargoWorkspace.onDidChangeProfile((profile: CargoProfile) => {
             console.log('Profile changed:', CargoProfile.getDisplayName(profile));
-            // Status bar updates automatically via its own subscription
+            this.updateStatusBar();
         });
 
         const packageChangedSub = this.cargoWorkspace.onDidChangeSelectedPackage((packageName: string | undefined) => {
             console.log('Package changed:', packageName || 'All packages');
-            // Tree providers update automatically via their own subscriptions
+            this.updateStatusBar();
+        });
+
+        const buildTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBuildTarget((targetName: string | null) => {
+            console.log('Build target changed:', targetName || 'none');
+            this.updateStatusBar();
+        });
+
+        const runTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedRunTarget((targetName: string | null) => {
+            console.log('Run target changed:', targetName || 'none');
+            this.updateStatusBar();
+        });
+
+        const benchmarkTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBenchmarkTarget((targetName: string | null) => {
+            console.log('Benchmark target changed:', targetName || 'none');
+            this.updateStatusBar();
+        });
+
+        const featuresChangedSub = this.cargoWorkspace.onDidChangeSelectedFeatures((features: Set<string>) => {
+            console.log('Features changed:', Array.from(features));
+            this.updateStatusBar();
         });
 
         const targetsChangedSub = this.cargoWorkspace.onDidChangeTargets((targets: CargoTarget[]) => {
             console.log('Targets changed, count:', targets.length);
-            // Tree providers update automatically via their own subscriptions
+            this.updateStatusBar();
         });
 
         this.workspaceSubscriptions.push(
             targetChangedSub,
             profileChangedSub,
             packageChangedSub,
+            buildTargetChangedSub,
+            runTargetChangedSub,
+            benchmarkTargetChangedSub,
+            featuresChangedSub,
             targetsChangedSub
         );
+
+        // Initial status bar sync with current workspace state
+        this.updateStatusBar();
     }
 
     /**
      * Update all UI components with current workspace state
      */
     private async updateUIComponents(): Promise<void> {
-        if (!this.cargoWorkspace) {
+        if (!this.cargoWorkspace || !this.statusBarProvider) {
             return;
         }
 
-        // Status bar is automatically updated through event subscriptions
+        // Update status bar with current selections
+        this.updateStatusBar();
+
         // Tree providers refresh themselves through event subscriptions
         console.log('UI components updated');
+    }
+
+    /**
+     * Update status bar with current workspace state
+     */
+    private updateStatusBar(): void {
+        if (!this.cargoWorkspace || !this.statusBarProvider) {
+            return;
+        }
+
+        // Update profile
+        this.statusBarProvider.setProfileName(this.cargoWorkspace.currentProfile);
+
+        // Update package
+        this.statusBarProvider.setPackageName(this.cargoWorkspace.selectedPackage);
+
+        // Update targets
+        this.statusBarProvider.setBuildTargetName(this.cargoWorkspace.selectedBuildTarget);
+        this.statusBarProvider.setRunTargetName(this.cargoWorkspace.selectedRunTarget);
+        this.statusBarProvider.setBenchmarkTargetName(this.cargoWorkspace.selectedBenchmarkTarget);
+
+        // Update features
+        const selectedFeatures = this.cargoWorkspace.selectedFeatures;
+        let featuresText = '';
+        if (selectedFeatures.has('all-features')) {
+            featuresText = 'all-features';
+        } else if (selectedFeatures.size === 0) {
+            featuresText = 'no features';
+        } else {
+            featuresText = Array.from(selectedFeatures).join(', ');
+        }
+        this.statusBarProvider.setFeaturesText(featuresText);
+
+        // Update button visibility based on package selection
+        const packageSelected = this.cargoWorkspace.selectedPackage !== undefined && this.cargoWorkspace.selectedPackage !== 'All';
+        this.statusBarProvider.updateTargetButtonsVisibility(packageSelected);
     }
 
     /**
@@ -699,6 +770,37 @@ export class CargoExtensionManager implements vscode.Disposable {
         if (selected) {
             // Store benchmark target selection
             this.cargoWorkspace.setSelectedBenchmarkTarget(selected.label);
+        }
+    }
+
+    async selectFeatures(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const availableFeatures = this.cargoWorkspace.getAvailableFeatures();
+        const selectedFeatures = this.cargoWorkspace.selectedFeatures;
+
+        if (availableFeatures.length === 0) {
+            vscode.window.showInformationMessage('No features available for current package selection');
+            return;
+        }
+
+        // Convert features to QuickPickItems with checkbox state
+        const items: vscode.QuickPickItem[] = availableFeatures.map(feature => ({
+            label: feature,
+            description: selectedFeatures.has(feature) ? '✓ Selected' : '',
+            detail: feature === 'all-features' ? 'Enable all features' : `Feature: ${feature}`
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select features (click to toggle)',
+            canPickMany: false
+        });
+
+        if (selected) {
+            // Toggle the selected feature
+            this.cargoWorkspace.toggleFeature(selected.label);
         }
     }
 
