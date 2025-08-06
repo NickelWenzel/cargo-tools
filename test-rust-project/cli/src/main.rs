@@ -28,11 +28,11 @@ fn main() -> Result<()> {
     let verbose = matches.get_flag("verbose");
 
     if verbose {
-        println!("Processing input: {}", input);
+        println!("Processing input: {input}");
     }
 
     let result = service.process_data(input)?;
-    println!("{}", result);
+    println!("{result}");
 
     Ok(())
 }

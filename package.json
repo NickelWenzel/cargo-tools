@@ -218,6 +218,60 @@
         "command": "cargo-tools.executePinnedCommand",
         "title": "Execute Pinned Command",
         "category": "Cargo Tools"
+      },
+      {
+        "command": "cargo-tools.projectOutline.selectPackage",
+        "title": "Select Package",
+        "category": "Cargo Tools",
+        "icon": "$(package)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unselectPackage",
+        "title": "Unselect Package",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.setBuildTarget",
+        "title": "Set as Build Target",
+        "category": "Cargo Tools",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unsetBuildTarget",
+        "title": "Unset Build Target",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.setRunTarget",
+        "title": "Set as Run Target",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unsetRunTarget",
+        "title": "Unset Run Target",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.setBenchmarkTarget",
+        "title": "Set as Benchmark Target",
+        "category": "Cargo Tools",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unsetBenchmarkTarget",
+        "title": "Unset Benchmark Target",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.toggleFeature",
+        "title": "Toggle Feature",
+        "category": "Cargo Tools",
+        "icon": "$(check)"
       }
     ],
     "viewsContainers": {
@@ -273,6 +327,46 @@
           "command": "cargo-tools.pinnedCommands.remove",
           "when": "view == cargoToolsPinnedCommands && viewItem == pinnedCommand",
           "group": "inline"
+        },
+        {
+          "command": "cargo-tools.projectOutline.selectPackage",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
+          "group": "selection@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unselectPackage",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
+          "group": "selection@2"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setBuildTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/",
+          "group": "build@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unsetBuildTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/",
+          "group": "build@2"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setRunTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/",
+          "group": "run@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unsetRunTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/",
+          "group": "run@2"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setBenchmarkTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/",
+          "group": "benchmark@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unsetBenchmarkTarget",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/",
+          "group": "benchmark@2"
         }
       ],
       "commandPalette": [

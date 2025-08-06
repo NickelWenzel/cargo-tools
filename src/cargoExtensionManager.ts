@@ -219,6 +219,19 @@ export class CargoExtensionManager implements vscode.Disposable {
             'executeBenchAction'
         ];
 
+        // Project Outline specific commands
+        const projectOutlineCommands = [
+            'projectOutline.selectPackage',
+            'projectOutline.unselectPackage',
+            'projectOutline.setBuildTarget',
+            'projectOutline.unsetBuildTarget',
+            'projectOutline.setRunTarget',
+            'projectOutline.unsetRunTarget',
+            'projectOutline.setBenchmarkTarget',
+            'projectOutline.unsetBenchmarkTarget',
+            'projectOutline.toggleFeature'
+        ];
+
         // Clear any existing command registrations to prevent duplicates
         console.log('Registering Cargo Tools commands...');
 
@@ -249,6 +262,43 @@ export class CargoExtensionManager implements vscode.Disposable {
                     // Re-throw other errors
                     throw error;
                 }
+            }
+        }
+
+        // Register project outline specific commands manually
+        for (const commandName of projectOutlineCommands) {
+            try {
+                const commandId = `cargo-tools.${commandName}`;
+                const method = commandName.replace(/\./g, '_'); // Convert dots to underscores for method names
+                
+                const disposable = vscode.commands.registerCommand(commandId, async (...args: any[]) => {
+                    const correlationId = generateCorrelationId();
+                    try {
+                        console.log(`[${correlationId}] ${commandId} started`);
+                        if (!CargoExtensionManager.instance) {
+                            throw new Error('Extension manager not initialized');
+                        }
+                        
+                        const command = (CargoExtensionManager.instance as any)[method];
+                        if (typeof command === 'function') {
+                            const result = await command.call(CargoExtensionManager.instance, ...args);
+                            console.log(`[${correlationId}] ${commandId} completed`);
+                            return result;
+                        } else {
+                            throw new Error(`Command method ${method} not found`);
+                        }
+                    } catch (error) {
+                        console.error(`[${correlationId}] ${commandId} failed:`, error);
+                        const message = error instanceof Error ? error.message : String(error);
+                        vscode.window.showErrorMessage(`Command failed: ${message}`);
+                        throw error;
+                    }
+                });
+                
+                this.subscriptions.push(disposable);
+                console.log(`Registered project outline command: ${commandId}`);
+            } catch (error) {
+                console.error(`Failed to register project outline command ${commandName}:`, error);
             }
         }
 
@@ -994,6 +1044,151 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         const profile = this.cargoWorkspace.currentProfile === CargoProfile.release ? 'release' : 'debug';
         return path.join(this.cargoWorkspace.workspaceRoot, 'target', profile, target.name);
+    }
+
+    // ==================== PROJECT OUTLINE COMMANDS ====================
+
+    /**
+     * Select a package from the Project Outline view
+     */
+    async projectOutline_selectPackage(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !node?.data?.memberName) {
+            return;
+        }
+
+        await this.cargoWorkspace.setSelectedPackage(node.data.memberName);
+        console.log(`Selected package: ${node.data.memberName}`);
+    }
+
+    /**
+     * Unselect the current package (set to "All")
+     */
+    async projectOutline_unselectPackage(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        await this.cargoWorkspace.setSelectedPackage(undefined);
+        console.log('Unselected package (set to All)');
+    }
+
+    /**
+     * Set a target as the build target from Project Outline
+     */
+    async projectOutline_setBuildTarget(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !node?.data) {
+            return;
+        }
+
+        const target = node.data as CargoTarget;
+        
+        // Set package selection if different
+        if (target.packageName !== this.cargoWorkspace.selectedPackage) {
+            await this.cargoWorkspace.setSelectedPackage(target.packageName);
+        }
+
+        // Set build target based on type
+        if (target.kind.includes('lib')) {
+            this.cargoWorkspace.setSelectedBuildTarget('lib');
+        } else {
+            this.cargoWorkspace.setSelectedBuildTarget(target.name);
+        }
+
+        console.log(`Set build target: ${target.name} in package: ${target.packageName}`);
+    }
+
+    /**
+     * Unset the current build target
+     */
+    async projectOutline_unsetBuildTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        this.cargoWorkspace.setSelectedBuildTarget(null);
+        console.log('Unset build target');
+    }
+
+    /**
+     * Set a target as the run target from Project Outline
+     */
+    async projectOutline_setRunTarget(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !node?.data) {
+            return;
+        }
+
+        const target = node.data as CargoTarget;
+        
+        // Set package selection if different
+        if (target.packageName !== this.cargoWorkspace.selectedPackage) {
+            await this.cargoWorkspace.setSelectedPackage(target.packageName);
+        }
+
+        this.cargoWorkspace.setSelectedRunTarget(target.name);
+        console.log(`Set run target: ${target.name} in package: ${target.packageName}`);
+    }
+
+    /**
+     * Unset the current run target
+     */
+    async projectOutline_unsetRunTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        this.cargoWorkspace.setSelectedRunTarget(null);
+        console.log('Unset run target');
+    }
+
+    /**
+     * Set a target as the benchmark target from Project Outline
+     */
+    async projectOutline_setBenchmarkTarget(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !node?.data) {
+            return;
+        }
+
+        const target = node.data as CargoTarget;
+        
+        // Set package selection if different
+        if (target.packageName !== this.cargoWorkspace.selectedPackage) {
+            await this.cargoWorkspace.setSelectedPackage(target.packageName);
+        }
+
+        this.cargoWorkspace.setSelectedBenchmarkTarget(target.name);
+        console.log(`Set benchmark target: ${target.name} in package: ${target.packageName}`);
+    }
+
+    /**
+     * Unset the current benchmark target
+     */
+    async projectOutline_unsetBenchmarkTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        this.cargoWorkspace.setSelectedBenchmarkTarget(null);
+        console.log('Unset benchmark target');
+    }
+
+    /**
+     * Toggle a feature from Project Outline
+     */
+    async projectOutline_toggleFeature(feature: string, packageName?: string): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const currentFeatures = new Set(this.cargoWorkspace.selectedFeatures);
+        
+        if (currentFeatures.has(feature)) {
+            currentFeatures.delete(feature);
+        } else {
+            currentFeatures.add(feature);
+        }
+
+        this.cargoWorkspace.setSelectedFeatures(currentFeatures);
+        console.log(`Toggled feature: ${feature} ${currentFeatures.has(feature) ? 'ON' : 'OFF'}`);
     }
 
     /**
