@@ -118,11 +118,47 @@ The Project Outline Pane reflects the current selections from the Project Status
 - **Purpose:** Provides workspace-level feature selection independent of package context
 - **Consistency:** Maintains stable content while package-level features reflect specific selections
 
+#### Context Menu Actions
+The Project Outline Pane provides comprehensive context menus for direct selection control:
+
+##### Package Context Menu
+- **Select Package:** Sets the package as the selected package in Project Status
+- **Unselect Package:** Sets package selection to "All" in Project Status
+- **Availability:** Available on all workspace member nodes
+
+##### Target Context Menu
+- **Set as Build Target:** 
+  - Available on: lib, bin, example, bench targets
+  - Effect: Sets target as selected build target and switches to target's package
+  - Special handling: Library targets set "lib" as build target selection
+- **Set as Run Target:**
+  - Available on: bin, example targets only
+  - Effect: Sets target as selected run target and switches to target's package
+- **Set as Benchmark Target:**
+  - Available on: bench targets only
+  - Effect: Sets target as selected benchmark target and switches to target's package
+- **Unset Actions:** All target types include corresponding "Unset" actions to clear selection
+
+##### Feature Interaction
+- **Checkbox Behavior:** Features act as toggleable checkboxes when their package is selected
+- **Click to Toggle:** Direct click toggles feature selection on/off
+- **Conditional Availability:** Only interactive when the feature's package is currently selected
+- **Real-time Sync:** Changes immediately reflect in Project Status pane feature selection
+
 #### Interactions
-- **Removed:** All context menu actions (compared to current Build Targets tree)
-- **Retained:** Tree expansion/collapse only
-- **Read-Only:** Pure informational view - no selection changes possible from this pane
-- **Goal:** Comprehensive project structure overview with current configuration state visibility
+- **Context Menus:** Interactive context menus for selection control
+  - **Package Nodes:** Select/Unselect package (mirrors to Project Status)
+  - **Build Targets:** Set/Unset as build target (includes lib, bin, example, bench types)
+  - **Run Targets:** Set/Unset as run target (bin and example types only)
+  - **Benchmark Targets:** Set/Unset as benchmark target (bench types only)
+  - **Auto Package Selection:** Target selection automatically switches to the target's package
+- **Feature Checkboxes:** Interactive feature selection
+  - **Condition:** Only when the feature's package is currently selected
+  - **Behavior:** Click to toggle feature on/off
+  - **Synchronization:** Real-time mirroring to Project Status pane feature selection
+- **Tree Navigation:** Tree expansion/collapse for structural organization
+- **Read-Only Structure:** Project structure display cannot be modified, only selections change
+- **Goal:** Comprehensive project overview with direct selection control capabilities
 
 ### 3. Pinned Commands Pane
 **Purpose:** Quick access to frequently used commands (future implementation)

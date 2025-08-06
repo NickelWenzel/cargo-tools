@@ -280,7 +280,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 // For build targets, handle special case where "lib" is selected and target is a library
                 const selectedBuildTarget = this.workspace.selectedBuildTarget;
                 const selectedPackage = this.workspace.selectedPackage;
-                
+
                 if (selectedBuildTarget === 'lib' && target.kind.includes('lib')) {
                     // Only show icon if this library target belongs to the selected package
                     // If no package is selected ("All"), don't show library indicators
@@ -288,7 +288,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 } else {
                     isBuildTarget = selectedBuildTarget === target.name;
                 }
-                
+
                 isRunTarget = this.workspace.selectedRunTarget === target.name;
                 isBenchTarget = this.workspace.selectedBenchmarkTarget === target.name;
             }
@@ -340,18 +340,26 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             const isSelected = selectedFeatures.has(feature);
             const label = feature === 'all-features' ? 'All features' : feature;
 
+            // For features that belong to the selected package, make them checkboxes
+            const selectedPackage = this.workspace!.selectedPackage;
+            const isFeatureInteractive = selectedPackage === data.packageName || (data.packageName === undefined && feature === 'all-features');
+
             // Add visual indicator for selected features
             const displayLabel = isSelected ? `✓ ${label}` : `  ${label}`;
 
             const featureNode = new ProjectOutlineNode(
                 displayLabel,
                 vscode.TreeItemCollapsibleState.None,
-                'feature',
+                isFeatureInteractive ? 'feature,interactive' : 'feature',
                 undefined,
-                undefined,
+                isFeatureInteractive ? {
+                    command: 'cargo-tools.projectOutline.toggleFeature',
+                    title: 'Toggle Feature',
+                    arguments: [feature, data.packageName]
+                } : undefined,
                 undefined,
                 isSelected ? `Selected feature: ${feature}` : `Available feature: ${feature}`,
-                { feature, packageName: data.packageName }
+                { feature, packageName: data.packageName, isInteractive: isFeatureInteractive }
             );
 
             // Use appropriate icon for selection state

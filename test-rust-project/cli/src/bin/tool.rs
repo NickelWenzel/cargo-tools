@@ -23,15 +23,15 @@ fn main() -> Result<()> {
     match action.as_str() {
         "check" => {
             let result = service.process_data("checking...")?;
-            println!("{}", result);
+            println!("{result}");
         }
         "validate" => {
             let result = service.process_data("validating...")?;
-            println!("{}", result);
+            println!("{result}");
         }
         "format" => {
             let result = service.process_data("formatting...")?;
-            println!("{}", result);
+            println!("{result}");
         }
         _ => unreachable!(),
     }
