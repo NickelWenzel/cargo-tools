@@ -29,12 +29,6 @@
         "icon": "$(settings-gear)"
       },
       {
-        "command": "cargo-tools.selectTarget",
-        "title": "Select Build Target",
-        "category": "Cargo Tools",
-        "icon": "$(target)"
-      },
-      {
         "command": "cargo-tools.selectPackage",
         "title": "Select Package",
         "category": "Cargo Tools",
@@ -63,161 +57,6 @@
         "title": "Refresh",
         "category": "Cargo Tools",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "cargo-tools.editConfiguration",
-        "title": "Edit Configuration",
-        "category": "Cargo Tools",
-        "icon": "$(edit)"
-      },
-      {
-        "command": "cargo-tools.runExample",
-        "title": "Run Example",
-        "category": "Cargo Tools",
-        "icon": "$(lightbulb)"
-      },
-      {
-        "command": "cargo-tools.runTest",
-        "title": "Run Test",
-        "category": "Cargo Tools",
-        "icon": "$(beaker)"
-      },
-      {
-        "command": "cargo-tools.runBench",
-        "title": "Run Benchmark",
-        "category": "Cargo Tools",
-        "icon": "$(dashboard)"
-      },
-      {
-        "command": "cargo-tools.buildTarget",
-        "title": "Build Target",
-        "category": "Cargo Tools",
-        "icon": "$(tools)"
-      },
-      {
-        "command": "cargo-tools.runTarget",
-        "title": "Run Target",
-        "category": "Cargo Tools",
-        "icon": "$(play)"
-      },
-      {
-        "command": "cargo-tools.testTarget",
-        "title": "Test Target",
-        "category": "Cargo Tools",
-        "icon": "$(beaker)"
-      },
-      {
-        "command": "cargo-tools.debugTarget",
-        "title": "Debug Target",
-        "category": "Cargo Tools",
-        "icon": "$(debug-alt)"
-      },
-      {
-        "command": "cargo-tools.benchTarget",
-        "title": "Bench Target",
-        "category": "Cargo Tools",
-        "icon": "$(dashboard)"
-      },
-      {
-        "command": "cargo-tools.setAsDefaultTarget",
-        "title": "Set as Default Target",
-        "category": "Cargo Tools",
-        "icon": "$(star)"
-      },
-      {
-        "command": "cargo-tools.setAsDefaultBuildTarget",
-        "title": "Set as Default Build Target",
-        "category": "Cargo Tools",
-        "icon": "$(tools)"
-      },
-      {
-        "command": "cargo-tools.setAsDefaultRunTarget",
-        "title": "Set as Default Run Target",
-        "category": "Cargo Tools",
-        "icon": "$(play)"
-      },
-      {
-        "command": "cargo-tools.setAsDefaultTestTarget",
-        "title": "Set as Default Test Target",
-        "category": "Cargo Tools",
-        "icon": "$(beaker)"
-      },
-      {
-        "command": "cargo-tools.setAsDefaultBenchTarget",
-        "title": "Set as Default Bench Target",
-        "category": "Cargo Tools",
-        "icon": "$(dashboard)"
-      },
-      {
-        "command": "cargo-tools.buildDefaultTarget",
-        "title": "Build Default Target",
-        "category": "Cargo Tools",
-        "icon": "$(tools)"
-      },
-      {
-        "command": "cargo-tools.runDefaultTarget",
-        "title": "Run Default Target",
-        "category": "Cargo Tools",
-        "icon": "$(play)"
-      },
-      {
-        "command": "cargo-tools.testDefaultTarget",
-        "title": "Test Default Target",
-        "category": "Cargo Tools",
-        "icon": "$(beaker)"
-      },
-      {
-        "command": "cargo-tools.benchDefaultTarget",
-        "title": "Bench Default Target",
-        "category": "Cargo Tools",
-        "icon": "$(dashboard)"
-      },
-      {
-        "command": "cargo-tools.executeBuildAction",
-        "title": "Build",
-        "category": "Cargo Tools",
-        "icon": "$(tools)"
-      },
-      {
-        "command": "cargo-tools.executeRunAction",
-        "title": "Run",
-        "category": "Cargo Tools",
-        "icon": "$(play)"
-      },
-      {
-        "command": "cargo-tools.executeTestAction",
-        "title": "Test",
-        "category": "Cargo Tools",
-        "icon": "$(beaker)"
-      },
-      {
-        "command": "cargo-tools.executeBenchAction",
-        "title": "Bench",
-        "category": "Cargo Tools",
-        "icon": "$(dashboard)"
-      },
-      {
-        "command": "cargo-tools.pinnedCommands.add",
-        "title": "Add Command",
-        "category": "Cargo Tools",
-        "icon": "$(add)"
-      },
-      {
-        "command": "cargo-tools.pinnedCommands.remove",
-        "title": "Remove Command",
-        "category": "Cargo Tools",
-        "icon": "$(remove)"
-      },
-      {
-        "command": "cargo-tools.pinnedCommands.run",
-        "title": "Run Command",
-        "category": "Cargo Tools",
-        "icon": "$(play)"
-      },
-      {
-        "command": "cargo-tools.executePinnedCommand",
-        "title": "Execute Pinned Command",
-        "category": "Cargo Tools"
       },
       {
         "command": "cargo-tools.projectOutline.selectPackage",
@@ -315,19 +154,9 @@
           "command": "cargo-tools.refresh",
           "when": "view == cargoToolsProjectStatus",
           "group": "navigation"
-        },
-        {
-          "command": "cargo-tools.pinnedCommands.add",
-          "when": "view == cargoToolsPinnedCommands",
-          "group": "navigation"
         }
       ],
       "view/item/context": [
-        {
-          "command": "cargo-tools.pinnedCommands.remove",
-          "when": "view == cargoToolsPinnedCommands && viewItem == pinnedCommand",
-          "group": "inline"
-        },
         {
           "command": "cargo-tools.projectOutline.selectPackage",
           "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
@@ -369,24 +198,7 @@
           "group": "benchmark@2"
         }
       ],
-      "commandPalette": [
-        {
-          "command": "cargo-tools.runExample",
-          "when": "cargoTools:workspaceHasCargo"
-        },
-        {
-          "command": "cargo-tools.runTest",
-          "when": "cargoTools:workspaceHasCargo"
-        },
-        {
-          "command": "cargo-tools.runBench",
-          "when": "cargoTools:workspaceHasCargo"
-        },
-        {
-          "command": "cargo-tools.pinnedCommands.add",
-          "when": "cargoTools:workspaceHasCargo"
-        }
-      ]
+      "commandPalette": []
     },
     "configuration": {
       "title": "Cargo Tools",

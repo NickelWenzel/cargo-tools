@@ -172,9 +172,7 @@ export class PinnedCommandsTreeProvider implements vscode.TreeDataProvider<Pinne
             'cargo-tools.testDefaultTarget': 'Test Default Target',
             'cargo-tools.benchDefaultTarget': 'Bench Default Target',
             'cargo-tools.selectProfile': 'Select Build Profile',
-            'cargo-tools.selectTarget': 'Select Build Target',
             'cargo-tools.refresh': 'Refresh',
-            'cargo-tools.editConfiguration': 'Edit Configuration',
             'cargo-tools.runExample': 'Run Example',
             'cargo-tools.runTest': 'Run Test',
             'cargo-tools.runBench': 'Run Benchmark'
@@ -194,9 +192,7 @@ export class PinnedCommandsTreeProvider implements vscode.TreeDataProvider<Pinne
             'cargo-tools.testDefaultTarget',
             'cargo-tools.benchDefaultTarget',
             'cargo-tools.selectProfile',
-            'cargo-tools.selectTarget',
             'cargo-tools.refresh',
-            'cargo-tools.editConfiguration',
             'cargo-tools.runExample',
             'cargo-tools.runTest',
             'cargo-tools.runBench'
