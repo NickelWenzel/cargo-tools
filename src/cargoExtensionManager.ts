@@ -270,7 +270,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             try {
                 const commandId = `cargo-tools.${commandName}`;
                 const method = commandName.replace(/\./g, '_'); // Convert dots to underscores for method names
-                
+
                 const disposable = vscode.commands.registerCommand(commandId, async (...args: any[]) => {
                     const correlationId = generateCorrelationId();
                     try {
@@ -278,7 +278,7 @@ export class CargoExtensionManager implements vscode.Disposable {
                         if (!CargoExtensionManager.instance) {
                             throw new Error('Extension manager not initialized');
                         }
-                        
+
                         const command = (CargoExtensionManager.instance as any)[method];
                         if (typeof command === 'function') {
                             const result = await command.call(CargoExtensionManager.instance, ...args);
@@ -294,7 +294,7 @@ export class CargoExtensionManager implements vscode.Disposable {
                         throw error;
                     }
                 });
-                
+
                 this.subscriptions.push(disposable);
                 console.log(`Registered project outline command: ${commandId}`);
             } catch (error) {
@@ -1081,7 +1081,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         const target = node.data as CargoTarget;
-        
+
         // Set package selection if different
         if (target.packageName !== this.cargoWorkspace.selectedPackage) {
             await this.cargoWorkspace.setSelectedPackage(target.packageName);
@@ -1118,7 +1118,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         const target = node.data as CargoTarget;
-        
+
         // Set package selection if different
         if (target.packageName !== this.cargoWorkspace.selectedPackage) {
             await this.cargoWorkspace.setSelectedPackage(target.packageName);
@@ -1149,7 +1149,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         const target = node.data as CargoTarget;
-        
+
         // Set package selection if different
         if (target.packageName !== this.cargoWorkspace.selectedPackage) {
             await this.cargoWorkspace.setSelectedPackage(target.packageName);
@@ -1180,7 +1180,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         const currentFeatures = new Set(this.cargoWorkspace.selectedFeatures);
-        
+
         if (currentFeatures.has(feature)) {
             currentFeatures.delete(feature);
         } else {
