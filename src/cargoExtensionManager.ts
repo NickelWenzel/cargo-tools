@@ -201,6 +201,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectRunTarget',
             'selectBenchmarkTarget',
             'selectFeatures',
+            'toggleFeature',
             'refresh',
             'executeDefaultBuild',
             'executeDefaultRun',
@@ -791,6 +792,14 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
     }
 
+    async toggleFeature(feature: string): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        this.cargoWorkspace.toggleFeature(feature);
+    }
+
     async refresh(): Promise<void> {
         if (this.cargoWorkspace) {
             await this.cargoWorkspace.initialize();
@@ -1237,7 +1246,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     /**
      * Toggle a feature from Project Outline
      */
-    async projectOutline_toggleFeature(feature: string, packageName?: string): Promise<void> {
+    async projectOutline_toggleFeature(feature: string): Promise<void> {
         if (!this.cargoWorkspace) {
             return;
         }
