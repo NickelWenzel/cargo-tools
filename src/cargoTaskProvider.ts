@@ -270,39 +270,42 @@ export class CargoTaskProvider implements vscode.TaskProvider {
 
         // Find target to get package information
         let targetObj: CargoTarget | undefined;
-        if (definition.target) {
-            targetObj = this.workspace.targets.find(t => t.name === definition.target);
+        const targetName = definition.target || definition.targetName;
+        if (targetName) {
+            targetObj = this.workspace.targets.find(t => t.name === targetName);
         } else if (this.workspace.currentTarget) {
             targetObj = this.workspace.currentTarget;
         }
 
         // Add package argument if we have package info and it's needed
-        if (targetObj?.packageName && this.isWorkspace()) {
-            args.push('--package', targetObj.packageName);
+        const packageName = definition.packageName || targetObj?.packageName;
+        if (packageName && this.isWorkspace()) {
+            args.push('--package', packageName);
         }
 
         // Add target-specific arguments
-        if (definition.target && definition.targetKind) {
+        const targetNameForArgs = definition.target || definition.targetName;
+        if (targetNameForArgs && definition.targetKind) {
             switch (definition.targetKind) {
                 case 'bin':
-                    args.push('--bin', definition.target);
+                    args.push('--bin', targetNameForArgs);
                     break;
                 case 'lib':
                     args.push('--lib');
                     break;
                 case 'example':
-                    args.push('--example', definition.target);
+                    args.push('--example', targetNameForArgs);
                     break;
                 case 'test':
-                    args.push('--test', definition.target);
+                    args.push('--test', targetNameForArgs);
                     break;
                 case 'bench':
-                    args.push('--bench', definition.target);
+                    args.push('--bench', targetNameForArgs);
                     break;
             }
-        } else if (definition.target) {
+        } else if (targetNameForArgs) {
             // Fallback: try to find target in workspace and determine type
-            const target = this.workspace.targets.find(t => t.name === definition.target);
+            const target = this.workspace.targets.find(t => t.name === targetNameForArgs);
             if (target) {
                 if (target.isExecutable) {
                     args.push('--bin', target.name);

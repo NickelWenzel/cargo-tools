@@ -434,6 +434,86 @@ class FeatureSelectionButton extends StatusBarButton {
 }
 
 /**
+ * Build Action Button - executes build action
+ */
+class BuildActionButton extends StatusBarButton {
+    readonly settingsName = 'buildAction';
+
+    constructor(config: CargoConfigurationReader, priority: number) {
+        super(config, priority);
+        this.button.command = 'cargo-tools.projectStatus.build';
+    }
+
+    protected getTextNormal(): string {
+        return '$(tools)';
+    }
+
+    protected getTooltipNormal(): string {
+        return 'Build current target';
+    }
+}
+
+/**
+ * Run Action Button - executes run action
+ */
+class RunActionButton extends StatusBarButton {
+    readonly settingsName = 'runAction';
+
+    constructor(config: CargoConfigurationReader, priority: number) {
+        super(config, priority);
+        this.button.command = 'cargo-tools.projectStatus.run';
+    }
+
+    protected getTextNormal(): string {
+        return '$(play)';
+    }
+
+    protected getTooltipNormal(): string {
+        return 'Run current target';
+    }
+}
+
+/**
+ * Test Action Button - executes test action
+ */
+class TestActionButton extends StatusBarButton {
+    readonly settingsName = 'testAction';
+
+    constructor(config: CargoConfigurationReader, priority: number) {
+        super(config, priority);
+        this.button.command = 'cargo-tools.projectStatus.test';
+    }
+
+    protected getTextNormal(): string {
+        return '$(beaker)';
+    }
+
+    protected getTooltipNormal(): string {
+        return 'Test current package';
+    }
+}
+
+/**
+ * Benchmark Action Button - executes benchmark action
+ */
+class BenchmarkActionButton extends StatusBarButton {
+    readonly settingsName = 'benchmarkAction';
+
+    constructor(config: CargoConfigurationReader, priority: number) {
+        super(config, priority);
+        this.button.command = 'cargo-tools.projectStatus.bench';
+    }
+
+    protected getTextNormal(): string {
+        return '$(dashboard)';
+    }
+
+    protected getTooltipNormal(): string {
+        return 'Benchmark current target';
+    }
+}
+
+/**
  * Main Status Bar Provider following CMake Tools pattern
  */
 export class StatusBarProvider implements vscode.Disposable {
@@ -441,27 +521,40 @@ export class StatusBarProvider implements vscode.Disposable {
     private readonly _profileButton: ProfileSelectionButton;
     private readonly _packageButton: PackageSelectionButton;
     private readonly _buildTargetButton: BuildTargetSelectionButton;
+    private readonly _buildActionButton: BuildActionButton;
     private readonly _runTargetButton: RunTargetSelectionButton;
+    private readonly _runActionButton: RunActionButton;
+    private readonly _testActionButton: TestActionButton;
     private readonly _benchmarkTargetButton: BenchmarkTargetSelectionButton;
+    private readonly _benchmarkActionButton: BenchmarkActionButton;
     private readonly _featuresButton: FeatureSelectionButton;
 
     private readonly _buttons: StatusBarButton[];
 
     constructor(private readonly _config: CargoConfigurationReader) {
         // Initialize buttons after config is set
+        // Priorities: selection button, then action button next to it (slightly lower priority)
         this._profileButton = new ProfileSelectionButton(this._config, 4.0);
         this._packageButton = new PackageSelectionButton(this._config, 3.9);
+        this._testActionButton = new TestActionButton(this._config, 3.85);
         this._buildTargetButton = new BuildTargetSelectionButton(this._config, 3.8);
+        this._buildActionButton = new BuildActionButton(this._config, 3.75);
         this._runTargetButton = new RunTargetSelectionButton(this._config, 3.7);
+        this._runActionButton = new RunActionButton(this._config, 3.65);
         this._benchmarkTargetButton = new BenchmarkTargetSelectionButton(this._config, 3.6);
+        this._benchmarkActionButton = new BenchmarkActionButton(this._config, 3.55);
         this._featuresButton = new FeatureSelectionButton(this._config, 3.5);
 
         this._buttons = [
             this._profileButton,
             this._packageButton,
+            this._testActionButton,
             this._buildTargetButton,
+            this._buildActionButton,
             this._runTargetButton,
+            this._runActionButton,
             this._benchmarkTargetButton,
+            this._benchmarkActionButton,
             this._featuresButton
         ];
 
@@ -514,6 +607,8 @@ export class StatusBarProvider implements vscode.Disposable {
     updateTargetButtonsVisibility(packageSelected: boolean): void {
         // Run target and benchmark target are only available when a specific package is selected
         this._runTargetButton.hidden = !packageSelected;
+        this._runActionButton.hidden = !packageSelected;
         this._benchmarkTargetButton.hidden = !packageSelected;
+        this._benchmarkActionButton.hidden = !packageSelected;
     }
 }
