@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
-import { CargoTarget } from './cargoTarget';
+import { CargoTarget, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
 
 export interface CargoTaskDefinition extends vscode.TaskDefinition {
@@ -413,5 +413,36 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             default:
                 return [];
         }
+    }
+
+    /**
+     * Create a VS Code task for a specific target action
+     */
+    public createTaskForTargetAction(target: CargoTarget, actionType: TargetActionType): vscode.Task | undefined {
+        if (!target.supportsActionType(actionType)) {
+            return undefined;
+        }
+
+        const command = target.getCargoCommand(actionType);
+        const targetKind = Array.isArray(target.kind) ? target.kind[0] : target.kind;
+        const validKind = targetKind === 'bin' || targetKind === 'lib' || targetKind === 'example' ||
+            targetKind === 'test' || targetKind === 'bench' ? targetKind : 'bin';
+
+        // Handle features properly
+        const selectedFeatures = this.workspace?.selectedFeatures ? Array.from(this.workspace.selectedFeatures) : [];
+        const hasAllFeatures = selectedFeatures.includes('all-features');
+        const regularFeatures = selectedFeatures.filter(f => f !== 'all-features');
+
+        const definition: CargoTaskDefinition = {
+            type: 'cargo',
+            command: command,
+            targetName: target.name,
+            targetKind: validKind,
+            packageName: target.packageName,
+            features: regularFeatures.length > 0 ? regularFeatures : undefined,
+            allFeatures: hasAllFeatures
+        };
+
+        return this.createCargoTask(definition);
     }
 }
