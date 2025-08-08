@@ -200,6 +200,10 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectBuildTarget',
             'selectRunTarget',
             'selectBenchmarkTarget',
+            'setBuildTarget',
+            'setRunTarget',
+            'setTestTarget',
+            'setBenchTarget',
             'selectFeatures',
             'toggleFeature',
             'refresh',
@@ -845,6 +849,24 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.cargoWorkspace.toggleFeature(feature);
     }
 
+    // Context menu command wrappers for specific targets
+
+    async setBuildTarget(target: CargoTarget): Promise<void> {
+        await this.setTarget(TargetActionType.Build, target);
+    }
+
+    async setRunTarget(target: CargoTarget): Promise<void> {
+        await this.setTarget(TargetActionType.Run, target);
+    }
+
+    async setTestTarget(target: CargoTarget): Promise<void> {
+        await this.setTarget(TargetActionType.Test, target);
+    }
+
+    async setBenchTarget(target: CargoTarget): Promise<void> {
+        await this.setTarget(TargetActionType.Bench, target);
+    }
+
     async refresh(): Promise<void> {
         if (this.cargoWorkspace) {
             await this.cargoWorkspace.initialize();
@@ -857,7 +879,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     /**
      * Set the default target for a specific action type
      */
-    async setDefaultTarget(actionType: TargetActionType, target: CargoTarget | null): Promise<void> {
+    async setTarget(actionType: TargetActionType, target: CargoTarget | null): Promise<void> {
         if (target && !target.supportsActionType(actionType)) {
             throw new Error(`Target ${target.name} does not support action type ${actionType}`);
         }
@@ -962,7 +984,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             );
 
             if (setAsDefault === 'Yes') {
-                await this.setDefaultTarget(actionType, selected.target);
+                await this.setTarget(actionType, selected.target);
             }
         }
     }
