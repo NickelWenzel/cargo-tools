@@ -226,6 +226,14 @@ export class CargoExtensionManager implements vscode.Disposable {
             'projectOutline.toggleFeature'
         ];
 
+        // Project Status execution commands
+        const projectStatusCommands = [
+            'projectStatus.build',
+            'projectStatus.run',
+            'projectStatus.test',
+            'projectStatus.bench'
+        ];
+
         // Clear any existing command registrations to prevent duplicates
         console.log('Registering Cargo Tools commands...');
 
@@ -296,7 +304,44 @@ export class CargoExtensionManager implements vscode.Disposable {
             }
         }
 
-        console.log(`Successfully registered ${commands.length} commands`);
+        // Register project status execution commands manually
+        for (const commandName of projectStatusCommands) {
+            try {
+                const commandId = `cargo-tools.${commandName}`;
+                const method = commandName.replace(/\./g, '_'); // Convert dots to underscores for method names
+
+                const disposable = vscode.commands.registerCommand(commandId, async (...args: any[]) => {
+                    const correlationId = generateCorrelationId();
+                    try {
+                        console.log(`[${correlationId}] ${commandId} started`);
+                        if (!CargoExtensionManager.instance) {
+                            throw new Error('Extension manager not initialized');
+                        }
+
+                        const command = (CargoExtensionManager.instance as any)[method];
+                        if (typeof command === 'function') {
+                            const result = await command.call(CargoExtensionManager.instance, ...args);
+                            console.log(`[${correlationId}] ${commandId} completed`);
+                            return result;
+                        } else {
+                            throw new Error(`Command method ${method} not found`);
+                        }
+                    } catch (error) {
+                        console.error(`[${correlationId}] ${commandId} failed:`, error);
+                        const message = error instanceof Error ? error.message : String(error);
+                        vscode.window.showErrorMessage(`Command failed: ${message}`);
+                        throw error;
+                    }
+                });
+
+                this.subscriptions.push(disposable);
+                console.log(`Registered project status command: ${commandId}`);
+            } catch (error) {
+                console.error(`Failed to register project status command ${commandName}:`, error);
+            }
+        }
+
+        console.log(`Successfully registered ${commands.length} main commands + ${projectOutlineCommands.length} outline commands + ${projectStatusCommands.length} status commands`);
         this.commandsRegistered = true; // Mark commands as registered
     }
 
@@ -864,14 +909,18 @@ export class CargoExtensionManager implements vscode.Disposable {
             throw new Error(`Target ${target.name} does not support action type ${actionType}`);
         }
 
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
+        if (!this.cargoWorkspace || !this.taskProvider) {
+            throw new Error('No cargo workspace or task provider available');
         }
 
-        const command = target.getCargoCommand(actionType);
-        const targetArgs = target.getTargetArgs(actionType);
-
-        await this.executeCargoCommandForTarget(command, target);
+        // Use the task provider to create and execute a VS Code task
+        const task = this.taskProvider.createTaskForTargetAction(target, actionType);
+        if (task) {
+            await vscode.tasks.executeTask(task);
+            vscode.window.showInformationMessage(`Running ${actionType} for ${target.name}...`);
+        } else {
+            throw new Error(`Failed to create task for ${actionType} on ${target.name}`);
+        }
     }
 
     /**
@@ -1261,6 +1310,266 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         this.cargoWorkspace.setSelectedFeatures(currentFeatures);
         console.log(`Toggled feature: ${feature} ${currentFeatures.has(feature) ? 'ON' : 'OFF'}`);
+    }
+
+    // ==================== PROJECT STATUS COMMANDS ====================
+
+    /**
+     * Build command from Project Status view - executes current build selection
+     */
+    async projectStatus_build(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        try {
+            // Use the current build target selection
+            const selectedBuildTarget = this.cargoWorkspace.selectedBuildTarget;
+            const selectedPackage = this.cargoWorkspace.selectedPackage;
+
+            if (selectedBuildTarget) {
+                // Specific target selected - find and execute it
+                const target = this.cargoWorkspace.targets.find(t => t.name === selectedBuildTarget);
+                if (target) {
+                    await this.executeTargetAction(target, TargetActionType.Build);
+                } else {
+                    throw new Error(`Target ${selectedBuildTarget} not found`);
+                }
+            } else {
+                // No specific target - build all targets (respecting package selection)
+                await this.executeAllTargetsAction(TargetActionType.Build, selectedPackage);
+            }
+        } catch (error) {
+            console.error('Build command failed:', error);
+            vscode.window.showErrorMessage(`Build failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Run command from Project Status view - executes current run selection
+     */
+    async projectStatus_run(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        try {
+            const selectedRunTarget = this.cargoWorkspace.selectedRunTarget;
+            const selectedPackage = this.cargoWorkspace.selectedPackage;
+
+            if (!selectedPackage) {
+                throw new Error('Cannot run targets when "All" packages selected. Please select a specific package.');
+            }
+
+            if (selectedRunTarget) {
+                // Specific target selected - find and execute it
+                const target = this.cargoWorkspace.targets.find(t => t.name === selectedRunTarget);
+                if (target) {
+                    await this.executeTargetAction(target, TargetActionType.Run);
+                } else {
+                    throw new Error(`Target ${selectedRunTarget} not found`);
+                }
+            } else {
+                // Auto-detect runnable target for the selected package
+                const packageTargets = this.cargoWorkspace.targets.filter(t => t.packageName === selectedPackage);
+                const runnableTarget = packageTargets.find(t =>
+                    Array.isArray(t.kind) ?
+                        t.kind.includes('bin') || t.kind.includes('example') :
+                        t.kind === 'bin' || t.kind === 'example'
+                );
+
+                if (runnableTarget) {
+                    await this.executeTargetAction(runnableTarget, TargetActionType.Run);
+                } else {
+                    throw new Error(`No runnable targets found in package ${selectedPackage}`);
+                }
+            }
+        } catch (error) {
+            console.error('Run command failed:', error);
+            vscode.window.showErrorMessage(`Run failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Test command from Project Status view - executes tests for current selection
+     */
+    async projectStatus_test(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        try {
+            const selectedPackage = this.cargoWorkspace.selectedPackage;
+            await this.executeAllTargetsAction(TargetActionType.Test, selectedPackage);
+        } catch (error) {
+            console.error('Test command failed:', error);
+            vscode.window.showErrorMessage(`Test failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Benchmark command from Project Status view - executes current benchmark selection
+     */
+    async projectStatus_bench(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        try {
+            const selectedBenchmarkTarget = this.cargoWorkspace.selectedBenchmarkTarget;
+            const selectedPackage = this.cargoWorkspace.selectedPackage;
+
+            if (selectedBenchmarkTarget) {
+                // Specific benchmark target selected - find and execute it
+                const target = this.cargoWorkspace.targets.find(t => t.name === selectedBenchmarkTarget);
+                if (target) {
+                    await this.executeTargetAction(target, TargetActionType.Bench);
+                } else {
+                    throw new Error(`Benchmark target ${selectedBenchmarkTarget} not found`);
+                }
+            } else {
+                // No specific target - run all benchmarks (respecting package selection)
+                await this.executeAllTargetsAction(TargetActionType.Bench, selectedPackage);
+            }
+        } catch (error) {
+            console.error('Benchmark command failed:', error);
+            vscode.window.showErrorMessage(`Benchmark failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Execute action for all targets of a given type, optionally filtered by package
+     */
+    private async executeAllTargetsAction(actionType: TargetActionType, packageName?: string): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        const args = [this.getCommandForActionType(actionType)];
+
+        // Add profile
+        if (this.cargoWorkspace.currentProfile === CargoProfile.release) {
+            args.push('--release');
+        }
+
+        // Add package filter if specified
+        if (packageName && this.cargoWorkspace.isWorkspace) {
+            args.push('-p', packageName);
+        }
+
+        // Add features
+        await this.addFeatureArgs(args);
+
+        // Add command-specific arguments
+        await this.addCommandSpecificArgs(args, actionType);
+
+        const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
+        const workingDirectory = this.cargoWorkspace.workspaceRoot;
+
+        // Create terminal for command execution
+        const actionName = this.getActionDisplayName(actionType);
+        const terminalName = packageName ?
+            `Cargo ${actionName} (${packageName})` :
+            `Cargo ${actionName} (All)`;
+
+        const terminal = vscode.window.createTerminal({
+            name: terminalName,
+            cwd: workingDirectory,
+            env: { ...process.env, ...this.workspaceConfig.environment }
+        });
+
+        const commandLine = `${cargoPath} ${args.join(' ')}`;
+        console.log(`Executing: ${commandLine} in ${workingDirectory}`);
+
+        terminal.sendText(commandLine);
+        terminal.show();
+
+        // Show information message
+        const targetDescription = packageName ? `for ${packageName}` : 'for all packages';
+        vscode.window.showInformationMessage(`Running ${actionName} ${targetDescription}...`);
+    }
+
+    /**
+     * Get cargo command for action type
+     */
+    private getCommandForActionType(actionType: TargetActionType): string {
+        switch (actionType) {
+            case TargetActionType.Build:
+                return 'build';
+            case TargetActionType.Run:
+                return 'run';
+            case TargetActionType.Test:
+                return 'test';
+            case TargetActionType.Bench:
+                return 'bench';
+            default:
+                throw new Error(`Unknown action type: ${actionType}`);
+        }
+    }
+
+    /**
+     * Get display name for action type
+     */
+    private getActionDisplayName(actionType: TargetActionType): string {
+        switch (actionType) {
+            case TargetActionType.Build:
+                return 'Build';
+            case TargetActionType.Run:
+                return 'Run';
+            case TargetActionType.Test:
+                return 'Test';
+            case TargetActionType.Bench:
+                return 'Benchmark';
+            default:
+                return 'Unknown';
+        }
+    }
+
+    /**
+     * Add feature arguments to cargo command
+     */
+    private async addFeatureArgs(args: string[]): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const selectedFeatures = Array.from(this.cargoWorkspace.selectedFeatures);
+
+        if (selectedFeatures.includes('all-features')) {
+            args.push('--all-features');
+        } else if (selectedFeatures.length > 0) {
+            const regularFeatures = selectedFeatures.filter(f => f !== 'all-features');
+            if (regularFeatures.length > 0) {
+                args.push('--features', regularFeatures.join(','));
+            }
+        }
+
+        // Add configuration-based feature arguments
+        const configFeatures = this.workspaceConfig.features;
+        if (configFeatures && Array.isArray(configFeatures) && configFeatures.length > 0) {
+            if (!args.includes('--features')) {
+                args.push('--features', configFeatures.join(','));
+            }
+        }
+
+        if (this.workspaceConfig.allFeatures && !args.includes('--all-features')) {
+            args.push('--all-features');
+        }
+
+        if (this.workspaceConfig.noDefaultFeatures) {
+            args.push('--no-default-features');
+        }
+    }
+
+    /**
+     * Add command-specific arguments from configuration
+     */
+    private async addCommandSpecificArgs(args: string[], actionType: TargetActionType): Promise<void> {
+        const command = this.getCommandForActionType(actionType);
+        const commandArgs = this.workspaceConfig[`${command}Args` as keyof typeof this.workspaceConfig] as string[] | undefined;
+        if (commandArgs && Array.isArray(commandArgs)) {
+            args.push(...commandArgs);
+        }
     }
 
     /**

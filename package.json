@@ -63,6 +63,30 @@
         "title": "Refresh",
         "category": "Cargo Tools",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "cargo-tools.projectStatus.build",
+        "title": "Build",
+        "category": "Cargo Tools",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "cargo-tools.projectStatus.run",
+        "title": "Run",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.projectStatus.test",
+        "title": "Test",
+        "category": "Cargo Tools",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "cargo-tools.projectStatus.bench",
+        "title": "Benchmark",
+        "category": "Cargo Tools",
+        "icon": "$(dashboard)"
       }
     ],
     "viewsContainers": {
@@ -143,6 +167,26 @@
           "command": "cargo-tools.projectOutline.unsetBenchmarkTarget",
           "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/",
           "group": "benchmark@2"
+        },
+        {
+          "command": "cargo-tools.projectStatus.build",
+          "when": "view == cargoToolsProjectStatus && viewItem == buildTargetSelection",
+          "group": "inline"
+        },
+        {
+          "command": "cargo-tools.projectStatus.run",
+          "when": "view == cargoToolsProjectStatus && viewItem == runTargetSelection",
+          "group": "inline"
+        },
+        {
+          "command": "cargo-tools.projectStatus.test",
+          "when": "view == cargoToolsProjectStatus && viewItem == packageSelection",
+          "group": "inline"
+        },
+        {
+          "command": "cargo-tools.projectStatus.bench",
+          "when": "view == cargoToolsProjectStatus && viewItem == benchmarkTargetSelection",
+          "group": "inline"
         }
       ],
       "commandPalette": []
