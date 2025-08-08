@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
-import { PinnedCommands } from './pinnedCommandsTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
 
 let extensionManager: CargoExtensionManager | undefined;
@@ -59,12 +58,10 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	// New tree providers for the modern UI
 	const projectStatusProvider = new ProjectStatusTreeProvider();
 	const projectOutlineProvider = new ProjectOutlineTreeProvider();
-	const pinnedCommands = new PinnedCommands(context);
 
 	// Update providers with workspace
 	projectStatusProvider.updateWorkspace(cargoWorkspace);
 	projectOutlineProvider.updateWorkspace(cargoWorkspace);
-	await pinnedCommands.getTreeDataProvider().initialize();
 
 	// Register new tree views
 	vscode.window.createTreeView('cargoToolsProjectStatus', {
@@ -76,12 +73,6 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	vscode.window.createTreeView('cargoToolsProjectOutline', {
 		treeDataProvider: projectOutlineProvider,
 		showCollapseAll: true,
-		canSelectMany: false
-	});
-
-	vscode.window.createTreeView('cargoToolsPinnedCommands', {
-		treeDataProvider: pinnedCommands.getTreeDataProvider(),
-		showCollapseAll: false,
 		canSelectMany: false
 	});
 
@@ -106,8 +97,7 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		extensionManager,
 		workspace: cargoWorkspace,
 		projectStatusProvider,
-		projectOutlineProvider,
-		pinnedCommands
+		projectOutlineProvider
 	};
 }
 
