@@ -24,10 +24,19 @@ suite('Extension Test Suite', () => {
 				const commands = packageJson.contributes?.commands || [];
 				const commandIds = commands.map((cmd: any) => cmd.command);
 
-				// Check for action-type commands
-				assert.ok(commandIds.includes('cargo-tools.executeDefaultBuild'), 'executeDefaultBuild command should be defined');
-				assert.ok(commandIds.includes('cargo-tools.executeDefaultRun'), 'executeDefaultRun command should be defined');
-				assert.ok(commandIds.includes('cargo-tools.executeDefaultTest'), 'executeDefaultTest command should be defined');
+				// Check for main selection commands
+				assert.ok(commandIds.includes('cargo-tools.selectProfile'), 'selectProfile command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.selectPackage'), 'selectPackage command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.selectBuildTarget'), 'selectBuildTarget command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.selectRunTarget'), 'selectRunTarget command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.selectBenchmarkTarget'), 'selectBenchmarkTarget command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.selectFeatures'), 'selectFeatures command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.refresh'), 'refresh command should be defined');
+
+				// Check for context menu commands
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.selectPackage'), 'projectOutline.selectPackage command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.setBuildTarget'), 'projectOutline.setBuildTarget command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.toggleFeature'), 'projectOutline.toggleFeature command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.executeDefaultBench'), 'executeDefaultBench command should be defined');
 
 				// Check for context menu commands

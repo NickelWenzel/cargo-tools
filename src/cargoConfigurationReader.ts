@@ -13,17 +13,6 @@ export interface CargoConfiguration {
     features: string[];
     allFeatures: boolean;
     noDefaultFeatures: boolean;
-    offline: boolean;
-    manifestPath: string | null;
-    targetDir: string | null;
-    clearOutputBeforeBuild: boolean;
-    saveBeforeRun: boolean;
-    showOutputOnError: boolean;
-    enableLogging: boolean;
-    logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error';
-    excludeFolders: string[];
-    autoSelectActiveProject: boolean;
-    defaultActiveProject: string | null;
     // Enhanced UI configuration options
     statusBar: {
         visible: boolean;
@@ -96,17 +85,6 @@ export class CargoConfigurationReader implements vscode.Disposable {
             features: config.get<string[]>('features', []),
             allFeatures: config.get<boolean>('allFeatures', false),
             noDefaultFeatures: config.get<boolean>('noDefaultFeatures', false),
-            offline: config.get<boolean>('offline', false),
-            manifestPath: config.get<string | null>('manifestPath', null),
-            targetDir: config.get<string | null>('targetDir', null),
-            clearOutputBeforeBuild: config.get<boolean>('clearOutputBeforeBuild', false),
-            saveBeforeRun: config.get<boolean>('saveBeforeRun', true),
-            showOutputOnError: config.get<boolean>('showOutputOnError', true),
-            enableLogging: config.get<boolean>('enableLogging', false),
-            logLevel: config.get<'trace' | 'debug' | 'info' | 'warn' | 'error'>('logLevel', 'info'),
-            excludeFolders: config.get<string[]>('excludeFolders', []),
-            autoSelectActiveProject: config.get<boolean>('autoSelectActiveProject', true),
-            defaultActiveProject: config.get<string | null>('defaultActiveProject', null),
             statusBar: {
                 visible: config.get<boolean>('statusBar.visible', true),
                 showProfile: config.get<boolean>('statusBar.showProfile', true),
@@ -198,50 +176,6 @@ export class CargoConfigurationReader implements vscode.Disposable {
         return this.configData.noDefaultFeatures;
     }
 
-    get offline(): boolean {
-        return this.configData.offline;
-    }
-
-    get manifestPath(): string | null {
-        return this.configData.manifestPath;
-    }
-
-    get targetDir(): string | null {
-        return this.configData.targetDir;
-    }
-
-    get clearOutputBeforeBuild(): boolean {
-        return this.configData.clearOutputBeforeBuild;
-    }
-
-    get saveBeforeRun(): boolean {
-        return this.configData.saveBeforeRun;
-    }
-
-    get showOutputOnError(): boolean {
-        return this.configData.showOutputOnError;
-    }
-
-    get enableLogging(): boolean {
-        return this.configData.enableLogging;
-    }
-
-    get logLevel(): 'trace' | 'debug' | 'info' | 'warn' | 'error' {
-        return this.configData.logLevel;
-    }
-
-    get excludeFolders(): string[] {
-        return this.configData.excludeFolders;
-    }
-
-    get autoSelectActiveProject(): boolean {
-        return this.configData.autoSelectActiveProject;
-    }
-
-    get defaultActiveProject(): string | null {
-        return this.configData.defaultActiveProject;
-    }
-
     // Event emitters for configuration changes
     private readonly emitters: EmittersOf<CargoConfiguration> = {
         cargoPath: new vscode.EventEmitter<string>(),
@@ -253,17 +187,6 @@ export class CargoConfigurationReader implements vscode.Disposable {
         features: new vscode.EventEmitter<string[]>(),
         allFeatures: new vscode.EventEmitter<boolean>(),
         noDefaultFeatures: new vscode.EventEmitter<boolean>(),
-        offline: new vscode.EventEmitter<boolean>(),
-        manifestPath: new vscode.EventEmitter<string | null>(),
-        targetDir: new vscode.EventEmitter<string | null>(),
-        clearOutputBeforeBuild: new vscode.EventEmitter<boolean>(),
-        saveBeforeRun: new vscode.EventEmitter<boolean>(),
-        showOutputOnError: new vscode.EventEmitter<boolean>(),
-        enableLogging: new vscode.EventEmitter<boolean>(),
-        logLevel: new vscode.EventEmitter<'trace' | 'debug' | 'info' | 'warn' | 'error'>(),
-        excludeFolders: new vscode.EventEmitter<string[]>(),
-        autoSelectActiveProject: new vscode.EventEmitter<boolean>(),
-        defaultActiveProject: new vscode.EventEmitter<string | null>(),
         statusBar: new vscode.EventEmitter<{
             visible: boolean;
             showProfile: boolean;
