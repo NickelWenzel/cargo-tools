@@ -12,7 +12,6 @@ export class CargoProjectController implements vscode.Disposable {
     private activeFolder?: vscode.WorkspaceFolder;
 
     constructor(
-        private readonly extensionContext: vscode.ExtensionContext,
         private readonly workspaceConfig: CargoConfigurationReader
     ) {
         this.setupSubscriptions();

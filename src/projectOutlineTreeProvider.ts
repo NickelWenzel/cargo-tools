@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTarget } from './cargoTarget';
 
