@@ -146,11 +146,6 @@
           "id": "cargoToolsProjectOutline",
           "name": "Project Outline",
           "when": "cargoTools:workspaceHasCargo"
-        },
-        {
-          "id": "cargoToolsPinnedCommands",
-          "name": "Pinned Commands",
-          "when": "cargoTools:workspaceHasCargo"
         }
       ]
     },
@@ -278,14 +273,6 @@
           "type": "boolean",
           "default": true,
           "description": "Group targets by workspace member in the BUILD TARGETS tree view. When enabled, targets are first organized by workspace member, then by type (bin, lib, etc.). When disabled, targets are grouped directly by type."
-        },
-        "cargoTools.pinnedCommands": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "description": "List of command IDs to pin to the Pinned Commands view"
         }
       }
     },

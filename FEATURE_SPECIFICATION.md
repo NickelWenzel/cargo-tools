@@ -160,14 +160,6 @@ The Project Outline Pane provides comprehensive context menus for direct selecti
 - **Read-Only Structure:** Project structure display cannot be modified, only selections change
 - **Goal:** Comprehensive project overview with direct selection control capabilities
 
-### 3. Pinned Commands Pane
-**Purpose:** Quick access to frequently used commands (future implementation)
-
-#### Current State
-- **Display:** Empty pane
-- **Placeholder:** "No pinned commands" or similar
-- **Future:** Will contain user-customizable quick access commands
-
 ## Status Bar Integration
 
 ### Overview
@@ -310,11 +302,6 @@ cargo build [--release] [-p <package>] [--lib|--bin <name>|--example <name>|--be
 4. Testing and validation
 
 ## Future Enhancements
-
-### Pinned Commands Pane
-- User-customizable command shortcuts
-- Predefined common command templates
-- Command history and favorites
 
 ### Advanced Features
 - Multiple configuration profiles

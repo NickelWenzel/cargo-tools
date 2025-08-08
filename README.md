@@ -24,16 +24,6 @@ A comprehensive Visual Studio Code extension that provides advanced Rust/Cargo d
 - **Direct File Access**: Click any target to open its source file
 - **Context Menus**: Right-click targets for build, run, test, debug actions
 
-### ⭐ Pinned Commands
-- **Customizable Shortcuts**: Pin frequently used commands to a dedicated view
-- **Persistent Configuration**: Commands stay pinned across VS Code sessions
-- **Easy Management**: Add and remove commands with simple UI
-
-### � Legacy Views (Backward Compatibility)
-- **Build Profiles**: Switch between dev/release profiles
-- **Build Targets**: Traditional target list with actions
-- **Workspace**: File system navigation
-
 ## Getting Started
 
 1. **Install the Extension**: Search for "Cargo Tools" in VS Code Extensions
@@ -57,12 +47,6 @@ Displays your project structure with two organization modes:
 
 Configure the grouping with: `cargoTools.groupTargetsByWorkspaceMember`
 
-### Pinned Commands
-Customize your workflow by pinning frequently used commands:
-- Click **+** to add commands
-- Right-click to remove commands
-- Commands persist across sessions
-
 ## Configuration
 
 ### Settings
@@ -79,19 +63,12 @@ Customize your workflow by pinning frequently used commands:
   "cargoTools.allFeatures": false,
   "cargoTools.noDefaultFeatures": false,
   "cargoTools.groupTargetsByWorkspaceMember": true,
-  "cargoTools.pinnedCommands": [
-    "cargo-tools.executeBuildAction",
-    "cargo-tools.executeRunAction"
-  ]
 }
 ```
 
 ### Key Settings
 
 - **`defaultProfile`**: Choose between "dev" and "release" build profiles
-- **`groupTargetsByWorkspaceMember`**: Toggle project outline organization mode
-- **`pinnedCommands`**: List of command IDs to pin by default
-- **`cargoPath`**: Custom path to cargo executable
 - **`features`**: Default features to enable for builds
 
 ## Commands
