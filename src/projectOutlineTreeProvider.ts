@@ -128,7 +128,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             return [];
         }
 
-        switch (element.contextValue) {
+        switch (element.contextValue?.split(',')[0]) {
             case 'project':
                 return this.createProjectChildren();
             case 'workspaceMember':
@@ -179,10 +179,18 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     label += ' 📦'; // Package emoji for selected package
                 }
 
+                // Generate context value with selection state
+                let contextValue = 'workspaceMember';
+                if (isSelectedPackage) {
+                    contextValue += ',isSelectedPackage';
+                } else {
+                    contextValue += ',canBeSelectedPackage';
+                }
+
                 const memberNode = new ProjectOutlineNode(
                     label,
                     vscode.TreeItemCollapsibleState.Expanded,
-                    'workspaceMember',
+                    contextValue,
                     undefined,
                     undefined,
                     `${targets.length} targets`,
@@ -466,6 +474,36 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 case 'bench':
                     contextParts.push('isBench', 'supportsBuild', 'supportsBench');
                     break;
+            }
+        }
+
+        // Add selection state information
+        if (this.workspace) {
+            const selectedBuildTarget = this.workspace.selectedBuildTarget;
+            const selectedRunTarget = this.workspace.selectedRunTarget;
+            const selectedBenchmarkTarget = this.workspace.selectedBenchmarkTarget;
+
+            // For build targets, handle library vs other targets differently
+            const isSelectedBuildTarget = target.kind.includes('lib')
+                ? selectedBuildTarget === 'lib'
+                : selectedBuildTarget === target.name;
+
+            if (isSelectedBuildTarget) {
+                contextParts.push('isSelectedBuildTarget');
+            } else if (contextParts.includes('supportsBuild')) {
+                contextParts.push('canBeSelectedBuildTarget');
+            }
+
+            if (selectedRunTarget === target.name) {
+                contextParts.push('isSelectedRunTarget');
+            } else if (contextParts.includes('supportsRun')) {
+                contextParts.push('canBeSelectedRunTarget');
+            }
+
+            if (selectedBenchmarkTarget === target.name) {
+                contextParts.push('isSelectedBenchmarkTarget');
+            } else if (contextParts.includes('supportsBench')) {
+                contextParts.push('canBeSelectedBenchmarkTarget');
             }
         }
 
