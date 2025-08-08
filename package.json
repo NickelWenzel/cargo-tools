@@ -178,42 +178,42 @@
       "view/item/context": [
         {
           "command": "cargo-tools.projectOutline.selectPackage",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember.*canBeSelectedPackage/",
           "group": "selection@1"
         },
         {
           "command": "cargo-tools.projectOutline.unselectPackage",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember.*isSelectedPackage/",
           "group": "selection@2"
         },
         {
           "command": "cargo-tools.projectOutline.setBuildTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedBuildTarget/",
           "group": "build@1"
         },
         {
           "command": "cargo-tools.projectOutline.unsetBuildTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedBuildTarget/",
           "group": "build@2"
         },
         {
           "command": "cargo-tools.projectOutline.setRunTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedRunTarget/",
           "group": "run@1"
         },
         {
           "command": "cargo-tools.projectOutline.unsetRunTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedRunTarget/",
           "group": "run@2"
         },
         {
           "command": "cargo-tools.projectOutline.setBenchmarkTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedBenchmarkTarget/",
           "group": "benchmark@1"
         },
         {
           "command": "cargo-tools.projectOutline.unsetBenchmarkTarget",
-          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedBenchmarkTarget/",
           "group": "benchmark@2"
         },
         {
