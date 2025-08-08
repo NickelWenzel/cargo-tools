@@ -87,6 +87,54 @@
         "title": "Benchmark",
         "category": "Cargo Tools",
         "icon": "$(dashboard)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.selectPackage",
+        "title": "Select Package",
+        "category": "Cargo Tools",
+        "icon": "$(check)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unselectPackage",
+        "title": "Unselect Package",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.setBuildTarget",
+        "title": "Set as Build Target",
+        "category": "Cargo Tools",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unsetBuildTarget",
+        "title": "Unset Build Target",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.setRunTarget",
+        "title": "Set as Run Target",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unsetRunTarget",
+        "title": "Unset Run Target",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.setBenchmarkTarget",
+        "title": "Set as Benchmark Target",
+        "category": "Cargo Tools",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.unsetBenchmarkTarget",
+        "title": "Unset Benchmark Target",
+        "category": "Cargo Tools",
+        "icon": "$(close)"
       }
     ],
     "viewsContainers": {
@@ -189,7 +237,40 @@
           "group": "inline"
         }
       ],
-      "commandPalette": []
+      "commandPalette": [
+        {
+          "command": "cargo-tools.projectOutline.selectPackage",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unselectPackage",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setBuildTarget",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unsetBuildTarget",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setRunTarget",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unsetRunTarget",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setBenchmarkTarget",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.unsetBenchmarkTarget",
+          "when": "never"
+        }
+      ]
     },
     "configuration": {
       "title": "Cargo Tools",
