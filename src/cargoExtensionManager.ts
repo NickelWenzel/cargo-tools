@@ -119,14 +119,6 @@ export class CargoExtensionManager implements vscode.Disposable {
                 }
             }),
 
-            this.workspaceConfig.onChange('excludeFolders', async (excludeFolders: string[]) => {
-                console.log(`Exclude folders changed:`, excludeFolders);
-                // Refresh workspace to respect new exclusions
-                if (this.cargoWorkspace) {
-                    await this.cargoWorkspace.refreshTargets();
-                }
-            }),
-
             // UI configuration monitoring
             this.workspaceConfig.onChange('treeView', async (treeViewConfig) => {
                 console.log(`Tree view configuration changed:`, treeViewConfig);
@@ -209,16 +201,11 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectRunTarget',
             'selectBenchmarkTarget',
             'selectFeatures',
-            'toggleFeature',
             'refresh',
             'executeDefaultBuild',
             'executeDefaultRun',
             'executeDefaultTest',
             'executeDefaultBench',
-            'setAsDefaultBuildTarget',
-            'setAsDefaultRunTarget',
-            'setAsDefaultTestTarget',
-            'setAsDefaultBenchTarget',
             'executeBuildAction',
             'executeRunAction',
             'executeTestAction',
@@ -804,14 +791,6 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
     }
 
-    async toggleFeature(feature: string): Promise<void> {
-        if (!this.cargoWorkspace) {
-            return;
-        }
-
-        this.cargoWorkspace.toggleFeature(feature);
-    }
-
     async refresh(): Promise<void> {
         if (this.cargoWorkspace) {
             await this.cargoWorkspace.initialize();
@@ -992,24 +971,6 @@ export class CargoExtensionManager implements vscode.Disposable {
 
     async executeDefaultBench(): Promise<void> {
         await this.executeDefaultAction(TargetActionType.Bench);
-    }
-
-    // Context menu command wrappers for specific targets
-
-    async setAsDefaultBuildTarget(target: CargoTarget): Promise<void> {
-        await this.setDefaultTarget(TargetActionType.Build, target);
-    }
-
-    async setAsDefaultRunTarget(target: CargoTarget): Promise<void> {
-        await this.setDefaultTarget(TargetActionType.Run, target);
-    }
-
-    async setAsDefaultTestTarget(target: CargoTarget): Promise<void> {
-        await this.setDefaultTarget(TargetActionType.Test, target);
-    }
-
-    async setAsDefaultBenchTarget(target: CargoTarget): Promise<void> {
-        await this.setDefaultTarget(TargetActionType.Bench, target);
     }
 
     async executeBuildAction(target: CargoTarget): Promise<void> {

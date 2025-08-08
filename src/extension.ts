@@ -1,15 +1,10 @@
 import * as vscode from 'vscode';
-import { CargoWorkspace } from './cargoWorkspace';
 import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { PinnedCommands } from './pinnedCommandsTreeProvider';
-import { CargoTaskProvider } from './cargoTaskProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
 
 let extensionManager: CargoExtensionManager | undefined;
-let cargoWorkspace: CargoWorkspace | undefined;
-
-// Helper function to check if we're in a workspace
 
 /**
  * Main extension activation function.
@@ -54,8 +49,8 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	// We have a cargo project, set the context
 	await setCargoContext(true);
 
-	// Get the legacy components from the extension manager
-	cargoWorkspace = extensionManager.getCargoWorkspace();
+	// Get the workspace from the extension manager
+	const cargoWorkspace = extensionManager.getCargoWorkspace();
 	if (!cargoWorkspace) {
 		console.log('No cargo workspace available');
 		return {};
@@ -91,27 +86,21 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	});
 
 	// Subscribe to workspace changes to update providers
-	if (cargoWorkspace) {
-		cargoWorkspace.onDidChangeTargets(() => {
-			projectStatusProvider.refresh();
-			projectOutlineProvider.refresh();
-		});
+	cargoWorkspace.onDidChangeTargets(() => {
+		projectStatusProvider.refresh();
+		projectOutlineProvider.refresh();
+	});
 
-		cargoWorkspace.onDidChangeProfile(() => {
-			projectStatusProvider.refresh();
-		});
+	cargoWorkspace.onDidChangeProfile(() => {
+		projectStatusProvider.refresh();
+	});
 
-		cargoWorkspace.onDidChangeTarget(() => {
-			projectStatusProvider.refresh();
-			projectOutlineProvider.refresh();
-		});
-	}
+	cargoWorkspace.onDidChangeTarget(() => {
+		projectStatusProvider.refresh();
+		projectOutlineProvider.refresh();
+	});
 
-	// Register task provider
-	const taskProvider = new CargoTaskProvider(cargoWorkspace);
-	context.subscriptions.push(
-		vscode.tasks.registerTaskProvider(CargoTaskProvider.CargoType, taskProvider)
-	);
+	// Task provider is registered by the extension manager, so we don't need to do it here
 
 	return {
 		extensionManager,
@@ -147,9 +136,6 @@ export async function deactivate(): Promise<void> {
 			await extensionManager.asyncDispose();
 			extensionManager = undefined;
 		}
-
-		// Clear workspace reference
-		cargoWorkspace = undefined;
 
 		console.log('Cargo Tools extension deactivated successfully');
 	} catch (error) {
