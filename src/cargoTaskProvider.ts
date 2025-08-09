@@ -273,9 +273,9 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         const targetName = definition.target || definition.targetName;
         if (targetName) {
             targetObj = this.workspace.targets.find(t => t.name === targetName);
-        } else if (this.workspace.currentTarget) {
-            targetObj = this.workspace.currentTarget;
         }
+        // Don't fall back to workspace.currentTarget when no target is specified
+        // This allows "All" targets builds without target-specific restrictions
 
         // Add package argument if we have package info and it's needed
         const packageName = definition.packageName || targetObj?.packageName;
@@ -285,22 +285,30 @@ export class CargoTaskProvider implements vscode.TaskProvider {
 
         // Add target-specific arguments
         const targetNameForArgs = definition.target || definition.targetName;
-        if (targetNameForArgs && definition.targetKind) {
+        if (definition.targetKind) {
             switch (definition.targetKind) {
                 case 'bin':
-                    args.push('--bin', targetNameForArgs);
+                    if (targetNameForArgs) {
+                        args.push('--bin', targetNameForArgs);
+                    }
                     break;
                 case 'lib':
                     args.push('--lib');
                     break;
                 case 'example':
-                    args.push('--example', targetNameForArgs);
+                    if (targetNameForArgs) {
+                        args.push('--example', targetNameForArgs);
+                    }
                     break;
                 case 'test':
-                    args.push('--test', targetNameForArgs);
+                    if (targetNameForArgs) {
+                        args.push('--test', targetNameForArgs);
+                    }
                     break;
                 case 'bench':
-                    args.push('--bench', targetNameForArgs);
+                    if (targetNameForArgs) {
+                        args.push('--bench', targetNameForArgs);
+                    }
                     break;
             }
         } else if (targetNameForArgs) {
@@ -319,21 +327,9 @@ export class CargoTaskProvider implements vscode.TaskProvider {
                     args.push('--bench', target.name);
                 }
             }
-        } else if (this.workspace.currentTarget && definition.command !== 'clean') {
-            // Use current target if no specific target is defined
-            const target = this.workspace.currentTarget;
-            if (target.isExecutable) {
-                args.push('--bin', target.name);
-            } else if (target.isLibrary) {
-                args.push('--lib');
-            } else if (target.isExample) {
-                args.push('--example', target.name);
-            } else if (target.isTest) {
-                args.push('--test', target.name);
-            } else if (target.isBench) {
-                args.push('--bench', target.name);
-            }
         }
+        // No fallback to workspace.currentTarget - when no target is specified, 
+        // we want to build all targets (no target-specific args)
 
         // Add features
         if (definition.features && definition.features.length > 0) {
