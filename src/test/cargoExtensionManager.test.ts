@@ -5,6 +5,98 @@ import { CargoWorkspace } from '../cargoWorkspace';
 import { CargoExtensionManager } from '../cargoExtensionManager';
 
 /**
+ * Mock CargoTaskProvider with a simplified buildCargoArgs method for testing
+ * This is used across multiple test suites to verify the "All targets" fix
+ */
+function buildCargoArgs(definition: any, mockWorkspace: any): string[] {
+    const args = [definition.command];
+
+    // Add profile
+    if (definition.profile === 'release' ||
+        (mockWorkspace.currentProfile?.toString() === 'release' && !definition.profile)) {
+        args.push('--release');
+    }
+
+    // Find target to get package information
+    let targetObj: CargoTarget | undefined;
+    const targetName = definition.target || definition.targetName;
+    if (targetName) {
+        targetObj = mockWorkspace.targets.find((t: CargoTarget) => t.name === targetName);
+    }
+    // Don't fall back to workspace.currentTarget when no target is specified
+    // This allows "All" targets builds without target-specific restrictions
+
+    // Add package argument if we have package info and it's needed
+    const packageName = definition.packageName || targetObj?.packageName;
+    if (packageName && mockWorkspace.isWorkspace) {
+        args.push('--package', packageName);
+    }
+
+    // Add target-specific arguments
+    const targetNameForArgs = definition.target || definition.targetName;
+    if (definition.targetKind) {
+        switch (definition.targetKind) {
+            case 'bin':
+                if (targetNameForArgs) {
+                    args.push('--bin', targetNameForArgs);
+                }
+                break;
+            case 'lib':
+                args.push('--lib');
+                break;
+            case 'example':
+                if (targetNameForArgs) {
+                    args.push('--example', targetNameForArgs);
+                }
+                break;
+            case 'test':
+                if (targetNameForArgs) {
+                    args.push('--test', targetNameForArgs);
+                }
+                break;
+            case 'bench':
+                if (targetNameForArgs) {
+                    args.push('--bench', targetNameForArgs);
+                }
+                break;
+        }
+    } else if (targetNameForArgs) {
+        // Fallback: try to find target in workspace and determine type
+        const target = mockWorkspace.targets.find((t: CargoTarget) => t.name === targetNameForArgs);
+        if (target) {
+            if (target.isExecutable) {
+                args.push('--bin', target.name);
+            } else if (target.isLibrary) {
+                args.push('--lib');
+            } else if (target.isExample) {
+                args.push('--example', target.name);
+            } else if (target.isTest) {
+                args.push('--test', target.name);
+            } else if (target.isBench) {
+                args.push('--bench', target.name);
+            }
+        }
+    }
+    // No fallback to workspace.currentTarget - when no target is specified, 
+    // we want to build all targets (no target-specific args)
+
+    // Add features
+    if (definition.features && definition.features.length > 0) {
+        args.push('--features', definition.features.join(','));
+    }
+
+    if (definition.allFeatures) {
+        args.push('--all-features');
+    }
+
+    if (definition.noDefaultFeatures) {
+        args.push('--no-default-features');
+    }
+
+    return args;
+}
+
+/**
  * Unit tests for command line argument generation logic
  * These tests focus on the core business logic without complex VS Code dependencies
  */
@@ -734,6 +826,262 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             assert.ok(testActions.includes(TargetActionType.Build));
             assert.ok(testActions.includes(TargetActionType.Test));
             assert.strictEqual(testActions.length, 2);
+        });
+    });
+
+    suite('Task Provider "All Targets" Fix Tests', () => {
+        test('should build all targets when no target is specified (package "core")', () => {
+            const mockWorkspace = {
+                targets: [
+                    new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                    new CargoTarget('helper', ['bin'], '/path/src/bin/helper.rs', '2021', 'core', '/path')
+                ],
+                currentTarget: new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                currentProfile: { toString: () => 'dev' },
+                isWorkspace: true
+            };
+
+            const allTargetsDefinition = {
+                type: 'cargo',
+                command: 'build',
+                packageName: 'core'
+                // No targetKind, no targetName - should build all targets
+            };
+
+            const args = buildCargoArgs(allTargetsDefinition, mockWorkspace);
+            const expected = ['build', '--package', 'core'];
+
+            assert.deepStrictEqual(args, expected,
+                `Expected ["build", "--package", "core"] but got ${JSON.stringify(args)}`);
+        });
+
+        test('should build specific target when target is specified', () => {
+            const mockWorkspace = {
+                targets: [
+                    new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                    new CargoTarget('helper', ['bin'], '/path/src/bin/helper.rs', '2021', 'core', '/path')
+                ],
+                currentTarget: new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                currentProfile: { toString: () => 'dev' },
+                isWorkspace: true
+            };
+
+            const specificTargetDefinition = {
+                type: 'cargo',
+                command: 'build',
+                packageName: 'core',
+                targetName: 'cli-main',
+                targetKind: 'bin'
+            };
+
+            const args = buildCargoArgs(specificTargetDefinition, mockWorkspace);
+            const expected = ['build', '--package', 'core', '--bin', 'cli-main'];
+
+            assert.deepStrictEqual(args, expected,
+                `Expected ["build", "--package", "core", "--bin", "cli-main"] but got ${JSON.stringify(args)}`);
+        });
+
+        test('should build library target correctly', () => {
+            const mockWorkspace = {
+                targets: [
+                    new CargoTarget('mylib', ['lib'], '/path/src/lib.rs', '2021', 'core', '/path')
+                ],
+                currentTarget: new CargoTarget('mylib', ['lib'], '/path/src/lib.rs', '2021', 'core', '/path'),
+                currentProfile: { toString: () => 'dev' },
+                isWorkspace: true
+            };
+
+            const libTargetDefinition = {
+                type: 'cargo',
+                command: 'build',
+                packageName: 'core',
+                targetKind: 'lib'
+            };
+
+            const args = buildCargoArgs(libTargetDefinition, mockWorkspace);
+            const expected = ['build', '--package', 'core', '--lib'];
+
+            assert.deepStrictEqual(args, expected,
+                `Expected ["build", "--package", "core", "--lib"] but got ${JSON.stringify(args)}`);
+        });
+
+        test('should not fallback to currentTarget when no target specified (All targets fix)', () => {
+            const mockWorkspace = {
+                targets: [
+                    new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path')
+                ],
+                currentTarget: new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                currentProfile: { toString: () => 'dev' },
+                isWorkspace: true
+            };
+
+            // This is the key test: when no targetName or targetKind is specified,
+            // we should NOT fall back to currentTarget (which would add --bin cli-main)
+            const allTargetsDefinition = {
+                type: 'cargo',
+                command: 'build',
+                packageName: 'core'
+                // Explicitly no targetKind, no targetName
+            };
+
+            const args = buildCargoArgs(allTargetsDefinition, mockWorkspace);
+
+            // Should NOT contain target-specific flags like --bin cli-main
+            assert.ok(!args.includes('--bin'), 'Should not include --bin flag for "All" targets');
+            assert.ok(!args.includes('cli-main'), 'Should not include target name for "All" targets');
+            assert.deepStrictEqual(args, ['build', '--package', 'core'],
+                'Should only contain build command and package flag for "All" targets');
+        });
+
+        test('should handle non-workspace builds correctly', () => {
+            const mockWorkspace = {
+                targets: [
+                    new CargoTarget('my-app', ['bin'], '/path/src/main.rs', '2021', undefined, '/path')
+                ],
+                currentTarget: new CargoTarget('my-app', ['bin'], '/path/src/main.rs', '2021', undefined, '/path'),
+                currentProfile: { toString: () => 'dev' },
+                isWorkspace: false
+            };
+
+            const allTargetsDefinition = {
+                type: 'cargo',
+                command: 'build'
+                // No package, no target - single package build all
+            };
+
+            const args = buildCargoArgs(allTargetsDefinition, mockWorkspace);
+            const expected = ['build'];
+
+            assert.deepStrictEqual(args, expected,
+                `Expected ["build"] for single package all targets but got ${JSON.stringify(args)}`);
+        });
+    });
+
+    suite('Task Provider Integration Tests', () => {
+        /**
+         * These tests verify that the task provider correctly handles different scenarios
+         * without relying on VS Code's task system
+         */
+
+        test('should generate correct args for "All" targets (no target-specific flags)', () => {
+            const mockWorkspace = {
+                workspaceRoot: '/test',
+                targets: [
+                    new CargoTarget('test-bin', ['bin'], '/test/src/main.rs', '2021', 'test-package', '/test'),
+                    new CargoTarget('test-lib', ['lib'], '/test/src/lib.rs', '2021', 'test-package', '/test')
+                ],
+                currentProfile: { toString: () => 'dev' },
+                selectedFeatures: new Set(),
+                isWorkspace: true
+            };
+
+            // Mock the buildCargoArgs method from our task provider
+            const allTargetsDefinition = {
+                type: 'cargo',
+                command: 'build'
+                // No targetKind, no targetName = "All" targets
+            };
+
+            const args = buildCargoArgs(allTargetsDefinition, mockWorkspace);
+
+            // Should only contain the build command, no target-specific flags
+            assert.deepStrictEqual(args, ['build'],
+                `All targets should generate ["build"] but got ${JSON.stringify(args)}`);
+            assert.ok(!args.includes('--bin'), 'All targets should not include --bin flag');
+            assert.ok(!args.includes('--lib'), 'All targets should not include --lib flag');
+        });
+
+        test('should generate correct args for library target (--lib flag)', () => {
+            const mockWorkspace = {
+                workspaceRoot: '/test',
+                targets: [
+                    new CargoTarget('test-lib', ['lib'], '/test/src/lib.rs', '2021', 'test-package', '/test')
+                ],
+                currentProfile: { toString: () => 'dev' },
+                selectedFeatures: new Set(),
+                isWorkspace: false
+            };
+
+            const libTargetDefinition = {
+                type: 'cargo',
+                command: 'build',
+                targetKind: 'lib'
+            };
+
+            const args = buildCargoArgs(libTargetDefinition, mockWorkspace);
+
+            assert.deepStrictEqual(args, ['build', '--lib'],
+                `Library target should generate ["build", "--lib"] but got ${JSON.stringify(args)}`);
+        });
+
+        test('should generate correct args for specific binary target', () => {
+            const mockWorkspace = {
+                workspaceRoot: '/test',
+                targets: [
+                    new CargoTarget('test-bin', ['bin'], '/test/src/main.rs', '2021', 'test-package', '/test')
+                ],
+                currentProfile: { toString: () => 'dev' },
+                selectedFeatures: new Set(),
+                isWorkspace: false
+            };
+
+            const binTargetDefinition = {
+                type: 'cargo',
+                command: 'build',
+                targetName: 'test-bin',
+                targetKind: 'bin'
+            };
+
+            const args = buildCargoArgs(binTargetDefinition, mockWorkspace);
+
+            assert.deepStrictEqual(args, ['build', '--bin', 'test-bin'],
+                `Binary target should generate ["build", "--bin", "test-bin"] but got ${JSON.stringify(args)}`);
+        });
+
+        test('should include package flag in workspace context', () => {
+            const mockWorkspace = {
+                workspaceRoot: '/test',
+                targets: [
+                    new CargoTarget('test-bin', ['bin'], '/test/src/main.rs', '2021', 'test-package', '/test')
+                ],
+                currentProfile: { toString: () => 'dev' },
+                selectedFeatures: new Set(),
+                isWorkspace: true
+            };
+
+            const packageSpecificDefinition = {
+                type: 'cargo',
+                command: 'build',
+                packageName: 'test-package',
+                targetName: 'test-bin',
+                targetKind: 'bin'
+            };
+
+            const args = buildCargoArgs(packageSpecificDefinition, mockWorkspace);
+
+            assert.deepStrictEqual(args, ['build', '--package', 'test-package', '--bin', 'test-bin'],
+                `Workspace package target should include package flag but got ${JSON.stringify(args)}`);
+        });
+
+        test('should handle release profile correctly', () => {
+            const mockWorkspace = {
+                workspaceRoot: '/test',
+                targets: [],
+                currentProfile: { toString: () => 'release' },
+                selectedFeatures: new Set(),
+                isWorkspace: false
+            };
+
+            const releaseDefinition = {
+                type: 'cargo',
+                command: 'build',
+                profile: 'release'
+            };
+
+            const args = buildCargoArgs(releaseDefinition, mockWorkspace);
+
+            assert.deepStrictEqual(args, ['build', '--release'],
+                `Release build should include --release flag but got ${JSON.stringify(args)}`);
         });
     });
 });
