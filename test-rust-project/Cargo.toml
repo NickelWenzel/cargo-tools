@@ -1,7 +1,7 @@
 [workspace]
 members = ["core", "cli", "web-server", "utils"]
 resolver = "2"
-default-members = ["cli"]
+default-members = ["core", "cli", "web-server", "utils"]
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
