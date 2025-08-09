@@ -48,6 +48,13 @@ suite('Extension Test Suite', () => {
 				// Check for set default target commands  
 				assert.ok(commandIds.includes('cargo-tools.setAsDefaultBuildTarget'), 'setAsDefaultBuildTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.setAsDefaultRunTarget'), 'setAsDefaultRunTarget command should be defined');
+
+				// Check for new project outline action commands
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.buildPackage'), 'projectOutline.buildPackage command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.testPackage'), 'projectOutline.testPackage command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.buildTarget'), 'projectOutline.buildTarget command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.runTarget'), 'projectOutline.runTarget command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.benchTarget'), 'projectOutline.benchTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.setAsDefaultTestTarget'), 'setAsDefaultTestTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.setAsDefaultBenchTarget'), 'setAsDefaultBenchTarget command should be defined');
 			} else {

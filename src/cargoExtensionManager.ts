@@ -227,7 +227,12 @@ export class CargoExtensionManager implements vscode.Disposable {
             'projectOutline.unsetRunTarget',
             'projectOutline.setBenchmarkTarget',
             'projectOutline.unsetBenchmarkTarget',
-            'projectOutline.toggleFeature'
+            'projectOutline.toggleFeature',
+            'projectOutline.buildPackage',
+            'projectOutline.testPackage',
+            'projectOutline.buildTarget',
+            'projectOutline.runTarget',
+            'projectOutline.benchTarget'
         ];
 
         // Project Status execution commands
@@ -1334,6 +1339,259 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         this.cargoWorkspace.setSelectedFeatures(currentFeatures);
         console.log(`Toggled feature: ${feature} ${currentFeatures.has(feature) ? 'ON' : 'OFF'}`);
+    }
+
+    // ==================== PROJECT OUTLINE ACTION COMMANDS ====================
+
+    /**
+     * Build a package directly without changing current selections
+     */
+    async projectOutline_buildPackage(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider || !node?.data?.memberName) {
+            return;
+        }
+
+        const packageName = node.data.memberName;
+
+        try {
+            // Create task definition for package build
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'build',
+                packageName: packageName
+            };
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                `Build ${packageName}`,
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage(`Building package ${packageName}...`);
+            } else {
+                throw new Error('Failed to create build task');
+            }
+        } catch (error) {
+            console.error('Package build failed:', error);
+            vscode.window.showErrorMessage(`Build failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Test a package directly without changing current selections
+     */
+    async projectOutline_testPackage(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider || !node?.data?.memberName) {
+            return;
+        }
+
+        const packageName = node.data.memberName;
+
+        try {
+            // Create task definition for package test
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'test',
+                packageName: packageName
+            };
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                `Test ${packageName}`,
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage(`Testing package ${packageName}...`);
+            } else {
+                throw new Error('Failed to create test task');
+            }
+        } catch (error) {
+            console.error('Package test failed:', error);
+            vscode.window.showErrorMessage(`Test failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Build a specific target directly without changing current selections
+     */
+    async projectOutline_buildTarget(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider || !node?.data) {
+            return;
+        }
+
+        const target = node.data as CargoTarget;
+
+        try {
+            // Create task definition for target build
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'build',
+                packageName: target.packageName
+            };
+
+            // Add target-specific arguments based on target kind
+            if (target.kind.includes('lib')) {
+                taskDefinition.targetKind = 'lib';
+            } else if (target.kind.includes('bin')) {
+                taskDefinition.targetName = target.name;
+                taskDefinition.targetKind = 'bin';
+            } else if (target.kind.includes('example')) {
+                taskDefinition.targetName = target.name;
+                taskDefinition.targetKind = 'example';
+            } else if (target.kind.includes('test')) {
+                taskDefinition.targetName = target.name;
+                taskDefinition.targetKind = 'test';
+            } else if (target.kind.includes('bench')) {
+                taskDefinition.targetName = target.name;
+                taskDefinition.targetKind = 'bench';
+            }
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                `Build ${target.name}`,
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage(`Building target ${target.name}...`);
+            } else {
+                throw new Error('Failed to create build task');
+            }
+        } catch (error) {
+            console.error('Target build failed:', error);
+            vscode.window.showErrorMessage(`Build failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Run a specific target directly without changing current selections
+     */
+    async projectOutline_runTarget(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider || !node?.data) {
+            return;
+        }
+
+        const target = node.data as CargoTarget;
+
+        try {
+            // Create task definition for target run
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'run',
+                packageName: target.packageName
+            };
+
+            // Add target-specific arguments based on target kind
+            if (target.kind.includes('bin')) {
+                taskDefinition.targetName = target.name;
+                taskDefinition.targetKind = 'bin';
+            } else if (target.kind.includes('example')) {
+                taskDefinition.targetName = target.name;
+                taskDefinition.targetKind = 'example';
+            } else {
+                throw new Error(`Target ${target.name} is not runnable`);
+            }
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                `Run ${target.name}`,
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage(`Running target ${target.name}...`);
+            } else {
+                throw new Error('Failed to create run task');
+            }
+        } catch (error) {
+            console.error('Target run failed:', error);
+            vscode.window.showErrorMessage(`Run failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Run benchmark for a specific target directly without changing current selections
+     */
+    async projectOutline_benchTarget(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider || !node?.data) {
+            return;
+        }
+
+        const target = node.data as CargoTarget;
+
+        try {
+            // Create task definition for target benchmark
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'bench',
+                packageName: target.packageName
+            };
+
+            // Add target-specific arguments
+            if (target.kind.includes('bench')) {
+                taskDefinition.targetName = target.name;
+                taskDefinition.targetKind = 'bench';
+            } else {
+                throw new Error(`Target ${target.name} is not a benchmark target`);
+            }
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                `Benchmark ${target.name}`,
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage(`Running benchmark ${target.name}...`);
+            } else {
+                throw new Error('Failed to create benchmark task');
+            }
+        } catch (error) {
+            console.error('Target benchmark failed:', error);
+            vscode.window.showErrorMessage(`Benchmark failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
     // ==================== PROJECT STATUS COMMANDS ====================
