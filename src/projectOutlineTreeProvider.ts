@@ -291,7 +291,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
                 if (selectedBuildTarget === 'lib' && target.kind.includes('lib')) {
                     // Only show icon if this library target belongs to the selected package
-                    // If no package is selected ("All"), don't show library indicators
+                    // If no package is selected, don't show library indicators
                     isBuildTarget = selectedPackage !== undefined && target.packageName === selectedPackage;
                 } else {
                     isBuildTarget = selectedBuildTarget === target.name;

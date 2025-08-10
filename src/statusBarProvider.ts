@@ -227,8 +227,7 @@ class ProfileSelectionButton extends StatusBarButton {
  * Package Selection Button
  */
 class PackageSelectionButton extends StatusBarButton {
-    private static readonly _allPackagesSelected = 'All';
-    private static readonly _noPackageSelected = 'No Package Selected';
+    private static readonly _noPackageSelected = 'No Selection';
 
     settingsName = 'package';
     constructor(protected readonly config: CargoConfigurationReader, protected readonly priority: number) {
@@ -241,11 +240,8 @@ class PackageSelectionButton extends StatusBarButton {
 
     protected getTextNormal(): string {
         const text = this.text;
-        if (text.length === 0) {
+        if (text.length === 0 || text === undefined) {
             return PackageSelectionButton._noPackageSelected;
-        }
-        if (text === 'All' || text === undefined) {
-            return PackageSelectionButton._allPackagesSelected;
         }
         return this.bracketText;
     }
@@ -270,7 +266,7 @@ class PackageSelectionButton extends StatusBarButton {
  * Build Target Selection Button
  */
 class BuildTargetSelectionButton extends StatusBarButton {
-    private static readonly _noBuildTargetSelected = 'No Build Target Selected';
+    private static readonly _noBuildTargetSelected = 'No Selection';
 
     settingsName = 'buildTarget';
     constructor(protected readonly config: CargoConfigurationReader, protected readonly priority: number) {
@@ -345,7 +341,7 @@ class RunTargetSelectionButton extends StatusBarButton {
 
     protected isVisible(): boolean {
         // Only show benchmark target when a specific package is selected  
-        // Hide when "All" is selected or no package is selected
+        // Hide when no package is selected
         // This is controlled by updateTargetButtonsVisibility method
         return super.isVisible();
     }
@@ -582,7 +578,7 @@ export class StatusBarProvider implements vscode.Disposable {
 
     // Package methods
     setPackageName(packageName: string | undefined): void {
-        this._packageButton.text = packageName || 'All';
+        this._packageButton.text = packageName || '';
     }
 
     // Target methods
