@@ -362,7 +362,7 @@ class BenchmarkTargetSelectionButton extends StatusBarButton {
         super(config, priority);
         this.hidden = false;
         this.command = 'cargo-tools.selectBenchmarkTarget';
-        this.icon = 'zap';
+        this.icon = 'dashboard';
         this.tooltip = 'Click to change the active benchmark target';
     }
 
