@@ -387,6 +387,45 @@ class BenchmarkTargetSelectionButton extends StatusBarButton {
 }
 
 /**
+ * Platform Target Selection Button
+ */
+class PlatformTargetSelectionButton extends StatusBarButton {
+    private static readonly _noPlatformTargetSelected = 'No selection';
+
+    settingsName = 'platformTarget';
+    constructor(protected readonly config: CargoConfigurationReader, protected readonly priority: number) {
+        super(config, priority);
+        this.hidden = false;
+        this.command = 'cargo-tools.selectPlatformTarget';
+        this.icon = 'device-desktop';
+        this.tooltip = 'Click to change the active platform target';
+    }
+
+    protected getTextNormal(): string {
+        const text = this.text;
+        if (text.length === 0) {
+            return PlatformTargetSelectionButton._noPlatformTargetSelected;
+        }
+        return this.bracketText;
+    }
+
+    protected getTextShort(): string {
+        const text = this.getTextNormal();
+        if (text.length > 20) {
+            return `${text.substr(0, 17)}...]`;
+        }
+        return text;
+    }
+
+    protected getTooltipShort(): string | null {
+        if (this.getTextNormal() === this.getTextShort()) {
+            return this.prependCargo(this.getTooltipNormal());
+        }
+        return super.getTooltipShort();
+    }
+}
+
+/**
  * Feature Selection Button
  */
 class FeatureSelectionButton extends StatusBarButton {
@@ -523,6 +562,7 @@ export class StatusBarProvider implements vscode.Disposable {
     private readonly _testActionButton: TestActionButton;
     private readonly _benchmarkTargetButton: BenchmarkTargetSelectionButton;
     private readonly _benchmarkActionButton: BenchmarkActionButton;
+    private readonly _platformTargetButton: PlatformTargetSelectionButton;
     private readonly _featuresButton: FeatureSelectionButton;
 
     private readonly _buttons: StatusBarButton[];
@@ -530,6 +570,7 @@ export class StatusBarProvider implements vscode.Disposable {
     constructor(private readonly _config: CargoConfigurationReader) {
         // Initialize buttons after config is set
         // Priorities: selection button, then action button next to it (slightly lower priority)
+        this._platformTargetButton = new PlatformTargetSelectionButton(this._config, 4.1);
         this._profileButton = new ProfileSelectionButton(this._config, 4.0);
         this._packageButton = new PackageSelectionButton(this._config, 3.9);
         this._testActionButton = new TestActionButton(this._config, 3.85);
@@ -542,6 +583,7 @@ export class StatusBarProvider implements vscode.Disposable {
         this._featuresButton = new FeatureSelectionButton(this._config, 3.5);
 
         this._buttons = [
+            this._platformTargetButton,
             this._profileButton,
             this._packageButton,
             this._testActionButton,
@@ -592,6 +634,10 @@ export class StatusBarProvider implements vscode.Disposable {
 
     setBenchmarkTargetName(targetName: string | null): void {
         this._benchmarkTargetButton.text = targetName || '';
+    }
+
+    setPlatformTargetName(targetTriple: string | null): void {
+        this._platformTargetButton.text = targetTriple || '';
     }
 
     // Feature methods

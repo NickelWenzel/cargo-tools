@@ -61,6 +61,7 @@ export class CargoWorkspace {
     private _selectedBuildTarget: string | null = null; // null means "No selection"
     private _selectedRunTarget: string | null = null; // Selected run target
     private _selectedBenchmarkTarget: string | null = null; // Selected benchmark target
+    private _selectedPlatformTarget: string | null = null; // Selected platform target (e.g., x86_64-unknown-linux-gnu)
     private _selectedFeatures: Set<string> = new Set(); // Selected features, default to none (no features selected)
     private _onDidChangeProfile = new vscode.EventEmitter<CargoProfile>();
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
@@ -69,6 +70,7 @@ export class CargoWorkspace {
     private _onDidChangeSelectedBuildTarget = new vscode.EventEmitter<string | null>();
     private _onDidChangeSelectedRunTarget = new vscode.EventEmitter<string | null>();
     private _onDidChangeSelectedBenchmarkTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedPlatformTarget = new vscode.EventEmitter<string | null>();
     private _onDidChangeSelectedFeatures = new vscode.EventEmitter<Set<string>>();
 
     readonly onDidChangeProfile = this._onDidChangeProfile.event;
@@ -78,6 +80,7 @@ export class CargoWorkspace {
     readonly onDidChangeSelectedBuildTarget = this._onDidChangeSelectedBuildTarget.event;
     readonly onDidChangeSelectedRunTarget = this._onDidChangeSelectedRunTarget.event;
     readonly onDidChangeSelectedBenchmarkTarget = this._onDidChangeSelectedBenchmarkTarget.event;
+    readonly onDidChangeSelectedPlatformTarget = this._onDidChangeSelectedPlatformTarget.event;
     readonly onDidChangeSelectedFeatures = this._onDidChangeSelectedFeatures.event;
 
     constructor(workspaceRoot: string) {
@@ -118,6 +121,10 @@ export class CargoWorkspace {
 
     get selectedBenchmarkTarget(): string | null {
         return this._selectedBenchmarkTarget;
+    }
+
+    get selectedPlatformTarget(): string | null {
+        return this._selectedPlatformTarget;
     }
 
     get selectedFeatures(): Set<string> {
@@ -435,6 +442,13 @@ export class CargoWorkspace {
         }
     }
 
+    setSelectedPlatformTarget(targetTriple: string | null): void {
+        if (this._selectedPlatformTarget !== targetTriple) {
+            this._selectedPlatformTarget = targetTriple;
+            this._onDidChangeSelectedPlatformTarget.fire(this._selectedPlatformTarget);
+        }
+    }
+
     private resetTargetSelections(): void {
         // Reset all target selections when package changes
         // This ensures that selected targets are valid for the new package context
@@ -530,6 +544,101 @@ export class CargoWorkspace {
         this.setSelectedFeatures(newFeatures);
     }
 
+    /**
+     * Get installed platform targets from rustup
+     */
+    async getInstalledPlatformTargets(): Promise<string[]> {
+        try {
+            const { stdout } = await execAsync('rustup target list --installed', {
+                cwd: this._workspaceRoot
+            });
+
+            return stdout
+                .trim()
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+        } catch (error) {
+            console.error('Failed to get installed platform targets:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get all available platform targets from rustup (not just installed)
+     */
+    async getAvailablePlatformTargets(): Promise<string[]> {
+        try {
+            const { stdout } = await execAsync('rustup target list', {
+                cwd: this._workspaceRoot
+            });
+
+            return stdout
+                .trim()
+                .split('\n')
+                .map(line => {
+                    // Remove "(installed)" suffix if present
+                    return line.replace(/\s*\(installed\)\s*$/, '').trim();
+                })
+                .filter(line => line.length > 0);
+        } catch (error) {
+            console.error('Failed to get available platform targets:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get platform targets that are available but not yet installed
+     */
+    async getAvailableUninstalledPlatformTargets(): Promise<string[]> {
+        try {
+            const { stdout } = await execAsync('rustup target list', {
+                cwd: this._workspaceRoot
+            });
+
+            return stdout
+                .trim()
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0 && !line.includes('(installed)'));
+        } catch (error) {
+            console.error('Failed to get uninstalled platform targets:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Install a platform target using rustup
+     */
+    async installPlatformTarget(targetTriple: string): Promise<boolean> {
+        try {
+            await execAsync(`rustup target add ${targetTriple}`, {
+                cwd: this._workspaceRoot
+            });
+            return true;
+        } catch (error) {
+            console.error(`Failed to install platform target ${targetTriple}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Get the default host platform target
+     */
+    async getDefaultPlatformTarget(): Promise<string> {
+        try {
+            const { stdout } = await execAsync('rustc -vV', {
+                cwd: this._workspaceRoot
+            });
+
+            const hostMatch = stdout.match(/host: (.+)/);
+            return hostMatch ? hostMatch[1].trim() : '';
+        } catch (error) {
+            console.error('Failed to get default platform target:', error);
+            return '';
+        }
+    }
+
     async refresh(): Promise<void> {
         await this.loadManifest();
         await this.discoverTargets();
@@ -563,6 +672,11 @@ export class CargoWorkspace {
                     args.push('--lib');
                 }
             }
+        }
+
+        // Add platform target if selected
+        if (this._selectedPlatformTarget) {
+            args.push('--target', this._selectedPlatformTarget);
         }
 
         // Add configuration-based arguments

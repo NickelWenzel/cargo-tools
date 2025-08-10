@@ -60,6 +60,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 this.workspace.onDidChangeSelectedBuildTarget(() => this.refresh()),
                 this.workspace.onDidChangeSelectedRunTarget(() => this.refresh()),
                 this.workspace.onDidChangeSelectedBenchmarkTarget(() => this.refresh()),
+                this.workspace.onDidChangeSelectedPlatformTarget(() => this.refresh()),
                 this.workspace.onDidChangeSelectedFeatures(() => this.refresh())
             );
         }
@@ -90,6 +91,15 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
 
     private createRootNodes(): ProjectStatusNode[] {
         const nodes: ProjectStatusNode[] = [];
+
+        // Platform Selection node
+        const platformNode = new ProjectStatusNode(
+            'Platform Selection',
+            vscode.TreeItemCollapsibleState.Expanded,
+            'platformSelection'
+        );
+        platformNode.iconPath = new vscode.ThemeIcon('device-desktop');
+        nodes.push(platformNode);
 
         // Build Configuration node
         const configNode = new ProjectStatusNode(
@@ -136,6 +146,8 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         }
 
         switch (element.contextValue) {
+            case 'platformSelection':
+                return this.createPlatformSelectionChildren();
             case 'buildConfiguration':
                 return this.createBuildConfigurationChildren();
             case 'packageSelection':
@@ -152,6 +164,46 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 return this.createFeatureSelectionChildren();
             default:
                 return [];
+        }
+    }
+
+    private createPlatformSelectionChildren(): ProjectStatusNode[] {
+        if (!this.workspace) {
+            return [];
+        }
+
+        const selectedPlatformTarget = this.workspace.selectedPlatformTarget;
+
+        if (selectedPlatformTarget) {
+            // Show selected platform target with command to change selection
+            const node = new ProjectStatusNode(
+                selectedPlatformTarget,
+                vscode.TreeItemCollapsibleState.None,
+                'selected-platform-target',
+                {
+                    command: 'cargo-tools.selectPlatformTarget',
+                    title: 'Change Platform Target'
+                },
+                `Selected platform target: ${selectedPlatformTarget}`,
+                `Click to change platform target`
+            );
+            node.iconPath = new vscode.ThemeIcon('check');
+            return [node];
+        } else {
+            // Show "No selection" when no specific platform target is selected
+            const node = new ProjectStatusNode(
+                'No selection',
+                vscode.TreeItemCollapsibleState.None,
+                'default-platform-target',
+                {
+                    command: 'cargo-tools.selectPlatformTarget',
+                    title: 'Select Platform Target'
+                },
+                'No platform target selected (use default)',
+                'Click to select platform target'
+            );
+            node.iconPath = new vscode.ThemeIcon('device-desktop');
+            return [node];
         }
     }
 

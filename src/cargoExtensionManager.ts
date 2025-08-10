@@ -200,6 +200,8 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectBuildTarget',
             'selectRunTarget',
             'selectBenchmarkTarget',
+            'selectPlatformTarget',
+            'installPlatformTarget',
             'setBuildTarget',
             'setRunTarget',
             'setTestTarget',
@@ -441,6 +443,11 @@ export class CargoExtensionManager implements vscode.Disposable {
             this.updateStatusBar();
         });
 
+        const platformTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedPlatformTarget((targetTriple: string | null) => {
+            console.log('Platform target changed:', targetTriple || 'none');
+            this.updateStatusBar();
+        });
+
         const featuresChangedSub = this.cargoWorkspace.onDidChangeSelectedFeatures((features: Set<string>) => {
             console.log('Features changed:', Array.from(features));
             this.updateStatusBar();
@@ -458,6 +465,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             buildTargetChangedSub,
             runTargetChangedSub,
             benchmarkTargetChangedSub,
+            platformTargetChangedSub,
             featuresChangedSub,
             targetsChangedSub
         );
@@ -501,6 +509,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.statusBarProvider.setBuildTargetName(displayBuildTarget);
         this.statusBarProvider.setRunTargetName(this.cargoWorkspace.selectedRunTarget);
         this.statusBarProvider.setBenchmarkTargetName(this.cargoWorkspace.selectedBenchmarkTarget);
+        this.statusBarProvider.setPlatformTargetName(this.cargoWorkspace.selectedPlatformTarget);
 
         // Update features
         const selectedFeatures = this.cargoWorkspace.selectedFeatures;
@@ -815,6 +824,104 @@ export class CargoExtensionManager implements vscode.Disposable {
             // Store benchmark target selection - handle "No selection" case
             const targetToSet = selected.label === 'No selection' ? null : selected.label;
             this.cargoWorkspace.setSelectedBenchmarkTarget(targetToSet);
+        }
+    }
+
+    async selectPlatformTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        const items: vscode.QuickPickItem[] = [];
+
+        // Always add "No selection" option first
+        items.push({
+            label: 'No selection',
+            description: 'Use default host target',
+            detail: 'No platform target selection'
+        });
+
+        try {
+            // Get installed platform targets
+            const installedTargets = await this.cargoWorkspace.getInstalledPlatformTargets();
+
+            // Add installed targets to selection
+            for (const target of installedTargets) {
+                items.push({
+                    label: target,
+                    description: `Cross-compile to ${target}`,
+                    detail: 'Installed platform target'
+                });
+            }
+
+            if (installedTargets.length === 0) {
+                items.push({
+                    label: '(No installed targets found)',
+                    description: 'Use "Install Platform Target" to add targets',
+                    detail: 'Run rustup target list --installed'
+                });
+            }
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to get platform targets: ${error}`);
+            return;
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a platform target'
+        });
+
+        if (selected && selected.label !== '(No installed targets found)') {
+            // Store platform target selection - handle "No selection" case
+            const targetToSet = selected.label === 'No selection' ? null : selected.label;
+            this.cargoWorkspace.setSelectedPlatformTarget(targetToSet);
+        }
+    }
+
+    async installPlatformTarget(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        try {
+            // Get available uninstalled targets
+            const uninstalledTargets = await this.cargoWorkspace.getAvailableUninstalledPlatformTargets();
+
+            if (uninstalledTargets.length === 0) {
+                vscode.window.showInformationMessage('All available platform targets are already installed');
+                return;
+            }
+
+            // Create QuickPickItems for uninstalled targets
+            const items: vscode.QuickPickItem[] = uninstalledTargets.map(target => ({
+                label: target,
+                description: `Install target for ${target}`,
+                detail: 'Available platform target'
+            }));
+
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Select a platform target to install'
+            });
+
+            if (selected) {
+                // Show progress while installing
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Installing platform target ${selected.label}...`,
+                    cancellable: false
+                }, async (progress) => {
+                    const success = await this.cargoWorkspace!.installPlatformTarget(selected.label);
+
+                    if (success) {
+                        vscode.window.showInformationMessage(`Successfully installed platform target: ${selected.label}`);
+                    } else {
+                        vscode.window.showErrorMessage(`Failed to install platform target: ${selected.label}`);
+                    }
+                });
+            }
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to get available platform targets: ${error}`);
         }
     }
 
