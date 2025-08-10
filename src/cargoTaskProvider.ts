@@ -344,6 +344,11 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             args.push('--no-default-features');
         }
 
+        // Add platform target if selected
+        if (this.workspace.selectedPlatformTarget) {
+            args.push('--target', this.workspace.selectedPlatformTarget);
+        }
+
         // Add configuration-based arguments
         const config = vscode.workspace.getConfiguration('cargoTools');
         const commandArgs = config.get<string[]>(`${definition.command}Args`, []);

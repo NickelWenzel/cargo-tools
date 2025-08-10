@@ -53,6 +53,18 @@
         "icon": "$(dashboard)"
       },
       {
+        "command": "cargo-tools.selectPlatformTarget",
+        "title": "Select Platform Target",
+        "category": "Cargo Tools",
+        "icon": "$(device-desktop)"
+      },
+      {
+        "command": "cargo-tools.installPlatformTarget",
+        "title": "Install Platform Target",
+        "category": "Cargo Tools",
+        "icon": "$(cloud-download)"
+      },
+      {
         "command": "cargo-tools.selectFeatures",
         "title": "Select Features",
         "category": "Cargo Tools",
@@ -201,6 +213,11 @@
       "view/title": [
         {
           "command": "cargo-tools.refresh",
+          "when": "view == cargoToolsProjectStatus",
+          "group": "navigation"
+        },
+        {
+          "command": "cargo-tools.installPlatformTarget",
           "when": "view == cargoToolsProjectStatus",
           "group": "navigation"
         }
