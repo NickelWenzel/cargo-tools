@@ -43,6 +43,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     private subscriptions: vscode.Disposable[] = [];
     private workspaceSubscriptions: vscode.Disposable[] = [];
     private commandsRegistered = false; // Guard flag to prevent double registration
+    private docsTerminal?: vscode.Terminal; // Reusable terminal for cargo doc commands
 
     private constructor(private readonly extensionContext: vscode.ExtensionContext) { }
 
@@ -202,6 +203,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectBenchmarkTarget',
             'selectPlatformTarget',
             'installPlatformTarget',
+            'buildDocs',
             'setBuildTarget',
             'setRunTarget',
             'setTestTarget',
@@ -924,6 +926,51 @@ export class CargoExtensionManager implements vscode.Disposable {
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to get available platform targets: ${error}`);
         }
+    }
+
+    async buildDocs(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            vscode.window.showErrorMessage('No Cargo workspace found');
+            return;
+        }
+
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Building documentation...',
+                cancellable: false
+            }, async (progress) => {
+                // Execute cargo doc command using a reusable terminal
+                const terminal = this.getOrCreateDocsTerminal();
+
+                const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
+                const command = `${cargoPath} doc --no-deps --release`;
+                terminal.sendText(command);
+                terminal.show();
+
+                vscode.window.showInformationMessage('Building documentation with cargo doc --no-deps --release');
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to build documentation: ${error}`);
+        }
+    }
+
+    /**
+     * Get or create a reusable terminal for cargo doc commands
+     */
+    private getOrCreateDocsTerminal(): vscode.Terminal {
+        // Check if existing terminal is still valid (not closed)
+        if (this.docsTerminal && this.docsTerminal.exitStatus === undefined) {
+            return this.docsTerminal;
+        }
+
+        // Create new terminal if none exists or previous one was closed
+        this.docsTerminal = vscode.window.createTerminal({
+            name: 'Cargo doc',
+            cwd: this.cargoWorkspace?.workspaceRoot
+        });
+
+        return this.docsTerminal;
     }
 
     async selectFeatures(): Promise<void> {
@@ -2009,6 +2056,16 @@ export class CargoExtensionManager implements vscode.Disposable {
             this.workspaceConfig.dispose();
         } catch (error) {
             console.error('Error disposing workspace config:', error);
+        }
+
+        // Dispose docs terminal if it exists
+        if (this.docsTerminal) {
+            try {
+                this.docsTerminal.dispose();
+            } catch (error) {
+                console.error('Error disposing docs terminal:', error);
+            }
+            this.docsTerminal = undefined;
         }
 
         // Clear workspace reference

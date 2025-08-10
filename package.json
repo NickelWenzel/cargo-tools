@@ -65,6 +65,12 @@
         "icon": "$(cloud-download)"
       },
       {
+        "command": "cargo-tools.buildDocs",
+        "title": "Build Documentation",
+        "category": "Cargo Tools",
+        "icon": "$(book)"
+      },
+      {
         "command": "cargo-tools.selectFeatures",
         "title": "Select Features",
         "category": "Cargo Tools",
@@ -213,6 +219,11 @@
       "view/title": [
         {
           "command": "cargo-tools.refresh",
+          "when": "view == cargoToolsProjectStatus",
+          "group": "navigation"
+        },
+        {
+          "command": "cargo-tools.buildDocs",
           "when": "view == cargoToolsProjectStatus",
           "group": "navigation"
         },

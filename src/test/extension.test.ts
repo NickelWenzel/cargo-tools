@@ -31,6 +31,7 @@ suite('Extension Test Suite', () => {
 				assert.ok(commandIds.includes('cargo-tools.selectRunTarget'), 'selectRunTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.selectBenchmarkTarget'), 'selectBenchmarkTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.selectFeatures'), 'selectFeatures command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.buildDocs'), 'buildDocs command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.refresh'), 'refresh command should be defined');
 
 				// Check for context menu commands
