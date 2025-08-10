@@ -1084,4 +1084,111 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
                 `Release build should include --release flag but got ${JSON.stringify(args)}`);
         });
     });
+
+    suite('Custom Profile Discovery Tests', () => {
+        test('should discover custom profiles from Cargo.toml', () => {
+            // Test the CargoProfile custom profile functionality
+            CargoProfile.clearCustomProfiles();
+
+            // Simulate discovered custom profiles
+            CargoProfile.addCustomProfile('fast');
+            CargoProfile.addCustomProfile('staging');
+            CargoProfile.addCustomProfile('production');
+
+            const customProfiles = CargoProfile.getCustomProfiles();
+            assert.ok(customProfiles.includes('fast'), 'Should include fast profile');
+            assert.ok(customProfiles.includes('staging'), 'Should include staging profile');
+            assert.ok(customProfiles.includes('production'), 'Should include production profile');
+
+            // Test getAllProfiles includes both standard and custom
+            const allProfiles = CargoProfile.getAllProfiles();
+            const profileNames = allProfiles.map(p => p.toString());
+
+            assert.ok(profileNames.includes('none'), 'Should include none profile');
+            assert.ok(profileNames.includes('dev'), 'Should include dev profile');
+            assert.ok(profileNames.includes('release'), 'Should include release profile');
+            assert.ok(profileNames.includes('test'), 'Should include test profile');
+            assert.ok(profileNames.includes('bench'), 'Should include bench profile');
+            // Note: doc profile is excluded from selection as it's not typically user-selectable
+            assert.ok(profileNames.includes('fast'), 'Should include custom fast profile');
+            assert.ok(profileNames.includes('staging'), 'Should include custom staging profile');
+            assert.ok(profileNames.includes('production'), 'Should include custom production profile');
+        });
+
+        test('should handle custom profile creation and comparison', () => {
+            const customProfile = CargoProfile.fromString('custom-optimization');
+
+            assert.strictEqual(customProfile.toString(), 'custom-optimization', 'Custom profile should have correct name');
+            assert.ok(customProfile.isCustom(), 'Custom profile should be identified as custom');
+
+            const devProfile = CargoProfile.fromString('dev');
+            assert.ok(!devProfile.isCustom(), 'Dev profile should not be identified as custom');
+
+            const sameCustomProfile = CargoProfile.fromString('custom-optimization');
+            assert.ok(customProfile.equals(sameCustomProfile), 'Same custom profiles should be equal');
+        });
+
+        test('should not add standard profiles as custom', () => {
+            CargoProfile.clearCustomProfiles();
+
+            // Try to add standard profiles as custom (should be ignored)
+            CargoProfile.addCustomProfile('dev');
+            CargoProfile.addCustomProfile('release');
+            CargoProfile.addCustomProfile('test');
+            CargoProfile.addCustomProfile('bench');
+            CargoProfile.addCustomProfile('doc');
+            CargoProfile.addCustomProfile('none');
+
+            const customProfiles = CargoProfile.getCustomProfiles();
+            assert.strictEqual(customProfiles.length, 0, 'Standard profiles should not be added as custom');
+        });
+
+        test('should provide correct display names and descriptions for custom profiles', () => {
+            const customProfile = new CargoProfile('my-custom-profile');
+
+            const displayName = CargoProfile.getDisplayName(customProfile);
+            assert.strictEqual(displayName, 'My-custom-profile', 'Custom profile should have capitalized display name');
+
+            const description = CargoProfile.getDescription(customProfile);
+            assert.ok(description.includes('--profile my-custom-profile'), 'Custom profile description should include the profile flag');
+            assert.ok(description.includes('user-defined settings'), 'Custom profile description should mention user-defined settings');
+        });
+
+        test('should integrate custom profiles with CargoWorkspace', async () => {
+            // Test that a real CargoWorkspace can discover custom profiles
+            const path = require('path');
+            const testProjectPath = path.join(__dirname, '../../test-rust-project');
+
+            // Skip this test if the test project doesn't exist
+            const fs = require('fs');
+            if (!fs.existsSync(testProjectPath)) {
+                console.log('Skipping integration test - test project not found');
+                return;
+            }
+
+            // Clear any existing custom profiles to start fresh
+            CargoProfile.clearCustomProfiles();
+
+            const workspace = new CargoWorkspace(testProjectPath);
+            await workspace.initialize();
+
+            // After initialization, custom profiles should be discovered
+            const allProfiles = CargoProfile.getAllProfiles();
+            const profileNames = allProfiles.map(p => p.toString());
+
+            // Check that custom profiles from Cargo.toml are discovered
+            assert.ok(profileNames.includes('fast'), 'Should discover "fast" profile from workspace Cargo.toml');
+            assert.ok(profileNames.includes('staging'), 'Should discover "staging" profile from workspace Cargo.toml');
+            assert.ok(profileNames.includes('bench-optimized'), 'Should discover "bench-optimized" profile from workspace Cargo.toml');
+
+            // Check that custom profiles from .cargo/config.toml are discovered  
+            assert.ok(profileNames.includes('debug-optimized'), 'Should discover "debug-optimized" profile from .cargo/config.toml');
+            assert.ok(profileNames.includes('ci'), 'Should discover "ci" profile from .cargo/config.toml');
+
+            // Standard profiles should still be present
+            assert.ok(profileNames.includes('none'), 'Should include none profile');
+            assert.ok(profileNames.includes('dev'), 'Should include dev profile');
+            assert.ok(profileNames.includes('release'), 'Should include release profile');
+        });
+    });
 });

@@ -115,7 +115,7 @@ export class CargoExtensionManager implements vscode.Disposable {
                 console.log(`Default profile changed to: ${profile}`);
                 // Update active profile if needed
                 if (this.cargoWorkspace) {
-                    this.cargoWorkspace.setProfile(profile as CargoProfile);
+                    this.cargoWorkspace.setProfile(CargoProfile.fromString(profile));
                 }
             }),
 
