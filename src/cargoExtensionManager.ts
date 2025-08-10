@@ -422,7 +422,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         });
 
         const packageChangedSub = this.cargoWorkspace.onDidChangeSelectedPackage((packageName: string | undefined) => {
-            console.log('Package changed:', packageName || 'All packages');
+            console.log('Package changed:', packageName || 'No selection');
             this.updateStatusBar();
         });
 
@@ -515,7 +515,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.statusBarProvider.setFeaturesText(featuresText);
 
         // Update button visibility based on package selection
-        const packageSelected = this.cargoWorkspace.selectedPackage !== undefined && this.cargoWorkspace.selectedPackage !== 'All';
+        const packageSelected = this.cargoWorkspace.selectedPackage !== undefined;
         this.statusBarProvider.updateTargetButtonsVisibility(packageSelected);
     }
 
@@ -598,13 +598,14 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         const packageItems: { label: string; package?: string }[] = [];
 
+        // Always add "No selection" option first
+        packageItems.push({
+            label: 'No selection',
+            package: undefined // No -p flag
+        });
+
         if (this.cargoWorkspace.isWorkspace) {
             // Multi-package workspace
-            packageItems.push({
-                label: 'All packages',
-                package: undefined // No -p flag
-            });
-
             // Add individual packages
             for (const member of this.cargoWorkspace.workspaceMembers) {
                 packageItems.push({
@@ -613,10 +614,11 @@ export class CargoExtensionManager implements vscode.Disposable {
                 });
             }
         } else {
-            // Single package - no selection needed, but show current state
+            // Single package - still allow "No selection" vs selecting the package
+            const packageName = this.cargoWorkspace.projectName;
             packageItems.push({
-                label: 'default (single package)',
-                package: undefined
+                label: packageName,
+                package: packageName
             });
         }
 
@@ -624,9 +626,8 @@ export class CargoExtensionManager implements vscode.Disposable {
             placeHolder: 'Select a package to build'
         });
 
-        if (selected && this.cargoWorkspace.isWorkspace) {
+        if (selected) {
             // Set the selected package in the workspace
-            // We'll need to add this method to CargoWorkspace
             await this.cargoWorkspace.setSelectedPackage(selected.package);
         }
     }
@@ -639,24 +640,19 @@ export class CargoExtensionManager implements vscode.Disposable {
         const items: vscode.QuickPickItem[] = [];
         const selectedPackage = this.cargoWorkspace.selectedPackage;
 
+        // Always add "No selection" option first
+        items.push({
+            label: 'No selection',
+            description: 'Build default targets (no target specification)',
+            detail: 'No target selection'
+        });
+
         if (!selectedPackage) {
-            // "All" Package Selected - only show "All" option
-            items.push({
-                label: 'All',
-                description: 'Build all targets (no target specification)',
-                detail: 'All targets'
-            });
+            // No Package Selected - no additional options beyond "No selection"
         } else {
             // Specific Package Selected - show categorized targets
             const packageTargets = this.getTargetsForPackage(selectedPackage);
             const targetsByType = this.groupTargetsByType(packageTargets);
-
-            // Add "All" option
-            items.push({
-                label: 'All',
-                description: 'Build all targets in package (no target specification)',
-                detail: 'All targets'
-            });
 
             // Add library if exists
             if (targetsByType.has('lib')) {
@@ -709,8 +705,9 @@ export class CargoExtensionManager implements vscode.Disposable {
         });
 
         if (selected) {
-            // Store build target selection
-            this.cargoWorkspace.setSelectedBuildTarget(selected.label);
+            // Store build target selection - handle "No selection" case
+            const targetToSet = selected.label === 'No selection' ? null : selected.label;
+            this.cargoWorkspace.setSelectedBuildTarget(targetToSet);
         }
     }
 
@@ -723,7 +720,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         const selectedPackage = this.cargoWorkspace.selectedPackage;
 
         if (!selectedPackage) {
-            // "All" Package Selected - disabled
+            // No Package Selected - disabled
             vscode.window.showWarningMessage('Select a specific package to run targets');
             return;
         } else {
@@ -1122,10 +1119,14 @@ export class CargoExtensionManager implements vscode.Disposable {
         // For workspace projects, we need different logic depending on working directory
         // If we're executing in the package directory, we don't need -p flag
         // If we're executing from workspace root, we need -p flag
+        // Also respect the selected package setting - only add package arg when specific package is selected
         const workingDirectory = this.getWorkingDirectoryForTarget(target);
         const isExecutingFromPackageDir = target.packagePath && workingDirectory === target.packagePath;
+        const selectedPackage = this.cargoWorkspace!.selectedPackage;
+        const shouldIncludePackageArg = selectedPackage &&
+            target.packageName && this.cargoWorkspace!.isWorkspace && !isExecutingFromPackageDir;
 
-        if (target.packageName && this.cargoWorkspace!.isWorkspace && !isExecutingFromPackageDir) {
+        if (shouldIncludePackageArg) {
             args.push('-p', target.packageName);
         }
 
@@ -1211,7 +1212,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     }
 
     /**
-     * Unselect the current package (set to "All")
+     * Unselect the current package (set to "No selection")
      */
     async projectOutline_unselectPackage(): Promise<void> {
         if (!this.cargoWorkspace) {
@@ -1620,7 +1621,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             }
 
             // Handle different target types
-            if (selectedBuildTarget && selectedBuildTarget !== 'All') {
+            if (selectedBuildTarget) {
                 if (selectedBuildTarget === 'lib') {
                     // Library target - just set the kind, don't override package selection
                     taskDefinition.targetKind = 'lib';
@@ -1639,7 +1640,7 @@ export class CargoExtensionManager implements vscode.Disposable {
                     }
                 }
             }
-            // If selectedBuildTarget is null or 'All', we build all targets (no target-specific args)
+            // If selectedBuildTarget is null, we build all targets (no target-specific args)
 
             // Add current profile
             if (this.cargoWorkspace.currentProfile.toString() === 'release') {
@@ -1670,7 +1671,7 @@ export class CargoExtensionManager implements vscode.Disposable {
 
                 // Show appropriate message
                 let message = 'Building';
-                if (selectedBuildTarget && selectedBuildTarget !== 'All') {
+                if (selectedBuildTarget) {
                     message += ` ${selectedBuildTarget}`;
                 } else {
                     message += ' all targets';
@@ -1703,7 +1704,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             const selectedPackage = this.cargoWorkspace.selectedPackage;
 
             if (!selectedPackage) {
-                throw new Error('Cannot run targets when "All" packages selected. Please select a specific package.');
+                throw new Error('Cannot run targets when no package is selected. Please select a specific package.');
             }
 
             if (selectedRunTarget) {

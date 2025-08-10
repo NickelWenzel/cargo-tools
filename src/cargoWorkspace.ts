@@ -55,10 +55,10 @@ export class CargoWorkspace {
     private _targets: CargoTarget[] = [];
     private _currentProfile: CargoProfile = CargoProfile.dev;
     private _currentTarget: CargoTarget | null = null;
-    private _selectedPackage: string | undefined = undefined; // undefined means "All"
+    private _selectedPackage: string | undefined = undefined; // undefined means "No selection"
     private _workspacePackageNames: string[] = []; // Package names from cargo metadata
     private _packageFeatures: Map<string, string[]> = new Map(); // Features available for each package
-    private _selectedBuildTarget: string | null = null; // Selected build target
+    private _selectedBuildTarget: string | null = null; // null means "No selection"
     private _selectedRunTarget: string | null = null; // Selected run target
     private _selectedBenchmarkTarget: string | null = null; // Selected benchmark target
     private _selectedFeatures: Set<string> = new Set(); // Selected features, default to none (no features selected)
@@ -480,12 +480,12 @@ export class CargoWorkspace {
     getAvailableFeatures(): string[] {
         const features = ['all-features']; // Always include all-features option
 
-        if (this._selectedPackage && this._selectedPackage !== 'All') {
+        if (this._selectedPackage) {
             // When a specific package is selected, show its features
             const packageFeatures = this.getPackageFeatures(this._selectedPackage);
             features.push(...packageFeatures);
         }
-        // When "All" is selected, only show "all-features"
+        // When no selection, only show "all-features"
 
         return features;
     }
@@ -547,6 +547,11 @@ export class CargoWorkspace {
         // Add profile
         if (this._currentProfile === CargoProfile.release) {
             args.push('--release');
+        }
+
+        // Add package argument if a specific package is selected and we're in a workspace
+        if (this._selectedPackage && this.isWorkspace) {
+            args.push('--package', this._selectedPackage);
         }
 
         // Add target

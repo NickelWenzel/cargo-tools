@@ -432,12 +432,17 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         const hasAllFeatures = selectedFeatures.includes('all-features');
         const regularFeatures = selectedFeatures.filter(f => f !== 'all-features');
 
+        // Only include package name if workspace has a specific package selected
+        // When no package is selected (undefined), we want to build all packages
+        const selectedPackage = this.workspace?.selectedPackage;
+        const packageName = selectedPackage ? target.packageName : undefined;
+
         const definition: CargoTaskDefinition = {
             type: 'cargo',
             command: command,
             targetName: target.name,
             targetKind: validKind,
-            packageName: target.packageName,
+            packageName: packageName,
             features: regularFeatures.length > 0 ? regularFeatures : undefined,
             allFeatures: hasAllFeatures
         };

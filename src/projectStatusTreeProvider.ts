@@ -191,7 +191,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         if (this.workspace.isWorkspace) {
             // Multi-package workspace - show current selection with dropdown
             const selectedPackage = this.workspace.selectedPackage;
-            const displayName = selectedPackage || 'All packages';
+            const displayName = selectedPackage || 'No selection';
 
             const packageNode = new ProjectStatusNode(
                 displayName,
@@ -293,39 +293,20 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             node.iconPath = new vscode.ThemeIcon('check');
             return [node];
         } else {
-            // Show default "All" or disabled state
-            const selectedPackage = this.workspace.selectedPackage;
-            if (!selectedPackage) {
-                // "All" packages selected - show "All targets" option
-                const node = new ProjectStatusNode(
-                    'All targets',
-                    vscode.TreeItemCollapsibleState.None,
-                    'default-build-target',
-                    {
-                        command: 'cargo-tools.selectBuildTarget',
-                        title: 'Select Build Target'
-                    },
-                    'Build all targets (default)',
-                    'Click to select specific build target'
-                );
-                node.iconPath = new vscode.ThemeIcon('target');
-                return [node];
-            } else {
-                // Specific package selected - show "All targets in package" option
-                const node = new ProjectStatusNode(
-                    'All targets',
-                    vscode.TreeItemCollapsibleState.None,
-                    'default-build-target',
-                    {
-                        command: 'cargo-tools.selectBuildTarget',
-                        title: 'Select Build Target'
-                    },
-                    `Build all targets in ${selectedPackage} (default)`,
-                    'Click to select specific build target'
-                );
-                node.iconPath = new vscode.ThemeIcon('target');
-                return [node];
-            }
+            // No build target selected - always show "No selection"
+            const node = new ProjectStatusNode(
+                'No selection',
+                vscode.TreeItemCollapsibleState.None,
+                'default-build-target',
+                {
+                    command: 'cargo-tools.selectBuildTarget',
+                    title: 'Select Build Target'
+                },
+                'No build target selected (build all targets)',
+                'Click to select specific build target'
+            );
+            node.iconPath = new vscode.ThemeIcon('target');
+            return [node];
         }
     }
 
@@ -355,9 +336,9 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             // Show disabled or default state
             const selectedPackage = this.workspace.selectedPackage;
             if (!selectedPackage) {
-                // "All" packages selected - disabled
+                // No package selected - disabled
                 const node = new ProjectStatusNode(
-                    'Disabled when "All" packages selected',
+                    'Disabled when no package selected',
                     vscode.TreeItemCollapsibleState.None,
                     'disabled-run-target',
                     undefined,
@@ -427,12 +408,12 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             node.iconPath = new vscode.ThemeIcon('check');
             return [node];
         } else {
-            // Show default "All" or disabled state
+            // Show default "No selection" or disabled state
             const selectedPackage = this.workspace.selectedPackage;
             if (!selectedPackage) {
-                // "All" packages selected - show "All benchmarks" option
+                // No package selected - show "No selection" option
                 const node = new ProjectStatusNode(
-                    'All benchmarks',
+                    'No selection',
                     vscode.TreeItemCollapsibleState.None,
                     'default-benchmark-target',
                     {
