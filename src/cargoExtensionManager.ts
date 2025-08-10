@@ -1330,16 +1330,9 @@ export class CargoExtensionManager implements vscode.Disposable {
             return;
         }
 
-        const currentFeatures = new Set(this.cargoWorkspace.selectedFeatures);
-
-        if (currentFeatures.has(feature)) {
-            currentFeatures.delete(feature);
-        } else {
-            currentFeatures.add(feature);
-        }
-
-        this.cargoWorkspace.setSelectedFeatures(currentFeatures);
-        console.log(`Toggled feature: ${feature} ${currentFeatures.has(feature) ? 'ON' : 'OFF'}`);
+        // Use the workspace's toggleFeature method which has proper mutual exclusion logic
+        this.cargoWorkspace.toggleFeature(feature);
+        console.log(`Toggled feature: ${feature}`);
     }
 
     // ==================== PROJECT OUTLINE ACTION COMMANDS ====================
