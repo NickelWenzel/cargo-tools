@@ -162,7 +162,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             'Features available for the entire project',
             { packageName: undefined, features: ['all-features'] }
         );
-        rootFeaturesNode.iconPath = new vscode.ThemeIcon('settings-gear');
+        rootFeaturesNode.iconPath = new vscode.ThemeIcon('symbol-misc');
         nodes.push(rootFeaturesNode);
 
         if (this.groupByWorkspaceMember && this.workspace.isWorkspace) {
@@ -244,6 +244,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     { packageName: data.memberName, features: packageFeatures }
                 );
                 featuresNode.iconPath = new vscode.ThemeIcon('settings-gear');
+                featuresNode.iconPath = new vscode.ThemeIcon('symbol-misc');
                 nodes.push(featuresNode);
             }
         }
