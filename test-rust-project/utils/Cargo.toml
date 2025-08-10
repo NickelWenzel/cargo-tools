@@ -12,6 +12,11 @@ name = "performance"
 path = "benches/perf.rs"
 harness = false
 
+[[bench]]
+name = "performance_alt"
+path = "benches/perf_alt.rs"
+harness = false
+
 [dependencies]
 core = { path = "../core" }
 serde = { workspace = true }
