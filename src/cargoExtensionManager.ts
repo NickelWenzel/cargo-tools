@@ -776,13 +776,16 @@ export class CargoExtensionManager implements vscode.Disposable {
         const items: vscode.QuickPickItem[] = [];
         const selectedPackage = this.cargoWorkspace.selectedPackage;
 
+        // Always add "No selection" option first
+        items.push({
+            label: 'No selection',
+            description: 'Run all benchmarks (no target specification)',
+            detail: 'No benchmark target selection'
+        });
+
         if (!selectedPackage) {
-            // "All" Package Selected - only show "All" option
-            items.push({
-                label: 'All',
-                description: 'Run all benchmarks (no target specification)',
-                detail: 'All benchmarks'
-            });
+            vscode.window.showWarningMessage('Select a specific package to run benchmark targets');
+            return;
         } else {
             // Specific Package Selected - show benchmarks from selected package
             const packageTargets = this.getTargetsForPackage(selectedPackage);
@@ -809,8 +812,9 @@ export class CargoExtensionManager implements vscode.Disposable {
         });
 
         if (selected) {
-            // Store benchmark target selection
-            this.cargoWorkspace.setSelectedBenchmarkTarget(selected.label);
+            // Store benchmark target selection - handle "No selection" case
+            const targetToSet = selected.label === 'No selection' ? null : selected.label;
+            this.cargoWorkspace.setSelectedBenchmarkTarget(targetToSet);
         }
     }
 

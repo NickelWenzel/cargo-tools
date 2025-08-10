@@ -408,58 +408,20 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             node.iconPath = new vscode.ThemeIcon('check');
             return [node];
         } else {
-            // Show default "No selection" or disabled state
-            const selectedPackage = this.workspace.selectedPackage;
-            if (!selectedPackage) {
-                // No package selected - show "No selection" option
-                const node = new ProjectStatusNode(
-                    'No selection',
-                    vscode.TreeItemCollapsibleState.None,
-                    'default-benchmark-target',
-                    {
-                        command: 'cargo-tools.selectBenchmarkTarget',
-                        title: 'Select Benchmark Target'
-                    },
-                    'Run all benchmarks (default)',
-                    'Click to select specific benchmark target'
-                );
-                node.iconPath = new vscode.ThemeIcon('dashboard');
-                return [node];
-            } else {
-                // Specific package selected - check if benchmark targets exist
-                const packageTargets = this.getTargetsForPackage(selectedPackage);
-                const targetsByType = this.groupTargetsByType(packageTargets);
-                const hasBenchmarkTargets = targetsByType.has('bench');
-
-                if (hasBenchmarkTargets) {
-                    // Show default "All benchmarks in package" option
-                    const node = new ProjectStatusNode(
-                        'All benchmarks',
-                        vscode.TreeItemCollapsibleState.None,
-                        'default-benchmark-target',
-                        {
-                            command: 'cargo-tools.selectBenchmarkTarget',
-                            title: 'Select Benchmark Target'
-                        },
-                        `Run all benchmarks in ${selectedPackage} (default)`,
-                        'Click to select specific benchmark target'
-                    );
-                    node.iconPath = new vscode.ThemeIcon('dashboard');
-                    return [node];
-                } else {
-                    // No benchmark targets in package
-                    const node = new ProjectStatusNode(
-                        'No benchmarks in package',
-                        vscode.TreeItemCollapsibleState.None,
-                        'no-benchmark-targets',
-                        undefined,
-                        'No benchmark targets',
-                        'This package has no benchmark targets'
-                    );
-                    node.iconPath = new vscode.ThemeIcon('circle-slash');
-                    return [node];
-                }
-            }
+            // Show "No selection" when no specific benchmark target is selected
+            const node = new ProjectStatusNode(
+                'No selection',
+                vscode.TreeItemCollapsibleState.None,
+                'default-benchmark-target',
+                {
+                    command: 'cargo-tools.selectBenchmarkTarget',
+                    title: 'Select Benchmark Target'
+                },
+                'No benchmark target selected',
+                'Click to select benchmark target'
+            );
+            node.iconPath = new vscode.ThemeIcon('dashboard');
+            return [node];
         }
     }
 

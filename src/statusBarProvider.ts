@@ -351,7 +351,7 @@ class RunTargetSelectionButton extends StatusBarButton {
  * Benchmark Target Selection Button
  */
 class BenchmarkTargetSelectionButton extends StatusBarButton {
-    private static readonly _noBenchmarkTargetSelected = 'No Benchmark Target Selected';
+    private static readonly _noBenchmarkTargetSelected = 'No selection';
 
     settingsName = 'benchmarkTarget';
     constructor(protected readonly config: CargoConfigurationReader, protected readonly priority: number) {
