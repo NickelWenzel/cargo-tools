@@ -6,6 +6,7 @@ import { CargoProfile } from './cargoProfile';
 import { CargoTarget, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
 import { StatusBarProvider } from './statusBarProvider';
+import { CargoCommandSubstitution } from './commandSubstitution';
 
 /**
  * Generates a unique correlation ID for tracking commands and operations
@@ -27,6 +28,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     private cargoWorkspace?: CargoWorkspace;
     private taskProvider?: CargoTaskProvider;
     private statusBarProvider?: StatusBarProvider;
+    private commandSubstitution?: CargoCommandSubstitution;
 
     // Configuration management
     private readonly workspaceConfig: CargoConfigurationReader = CargoConfigurationReader.create();
@@ -151,6 +153,10 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.taskProvider = new CargoTaskProvider(this.cargoWorkspace, this.workspaceConfig);
         const taskProviderDisposable = vscode.tasks.registerTaskProvider('cargo', this.taskProvider);
         this.subscriptions.push(taskProviderDisposable);
+
+        // Initialize command substitution system
+        this.commandSubstitution = new CargoCommandSubstitution(this, this.extensionContext);
+        this.subscriptions.push(this.commandSubstitution);
     }
 
     /**
