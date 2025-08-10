@@ -585,9 +585,10 @@ export class CargoExtensionManager implements vscode.Disposable {
             return;
         }
 
-        const profiles = [CargoProfile.dev, CargoProfile.release];
+        const profiles = CargoProfile.getAllProfiles();
         const profileItems = profiles.map(profile => ({
             label: CargoProfile.getDisplayName(profile),
+            description: CargoProfile.getDescription(profile),
             profile: profile
         }));
 

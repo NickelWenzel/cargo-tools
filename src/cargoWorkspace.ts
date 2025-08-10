@@ -53,7 +53,7 @@ export class CargoWorkspace {
     private _workspaceRoot: string;
     private _manifest: CargoManifest | null = null;
     private _targets: CargoTarget[] = [];
-    private _currentProfile: CargoProfile = CargoProfile.dev;
+    private _currentProfile: CargoProfile = CargoProfile.none;
     private _currentTarget: CargoTarget | null = null;
     private _selectedPackage: string | undefined = undefined; // undefined means "No selection"
     private _workspacePackageNames: string[] = []; // Package names from cargo metadata
@@ -653,9 +653,9 @@ export class CargoWorkspace {
     getCargoArgs(command: string, additionalArgs: string[] = []): string[] {
         const args = [command];
 
-        // Add profile
-        if (this._currentProfile === CargoProfile.release) {
-            args.push('--release');
+        // Add profile - use --profile flag for all profiles except "none"
+        if (this._currentProfile !== CargoProfile.none) {
+            args.push('--profile', this._currentProfile);
         }
 
         // Add package argument if a specific package is selected and we're in a workspace
