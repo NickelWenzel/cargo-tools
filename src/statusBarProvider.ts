@@ -60,7 +60,7 @@ abstract class StatusBarButton {
     }
 
     protected set icon(v: string | null) {
-        this._icon = v ? `$(${v})` : null;
+        this._icon = v ? `$(${v === 'settings-gear' ? 'symbol-misc' : v})` : null;
     }
 
     protected set command(v: string | null) {
@@ -402,7 +402,7 @@ class FeatureSelectionButton extends StatusBarButton {
         super(config, priority);
         this.hidden = false;
         this.command = 'cargo-tools.selectFeatures';
-        this.icon = 'list-unordered';
+        this.icon = 'symbol-misc';
         this.tooltip = 'Click to change the active features';
     }
 
