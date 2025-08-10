@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { CargoTarget } from './cargoTarget';
 import { CargoProfile } from './cargoProfile';
 import { exec } from 'child_process';
@@ -47,6 +48,7 @@ export interface CargoManifest {
     lib?: { name?: string; path?: string };
     dependencies?: Record<string, any>;
     features?: Record<string, string[]>;
+    profiles?: Record<string, any>;
 }
 
 export class CargoWorkspace {
@@ -169,6 +171,7 @@ export class CargoWorkspace {
     async initialize(): Promise<void> {
         await this.loadManifest();
         await this.discoverTargets();
+        await this.discoverCustomProfiles();
         this.setDefaultTarget();
     }
 
@@ -386,6 +389,63 @@ export class CargoWorkspace {
         this._onDidChangeTargets.fire(this._targets);
     }
 
+    private async discoverCustomProfiles(): Promise<void> {
+        // Clear existing custom profiles
+        CargoProfile.clearCustomProfiles();
+
+        try {
+            // 1. Parse workspace/root level Cargo.toml for profiles
+            await this.parseProfilesFromCargoToml();
+
+            // 2. Parse .cargo/config.toml in workspace if it exists
+            await this.parseProfilesFromConfigToml(path.join(this._workspaceRoot, '.cargo', 'config.toml'));
+
+            // 3. Parse $CARGO_HOME/config.toml if it exists
+            const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo');
+            await this.parseProfilesFromConfigToml(path.join(cargoHome, 'config.toml'));
+
+        } catch (error) {
+            console.error('Failed to discover custom profiles:', error);
+        }
+    }
+
+    private async parseProfilesFromCargoToml(): Promise<void> {
+        // Check both possible locations for profiles
+        const profilesFromProfilesSection = this._manifest?.profiles;
+        const profilesFromProfileSection = (this._manifest as any)?.profile;
+
+        if (profilesFromProfilesSection) {
+            for (const profileName of Object.keys(profilesFromProfilesSection)) {
+                CargoProfile.addCustomProfile(profileName);
+            }
+        }
+
+        if (profilesFromProfileSection) {
+            for (const profileName of Object.keys(profilesFromProfileSection)) {
+                CargoProfile.addCustomProfile(profileName);
+            }
+        }
+    }
+
+    private async parseProfilesFromConfigToml(configPath: string): Promise<void> {
+        try {
+            if (fs.existsSync(configPath)) {
+                const content = await fs.promises.readFile(configPath, 'utf8');
+                const config = this.parseToml(content) as any;
+
+                // Config.toml uses "profile" (singular) while Cargo.toml uses "profiles" (plural)
+                const profilesSection = config.profile || config.profiles;
+                if (profilesSection) {
+                    for (const profileName of Object.keys(profilesSection)) {
+                        CargoProfile.addCustomProfile(profileName);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`Failed to parse config.toml at ${configPath}:`, error);
+        }
+    }
+
     private setDefaultTarget(): void {
         if (this._targets.length > 0) {
             // Prefer binary targets over library targets
@@ -396,7 +456,7 @@ export class CargoWorkspace {
     }
 
     setProfile(profile: CargoProfile): void {
-        if (this._currentProfile !== profile) {
+        if (!this._currentProfile.equals(profile)) {
             this._currentProfile = profile;
             this._onDidChangeProfile.fire(this._currentProfile);
         }
@@ -642,11 +702,13 @@ export class CargoWorkspace {
     async refresh(): Promise<void> {
         await this.loadManifest();
         await this.discoverTargets();
+        await this.discoverCustomProfiles();
         this.setDefaultTarget();
     }
 
     async refreshTargets(): Promise<void> {
         await this.discoverTargets();
+        await this.discoverCustomProfiles();
         this.setDefaultTarget();
     }
 
@@ -654,8 +716,8 @@ export class CargoWorkspace {
         const args = [command];
 
         // Add profile - use --profile flag for all profiles except "none"
-        if (this._currentProfile !== CargoProfile.none) {
-            args.push('--profile', this._currentProfile);
+        if (!this._currentProfile.equals(CargoProfile.none)) {
+            args.push('--profile', this._currentProfile.toString());
         }
 
         // Add package argument if a specific package is selected and we're in a workspace

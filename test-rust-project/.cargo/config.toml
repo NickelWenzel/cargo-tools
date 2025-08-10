@@ -1,0 +1,15 @@
+# Custom cargo configuration
+[profile.debug-optimized]
+inherits = "dev"
+opt-level = 1
+debug = true
+
+[profile.ci]
+inherits = "test"
+opt-level = 0
+overflow-checks = true
+debug-assertions = true
+
+[build]
+# Example build configuration
+target-dir = "target"

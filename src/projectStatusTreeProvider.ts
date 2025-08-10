@@ -217,7 +217,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         // Profile node
         const currentProfile = this.workspace.currentProfile || CargoProfile.dev;
         const profileNode = new ProjectStatusNode(
-            currentProfile,
+            currentProfile.toString(),
             vscode.TreeItemCollapsibleState.None,
             'profile',
             {
