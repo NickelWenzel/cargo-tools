@@ -262,10 +262,11 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     private buildCargoArgs(definition: CargoTaskDefinition): string[] {
         const args = [definition.command];
 
-        // Add profile
-        if (definition.profile === 'release' ||
-            (this.workspace.currentProfile.toString() === 'release' && !definition.profile)) {
-            args.push('--release');
+        // Add profile - handle both task-specific and workspace default profiles
+        const profileToUse = definition.profile || this.workspace.currentProfile.toString();
+
+        if (profileToUse !== 'none') {
+            args.push('--profile', profileToUse);
         }
 
         // Find target to get package information

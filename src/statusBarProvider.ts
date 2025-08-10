@@ -615,7 +615,7 @@ export class StatusBarProvider implements vscode.Disposable {
 
     // Profile methods
     setProfileName(profile: CargoProfile): void {
-        this._profileButton.text = profile;
+        this._profileButton.text = CargoProfile.getDisplayName(profile);
     }
 
     // Package methods
