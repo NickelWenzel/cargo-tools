@@ -1200,10 +1200,17 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
                 public testCommandOverride: string = ''
             ) { }
 
+            get cargoCommand() { return 'cargo'; }
             get cargoPath() { return 'cargo'; }
+            get useRustAnalyzerEnvAndArgs() { return false; }
+            get extraEnv() { return {}; }
             get buildArgs() { return []; }
             get runArgs() { return []; }
             get testArgs() { return []; }
+            get runExtraArgs() { return []; }
+            get runExtraEnv() { return {}; }
+            get testExtraArgs() { return []; }
+            get testExtraEnv() { return {}; }
             get environment() { return {}; }
             get features() { return []; }
             get allFeatures() { return false; }
@@ -1344,6 +1351,394 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             assert.ok(Array.isArray(task.definition.features), 'Should have features array');
             assert.ok(task.definition.features?.includes('feature1'), 'Should preserve feature1');
             assert.ok(task.definition.features?.includes('feature2'), 'Should preserve feature2');
+        });
+    });
+
+    suite('New Settings Tests', () => {
+        class MockCargoConfigurationReaderWithNewSettings {
+            constructor(
+                public cargoCommand: string = 'cargo',
+                public extraEnv: { [key: string]: string } = {},
+                public runExtraArgs: string[] = [],
+                public runExtraEnv: { [key: string]: string } = {},
+                public testExtraArgs: string[] = [],
+                public testExtraEnv: { [key: string]: string } = {},
+                public runCommandOverride: string = '',
+                public testCommandOverride: string = '',
+                public useRustAnalyzerEnvAndArgs: boolean = false
+            ) { }
+
+            get cargoPath() { return 'cargo'; }
+            get buildArgs() { return []; }
+            get runArgs() { return []; }
+            get testArgs() { return []; }
+            get environment() { return {}; }
+            get features() { return []; }
+            get allFeatures() { return false; }
+            get noDefaultFeatures() { return false; }
+        }
+
+        function createMockWorkspace(targets: CargoTarget[] = []): any {
+            return {
+                workspaceRoot: '/test/workspace',
+                targets: targets,
+                currentProfile: CargoProfile.dev,
+                selectedFeatures: new Set<string>(),
+                selectedPackage: undefined as string | undefined,
+                isWorkspace: false
+            };
+        }
+
+        test('should use cargoCommand with single command', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings('cross');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            assert.strictEqual(execution.command, 'cross', 'Should use cross command');
+        });
+
+        test('should split cargoCommand with whitespace into command and args', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings('cargo +nightly');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            assert.strictEqual(execution.command, 'cargo', 'Should use cargo as command');
+            assert.ok(execution.args.includes('+nightly'), 'Should include +nightly as first argument');
+        });
+
+        test('should apply run.extraArgs to run commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                {},
+                ['--verbose', '--bin-name', 'custom']
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            const argsStr = execution.args.join(' ');
+            assert.ok(argsStr.includes('--verbose'), 'Should include --verbose from run.extraArgs');
+            assert.ok(argsStr.includes('--bin-name'), 'Should include --bin-name from run.extraArgs');
+            assert.ok(argsStr.includes('custom'), 'Should include custom from run.extraArgs');
+        });
+
+        test('should apply test.extraArgs to test commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                {},
+                [], {},
+                ['--nocapture', '--test-threads=1']
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-test', ['test'], '/test/src/test.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Test);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            const argsStr = execution.args.join(' ');
+            assert.ok(argsStr.includes('--nocapture'), 'Should include --nocapture from test.extraArgs');
+            assert.ok(argsStr.includes('--test-threads=1'), 'Should include --test-threads=1 from test.extraArgs');
+        });
+
+        test('should apply extraEnv to all commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                { 'RUST_LOG': 'debug', 'CUSTOM_VAR': 'value' }
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            assert.ok(execution.options && execution.options.env, 'Should have environment options');
+            assert.strictEqual(execution.options.env.RUST_LOG, 'debug', 'Should include RUST_LOG from extraEnv');
+            assert.strictEqual(execution.options.env.CUSTOM_VAR, 'value', 'Should include CUSTOM_VAR from extraEnv');
+        });
+
+        test('should merge run.extraEnv with extraEnv for run commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                { 'RUST_LOG': 'info', 'GLOBAL_VAR': 'global' },
+                [],
+                { 'RUST_LOG': 'debug', 'RUN_VAR': 'run_value' }
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            assert.ok(execution.options && execution.options.env, 'Should have environment options');
+            assert.strictEqual(execution.options.env.RUST_LOG, 'debug', 'run.extraEnv should override extraEnv');
+            assert.strictEqual(execution.options.env.GLOBAL_VAR, 'global', 'Should include GLOBAL_VAR from extraEnv');
+            assert.strictEqual(execution.options.env.RUN_VAR, 'run_value', 'Should include RUN_VAR from run.extraEnv');
+        });
+
+        test('should merge test.extraEnv with extraEnv for test commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                { 'RUST_LOG': 'info', 'GLOBAL_VAR': 'global' },
+                [], {},
+                [],
+                { 'RUST_LOG': 'trace', 'TEST_VAR': 'test_value' }
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-test', ['test'], '/test/src/test.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Test);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            assert.ok(execution.options && execution.options.env, 'Should have environment options');
+            assert.strictEqual(execution.options.env.RUST_LOG, 'trace', 'test.extraEnv should override extraEnv');
+            assert.strictEqual(execution.options.env.GLOBAL_VAR, 'global', 'Should include GLOBAL_VAR from extraEnv');
+            assert.strictEqual(execution.options.env.TEST_VAR, 'test_value', 'Should include TEST_VAR from test.extraEnv');
+        });
+
+        test('should not apply run.extraArgs to build commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                {},
+                ['--should-not-appear']
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            const argsStr = execution.args.join(' ');
+            assert.ok(!argsStr.includes('--should-not-appear'), 'Should not include run.extraArgs in build command');
+        });
+
+        test('should not apply test.extraArgs to run commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                {},
+                [], {},
+                ['--should-not-appear']
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            const argsStr = execution.args.join(' ');
+            assert.ok(!argsStr.includes('--should-not-appear'), 'Should not include test.extraArgs in run command');
+        });
+
+        test('should apply run.extraArgs to bench commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings(
+                'cargo',
+                {},
+                ['--bench-arg']
+            );
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-bench', ['bench'], '/test/benches/bench.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Bench);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            const argsStr = execution.args.join(' ');
+            assert.ok(argsStr.includes('--bench-arg'), 'Should include --bench-arg from run.extraArgs for bench command');
+        });
+
+        test('should handle complex cargoCommand with multiple arguments', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReaderWithNewSettings('cargo +nightly --verbose');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(task.execution instanceof require('vscode').ShellExecution);
+            const execution = task.execution as any;
+            assert.strictEqual(execution.command, 'cargo', 'Should use cargo as command');
+            assert.ok(execution.args.includes('+nightly'), 'Should include +nightly as argument');
+            assert.ok(execution.args.includes('--verbose'), 'Should include --verbose as argument');
+        });
+
+        test('should use rust-analyzer settings when useRustAnalyzerEnvAndArgs is enabled', () => {
+            // Mock VS Code workspace configuration
+            const originalGetConfiguration = require('vscode').workspace.getConfiguration;
+            require('vscode').workspace.getConfiguration = (section: string) => {
+                if (section === 'cargoTools') {
+                    return {
+                        get: (key: string, defaultValue: any) => {
+                            if (key === 'useRustAnalyzerEnvAndArgs') {
+                                return true;
+                            }
+                            return defaultValue;
+                        }
+                    };
+                } else if (section === 'rust-analyzer') {
+                    return {
+                        get: (key: string, defaultValue: any) => {
+                            switch (key) {
+                                case 'cargo.extraArgs': return ['--', '--release'];
+                                case 'cargo.extraEnv': return { 'RUST_LOG': 'debug' };
+                                case 'runnables.extraArgs': return ['--run-arg'];
+                                case 'runnables.extraTestBinaryArgs': return ['--test-arg'];
+                                default: return defaultValue;
+                            }
+                        }
+                    };
+                }
+                return { get: () => undefined };
+            };
+
+            try {
+                const { CargoConfigurationReader } = require('../cargoConfigurationReader');
+                const config = CargoConfigurationReader.loadConfig();
+
+                assert.strictEqual(config.cargoCommand, 'cargo -- --release', 'Should build cargoCommand from rust-analyzer.cargo.extraArgs');
+                assert.deepStrictEqual(config.extraEnv, { 'RUST_LOG': 'debug' }, 'Should use rust-analyzer.cargo.extraEnv');
+                assert.deepStrictEqual(config['run.extraArgs'], ['--run-arg'], 'Should use rust-analyzer.runnables.extraArgs');
+                assert.deepStrictEqual(config['test.extraArgs'], ['--test-arg'], 'Should use rust-analyzer.runnables.extraTestBinaryArgs');
+            } finally {
+                // Restore original function
+                require('vscode').workspace.getConfiguration = originalGetConfiguration;
+            }
+        });
+
+        test('should merge rust-analyzer settings with existing settings', () => {
+            // Mock VS Code workspace configuration
+            const originalGetConfiguration = require('vscode').workspace.getConfiguration;
+            require('vscode').workspace.getConfiguration = (section: string) => {
+                if (section === 'cargoTools') {
+                    return {
+                        get: (key: string, defaultValue: any) => {
+                            switch (key) {
+                                case 'useRustAnalyzerEnvAndArgs': return true;
+                                case 'extraEnv': return { 'EXISTING_VAR': 'existing' };
+                                case 'run.extraArgs': return ['--existing-run-arg'];
+                                case 'test.extraArgs': return ['--existing-test-arg'];
+                                default: return defaultValue;
+                            }
+                        }
+                    };
+                } else if (section === 'rust-analyzer') {
+                    return {
+                        get: (key: string, defaultValue: any) => {
+                            switch (key) {
+                                case 'cargo.extraArgs': return ['+nightly'];
+                                case 'cargo.extraEnv': return { 'RUST_LOG': 'debug' };
+                                case 'runnables.extraArgs': return ['--rust-run-arg'];
+                                case 'runnables.extraTestBinaryArgs': return ['--rust-test-arg'];
+                                default: return defaultValue;
+                            }
+                        }
+                    };
+                }
+                return { get: () => undefined };
+            };
+
+            try {
+                const { CargoConfigurationReader } = require('../cargoConfigurationReader');
+                const config = CargoConfigurationReader.loadConfig();
+
+                assert.strictEqual(config.cargoCommand, 'cargo +nightly', 'Should build cargoCommand from rust-analyzer.cargo.extraArgs');
+                assert.deepStrictEqual(config.extraEnv, { 'EXISTING_VAR': 'existing', 'RUST_LOG': 'debug' }, 'Should merge existing and rust-analyzer extraEnv');
+                assert.deepStrictEqual(config['run.extraArgs'], ['--existing-run-arg', '--rust-run-arg'], 'Should merge existing and rust-analyzer run args');
+                assert.deepStrictEqual(config['test.extraArgs'], ['--existing-test-arg', '--rust-test-arg'], 'Should merge existing and rust-analyzer test args');
+            } finally {
+                // Restore original function
+                require('vscode').workspace.getConfiguration = originalGetConfiguration;
+            }
+        });
+
+        test('should not use rust-analyzer settings when useRustAnalyzerEnvAndArgs is disabled', () => {
+            // Mock VS Code workspace configuration
+            const originalGetConfiguration = require('vscode').workspace.getConfiguration;
+            require('vscode').workspace.getConfiguration = (section: string) => {
+                if (section === 'cargoTools') {
+                    return {
+                        get: (key: string, defaultValue: any) => {
+                            switch (key) {
+                                case 'useRustAnalyzerEnvAndArgs': return false;
+                                case 'cargoCommand': return 'custom-cargo';
+                                case 'extraEnv': return { 'CUSTOM_VAR': 'custom' };
+                                default: return defaultValue;
+                            }
+                        }
+                    };
+                } else if (section === 'rust-analyzer') {
+                    return {
+                        get: (key: string, defaultValue: any) => {
+                            // These should be ignored when integration is disabled
+                            switch (key) {
+                                case 'cargo.extraArgs': return ['--should-not-be-used'];
+                                case 'cargo.extraEnv': return { 'RUST_LOG': 'should-not-be-used' };
+                                default: return defaultValue;
+                            }
+                        }
+                    };
+                }
+                return { get: () => undefined };
+            };
+
+            try {
+                const { CargoConfigurationReader } = require('../cargoConfigurationReader');
+                const config = CargoConfigurationReader.loadConfig();
+
+                assert.strictEqual(config.cargoCommand, 'custom-cargo', 'Should use cargoTools.cargoCommand');
+                assert.deepStrictEqual(config.extraEnv, { 'CUSTOM_VAR': 'custom' }, 'Should use cargoTools.extraEnv');
+                assert.ok(!config.extraEnv.hasOwnProperty('RUST_LOG'), 'Should not include rust-analyzer settings');
+            } finally {
+                // Restore original function
+                require('vscode').workspace.getConfiguration = originalGetConfiguration;
+            }
         });
     });
 });

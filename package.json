@@ -558,10 +558,28 @@
             "Release profile with optimizations"
           ]
         },
+        "cargoTools.cargoCommand": {
+          "type": "string",
+          "default": "cargo",
+          "description": "Command to invoke instead of 'cargo'. This can be a custom wrapper or alternative cargo implementation. If the value contains whitespace, it will be split where the first part is the command and the remaining parts are treated as additional arguments."
+        },
+        "cargoTools.useRustAnalyzerEnvAndArgs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use rust-analyzer settings for cargo command and environment. When enabled, reads rust-analyzer.cargo.extraArgs, rust-analyzer.cargo.extraEnv, rust-analyzer.runnables.extraArgs, and rust-analyzer.runnables.extraTestBinaryArgs to configure this extension."
+        },
         "cargoTools.cargoPath": {
           "type": "string",
           "default": "cargo",
           "description": "Path to the cargo executable"
+        },
+        "cargoTools.extraEnv": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Additional environment variables to set when running any cargo command"
         },
         "cargoTools.buildArgs": {
           "type": "array",
@@ -571,6 +589,22 @@
           "default": [],
           "description": "Additional arguments to pass to cargo build"
         },
+        "cargoTools.run.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments to append to each invocation of running or debugging a target"
+        },
+        "cargoTools.run.extraEnv": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Additional environment variables to set when running or debugging a target, merged with extraEnv"
+        },
         "cargoTools.runArgs": {
           "type": "array",
           "items": {
@@ -578,6 +612,22 @@
           },
           "default": [],
           "description": "Additional arguments to pass to cargo run"
+        },
+        "cargoTools.test.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments to append to each invocation of running tests or benchmarks"
+        },
+        "cargoTools.test.extraEnv": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Additional environment variables to set when running tests or benchmarks, merged with extraEnv"
         },
         "cargoTools.testArgs": {
           "type": "array",

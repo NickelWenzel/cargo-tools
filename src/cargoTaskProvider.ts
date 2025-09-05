@@ -42,9 +42,9 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     private async getCargoTasks(): Promise<vscode.Task[]> {
         const tasks: vscode.Task[] = [];
         // Use configuration reader if available, otherwise fall back to direct VS Code config
-        const cargoPath = this.configReader
-            ? this.configReader.cargoPath
-            : vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
+        const cargoCommand = this.configReader
+            ? this.configReader.cargoCommand
+            : vscode.workspace.getConfiguration('cargoTools').get<string>('cargoCommand', 'cargo');
 
         // Common cargo commands (without specific targets)
         const baseCommands = ['build', 'check', 'clean', 'doc'];
@@ -270,14 +270,26 @@ export class CargoTaskProvider implements vscode.TaskProvider {
                 args = [...overrideArgs, ...cargoArgs];
             }
         } else {
-            // Use default cargo command
-            const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
-            command = cargoPath;
-            args = this.buildCargoArgs(definition);
+            // Use configured cargo command instead of hardcoded 'cargo'
+            const cargoCommand = this.configReader?.cargoCommand ||
+                vscode.workspace.getConfiguration('cargoTools').get<string>('cargoCommand', 'cargo');
+
+            // Split cargoCommand at whitespaces - first part is command, rest are additional args
+            const commandParts = cargoCommand.trim().split(/\s+/);
+            command = commandParts[0];
+            const cargoCommandArgs = commandParts.slice(1);
+
+            // Build cargo args and prepend any additional command args
+            const cargoArgs = this.buildCargoArgs(definition);
+            args = [...cargoCommandArgs, ...cargoArgs];
         }
 
+        // Build environment variables
+        const env = this.buildEnvironment(definition);
+
         const execution = new vscode.ShellExecution(command, args, {
-            cwd: this.workspace.workspaceRoot
+            cwd: this.workspace.workspaceRoot,
+            env: env
         });
 
         const task = new vscode.Task(
@@ -398,7 +410,52 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         const commandArgs = config.get<string[]>(`${definition.command}Args`, []);
         args.push(...commandArgs);
 
+        // Add extra arguments based on command type
+        if (this.configReader) {
+            if (definition.command === 'run' || definition.command === 'bench') {
+                // For run and bench commands, append run.extraArgs
+                const runExtraArgs = this.configReader.runExtraArgs || [];
+                args.push(...runExtraArgs);
+            } else if (definition.command === 'test') {
+                // For test commands, append test.extraArgs
+                const testExtraArgs = this.configReader.testExtraArgs || [];
+                args.push(...testExtraArgs);
+            }
+        }
+
         return args;
+    }
+
+    /**
+     * Build environment variables for task execution
+     */
+    private buildEnvironment(definition: CargoTaskDefinition): { [key: string]: string } {
+        const env: { [key: string]: string } = {};
+
+        // Start with base extraEnv
+        if (this.configReader?.extraEnv) {
+            Object.assign(env, this.configReader.extraEnv);
+        }
+
+        // Add legacy environment settings for backward compatibility
+        if (this.configReader?.environment) {
+            Object.assign(env, this.configReader.environment);
+        }
+
+        // Add command-specific environment variables
+        if (this.configReader) {
+            if (definition.command === 'run' || definition.command === 'bench') {
+                // For run and bench commands, merge run.extraEnv
+                const runExtraEnv = this.configReader.runExtraEnv || {};
+                Object.assign(env, runExtraEnv);
+            } else if (definition.command === 'test') {
+                // For test commands, merge test.extraEnv
+                const testExtraEnv = this.configReader.testExtraEnv || {};
+                Object.assign(env, testExtraEnv);
+            }
+        }
+
+        return env;
     }
 
     private getTaskName(definition: CargoTaskDefinition): string {

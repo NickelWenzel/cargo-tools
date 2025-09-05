@@ -108,11 +108,43 @@ export class CargoExtensionManager implements vscode.Disposable {
     private setupConfigurationSubscriptions(): void {
         // Subscribe to configuration changes
         this.subscriptions.push(
+            this.workspaceConfig.onChange('cargoCommand', async (cargoCommand: string) => {
+                console.log(`Cargo command changed to: ${cargoCommand}`);
+                // Refresh workspace if needed
+                if (this.cargoWorkspace) {
+                    await this.cargoWorkspace.refreshTargets();
+                }
+            }),
+
             this.workspaceConfig.onChange('cargoPath', async (cargoPath: string) => {
                 console.log(`Cargo path changed to: ${cargoPath}`);
                 // Refresh workspace if needed
                 if (this.cargoWorkspace) {
                     await this.cargoWorkspace.refreshTargets();
+                }
+            }),
+
+            this.workspaceConfig.onChange('useRustAnalyzerEnvAndArgs', async (enabled: boolean) => {
+                console.log(`Rust-analyzer integration changed to: ${enabled}`);
+                // Refresh workspace when rust-analyzer integration is toggled
+                if (this.cargoWorkspace) {
+                    await this.cargoWorkspace.refreshTargets();
+                }
+            }),
+
+            // Listen for rust-analyzer configuration changes when integration is enabled
+            vscode.workspace.onDidChangeConfiguration(e => {
+                if (this.workspaceConfig.useRustAnalyzerEnvAndArgs &&
+                    (e.affectsConfiguration('rust-analyzer.cargo.extraArgs') ||
+                        e.affectsConfiguration('rust-analyzer.cargo.extraEnv') ||
+                        e.affectsConfiguration('rust-analyzer.runnables.extraArgs') ||
+                        e.affectsConfiguration('rust-analyzer.runnables.extraTestBinaryArgs'))) {
+                    console.log('Rust-analyzer settings changed, refreshing workspace...');
+                    if (this.cargoWorkspace) {
+                        this.cargoWorkspace.refreshTargets().catch(err => {
+                            console.error('Failed to refresh workspace after rust-analyzer config change:', err);
+                        });
+                    }
                 }
             }),
 
@@ -965,8 +997,16 @@ export class CargoExtensionManager implements vscode.Disposable {
                 // Execute cargo doc command using a reusable terminal
                 const terminal = this.getOrCreateDocsTerminal();
 
-                const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
-                const command = `${cargoPath} doc --no-deps --release`;
+                const cargoCommand = this.workspaceConfig.cargoCommand || 'cargo';
+
+                // Split cargoCommand at whitespaces - first part is command, rest are additional args
+                const commandParts = cargoCommand.trim().split(/\s+/);
+                const actualCommand = commandParts[0];
+                const cargoCommandArgs = commandParts.slice(1);
+
+                // Combine command args with the doc command
+                const fullArgs = [...cargoCommandArgs, 'doc', '--no-deps', '--release'];
+                const command = `${actualCommand} ${fullArgs.join(' ')}`;
                 terminal.sendText(command);
                 terminal.show();
 
@@ -986,10 +1026,14 @@ export class CargoExtensionManager implements vscode.Disposable {
             return this.docsTerminal;
         }
 
+        // Build environment variables for doc commands
+        const env = this.buildCargoEnvironment('doc');
+
         // Create new terminal if none exists or previous one was closed
         this.docsTerminal = vscode.window.createTerminal({
             name: 'Cargo doc',
-            cwd: this.cargoWorkspace?.workspaceRoot
+            cwd: this.cargoWorkspace?.workspaceRoot,
+            env: env
         });
 
         return this.docsTerminal;
@@ -1342,17 +1386,76 @@ export class CargoExtensionManager implements vscode.Disposable {
             throw new Error('No cargo workspace available');
         }
 
+        // Build environment variables from configuration
+        const env = this.buildCargoEnvironment(command);
+
         const terminal = vscode.window.createTerminal({
             name: `Cargo ${command}`,
-            cwd: this.cargoWorkspace.workspaceRoot
+            cwd: this.cargoWorkspace.workspaceRoot,
+            env: env
         });
 
-        const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
+        const cargoCommand = this.workspaceConfig.cargoCommand || 'cargo';
+
+        // Split cargoCommand at whitespaces - first part is command, rest are additional args
+        const commandParts = cargoCommand.trim().split(/\s+/);
+        const actualCommand = commandParts[0];
+        const cargoCommandArgs = commandParts.slice(1);
+
         const args = this.cargoWorkspace.getCargoArgs(command);
-        const commandLine = `${cargoPath} ${args.join(' ')}`;
+
+        // Add extra arguments based on command type
+        const extraArgs = this.getExtraArgsForCommand(command);
+
+        // Combine all arguments: cargoCommand args + base args + extra args
+        const allArgs = [...cargoCommandArgs, ...args, ...extraArgs];
+
+        const commandLine = `${actualCommand} ${allArgs.join(' ')}`;
 
         terminal.sendText(commandLine);
         terminal.show();
+    }
+
+    /**
+     * Build environment variables for cargo command execution
+     */
+    private buildCargoEnvironment(command: string): { [key: string]: string } {
+        const env: { [key: string]: string } = {};
+
+        // Start with base extraEnv
+        if (this.workspaceConfig.extraEnv) {
+            Object.assign(env, this.workspaceConfig.extraEnv);
+        }
+
+        // Add legacy environment settings for backward compatibility
+        if (this.workspaceConfig.environment) {
+            Object.assign(env, this.workspaceConfig.environment);
+        }
+
+        // Add command-specific environment variables
+        if (command === 'run' || command === 'bench') {
+            // For run and bench commands, merge run.extraEnv
+            const runExtraEnv = this.workspaceConfig.runExtraEnv || {};
+            Object.assign(env, runExtraEnv);
+        } else if (command === 'test') {
+            // For test commands, merge test.extraEnv
+            const testExtraEnv = this.workspaceConfig.testExtraEnv || {};
+            Object.assign(env, testExtraEnv);
+        }
+
+        return env;
+    }
+
+    /**
+     * Get extra arguments for specific command types
+     */
+    private getExtraArgsForCommand(command: string): string[] {
+        if (command === 'run' || command === 'bench') {
+            return this.workspaceConfig.runExtraArgs || [];
+        } else if (command === 'test') {
+            return this.workspaceConfig.testExtraArgs || [];
+        }
+        return [];
     }
 
     // Command wrappers for new action-based commands

@@ -4,11 +4,18 @@ import * as vscode from 'vscode';
  * Configuration settings interface matching VS Code settings schema
  */
 export interface CargoConfiguration {
+    cargoCommand: string;
     cargoPath: string;
+    useRustAnalyzerEnvAndArgs: boolean;
     defaultProfile: string;
+    extraEnv: { [key: string]: string };
     buildArgs: string[];
     runArgs: string[];
     testArgs: string[];
+    'run.extraArgs': string[];
+    'run.extraEnv': { [key: string]: string };
+    'test.extraArgs': string[];
+    'test.extraEnv': { [key: string]: string };
     runCommandOverride: string;
     testCommandOverride: string;
     environment: { [key: string]: string };
@@ -76,13 +83,50 @@ export class CargoConfigurationReader implements vscode.Disposable {
      */
     static loadConfig(folder?: vscode.WorkspaceFolder): CargoConfiguration {
         const config = vscode.workspace.getConfiguration('cargoTools', folder?.uri);
+        const useRustAnalyzerEnvAndArgs = config.get<boolean>('useRustAnalyzerEnvAndArgs', false);
+
+        // Load base configuration
+        let cargoCommand = config.get<string>('cargoCommand', 'cargo');
+        let extraEnv = config.get<{ [key: string]: string }>('extraEnv', {});
+        let runExtraArgs = config.get<string[]>('run.extraArgs', []);
+        let testExtraArgs = config.get<string[]>('test.extraArgs', []);
+
+        // Override with rust-analyzer settings if enabled
+        if (useRustAnalyzerEnvAndArgs) {
+            const rustAnalyzerConfig = vscode.workspace.getConfiguration('rust-analyzer', folder?.uri);
+
+            // Build cargoCommand from rust-analyzer.cargo.extraArgs
+            const extraArgs = rustAnalyzerConfig.get<string[]>('cargo.extraArgs', []);
+            if (extraArgs.length > 0) {
+                cargoCommand = `cargo ${extraArgs.join(' ')}`;
+            }
+
+            // Use rust-analyzer environment variables
+            const rustExtraEnv = rustAnalyzerConfig.get<{ [key: string]: string }>('cargo.extraEnv', {});
+            extraEnv = { ...extraEnv, ...rustExtraEnv };
+
+            // Use rust-analyzer runnable arguments
+            const rustRunnableArgs = rustAnalyzerConfig.get<string[]>('runnables.extraArgs', []);
+            runExtraArgs = [...runExtraArgs, ...rustRunnableArgs];
+
+            // Use rust-analyzer test binary arguments
+            const rustTestBinaryArgs = rustAnalyzerConfig.get<string[]>('runnables.extraTestBinaryArgs', []);
+            testExtraArgs = [...testExtraArgs, ...rustTestBinaryArgs];
+        }
 
         return {
+            cargoCommand: cargoCommand,
             cargoPath: config.get<string>('cargoPath', 'cargo'),
+            useRustAnalyzerEnvAndArgs: useRustAnalyzerEnvAndArgs,
             defaultProfile: config.get<string>('defaultProfile', 'dev'),
+            extraEnv: extraEnv,
             buildArgs: config.get<string[]>('buildArgs', []),
             runArgs: config.get<string[]>('runArgs', []),
             testArgs: config.get<string[]>('testArgs', []),
+            'run.extraArgs': runExtraArgs,
+            'run.extraEnv': config.get<{ [key: string]: string }>('run.extraEnv', {}),
+            'test.extraArgs': testExtraArgs,
+            'test.extraEnv': config.get<{ [key: string]: string }>('test.extraEnv', {}),
             runCommandOverride: config.get<string>('runCommandOverride', ''),
             testCommandOverride: config.get<string>('testCommandOverride', ''),
             environment: config.get<{ [key: string]: string }>('environment', {}),
@@ -144,12 +188,24 @@ export class CargoConfigurationReader implements vscode.Disposable {
     }
 
     // Configuration property accessors
+    get cargoCommand(): string {
+        return this.configData.cargoCommand;
+    }
+
     get cargoPath(): string {
         return this.configData.cargoPath;
     }
 
+    get useRustAnalyzerEnvAndArgs(): boolean {
+        return this.configData.useRustAnalyzerEnvAndArgs;
+    }
+
     get defaultProfile(): string {
         return this.configData.defaultProfile;
+    }
+
+    get extraEnv(): { [key: string]: string } {
+        return this.configData.extraEnv;
     }
 
     get buildArgs(): string[] {
@@ -162,6 +218,22 @@ export class CargoConfigurationReader implements vscode.Disposable {
 
     get testArgs(): string[] {
         return this.configData.testArgs;
+    }
+
+    get runExtraArgs(): string[] {
+        return this.configData['run.extraArgs'];
+    }
+
+    get runExtraEnv(): { [key: string]: string } {
+        return this.configData['run.extraEnv'];
+    }
+
+    get testExtraArgs(): string[] {
+        return this.configData['test.extraArgs'];
+    }
+
+    get testExtraEnv(): { [key: string]: string } {
+        return this.configData['test.extraEnv'];
     }
 
     get runCommandOverride(): string {
@@ -190,11 +262,18 @@ export class CargoConfigurationReader implements vscode.Disposable {
 
     // Event emitters for configuration changes
     private readonly emitters: EmittersOf<CargoConfiguration> = {
+        cargoCommand: new vscode.EventEmitter<string>(),
         cargoPath: new vscode.EventEmitter<string>(),
+        useRustAnalyzerEnvAndArgs: new vscode.EventEmitter<boolean>(),
         defaultProfile: new vscode.EventEmitter<string>(),
+        extraEnv: new vscode.EventEmitter<{ [key: string]: string }>(),
         buildArgs: new vscode.EventEmitter<string[]>(),
         runArgs: new vscode.EventEmitter<string[]>(),
         testArgs: new vscode.EventEmitter<string[]>(),
+        'run.extraArgs': new vscode.EventEmitter<string[]>(),
+        'run.extraEnv': new vscode.EventEmitter<{ [key: string]: string }>(),
+        'test.extraArgs': new vscode.EventEmitter<string[]>(),
+        'test.extraEnv': new vscode.EventEmitter<{ [key: string]: string }>(),
         runCommandOverride: new vscode.EventEmitter<string>(),
         testCommandOverride: new vscode.EventEmitter<string>(),
         environment: new vscode.EventEmitter<{ [key: string]: string }>(),
