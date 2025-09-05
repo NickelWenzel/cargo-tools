@@ -1203,6 +1203,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             get cargoCommand() { return 'cargo'; }
             get cargoPath() { return 'cargo'; }
             get useRustAnalyzerEnvAndArgs() { return false; }
+            get updateRustAnalyzerTarget() { return false; }
             get extraEnv() { return {}; }
             get buildArgs() { return []; }
             get runArgs() { return []; }
@@ -1737,6 +1738,112 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
                 assert.ok(!config.extraEnv.hasOwnProperty('RUST_LOG'), 'Should not include rust-analyzer settings');
             } finally {
                 // Restore original function
+                require('vscode').workspace.getConfiguration = originalGetConfiguration;
+            }
+        });
+    });
+
+    suite('Rust-Analyzer Target Synchronization Tests', () => {
+        test('should update rust-analyzer target when updateRustAnalyzerTarget is enabled', () => {
+            const testProjectPath = '/test/project';
+            const workspace = new CargoWorkspace(testProjectPath);
+
+            // Mock VS Code configuration
+            let rustAnalyzerTargetValue: string | undefined = undefined;
+            const mockCargoToolsConfig = {
+                get: (key: string, defaultValue?: any) => {
+                    if (key === 'updateRustAnalyzerTarget') {
+                        return true;
+                    }
+                    return defaultValue;
+                }
+            };
+            const mockRustAnalyzerConfig = {
+                get: (key: string, defaultValue?: any) => {
+                    if (key === 'cargo.target') {
+                        return rustAnalyzerTargetValue;
+                    }
+                    return defaultValue;
+                },
+                update: (key: string, value: any, target: any) => {
+                    if (key === 'cargo.target') {
+                        rustAnalyzerTargetValue = value;
+                    }
+                }
+            };
+
+            const originalGetConfiguration = require('vscode').workspace.getConfiguration;
+            require('vscode').workspace.getConfiguration = (section?: string) => {
+                if (section === 'cargoTools') {
+                    return mockCargoToolsConfig;
+                }
+                if (section === 'rust-analyzer') {
+                    return mockRustAnalyzerConfig;
+                }
+                return originalGetConfiguration(section);
+            };
+
+            try {
+                // Test setting a platform target
+                workspace.setSelectedPlatformTarget('wasm32-unknown-unknown');
+                assert.strictEqual(rustAnalyzerTargetValue, 'wasm32-unknown-unknown', 'Should set rust-analyzer cargo target');
+
+                // Test removing platform target
+                workspace.setSelectedPlatformTarget(null);
+                assert.strictEqual(rustAnalyzerTargetValue, undefined, 'Should remove rust-analyzer cargo target');
+            } finally {
+                require('vscode').workspace.getConfiguration = originalGetConfiguration;
+            }
+        });
+
+        test('should not update rust-analyzer target when updateRustAnalyzerTarget is disabled', () => {
+            const testProjectPath = '/test/project';
+            const workspace = new CargoWorkspace(testProjectPath);
+
+            // Mock VS Code configuration
+            let rustAnalyzerTargetValue: string | undefined = 'initial-value';
+            const mockCargoToolsConfig = {
+                get: (key: string, defaultValue?: any) => {
+                    if (key === 'updateRustAnalyzerTarget') {
+                        return false;
+                    }
+                    return defaultValue;
+                }
+            };
+            const mockRustAnalyzerConfig = {
+                get: (key: string, defaultValue?: any) => {
+                    if (key === 'cargo.target') {
+                        return rustAnalyzerTargetValue;
+                    }
+                    return defaultValue;
+                },
+                update: (key: string, value: any, target: any) => {
+                    if (key === 'cargo.target') {
+                        rustAnalyzerTargetValue = value;
+                    }
+                }
+            };
+
+            const originalGetConfiguration = require('vscode').workspace.getConfiguration;
+            require('vscode').workspace.getConfiguration = (section?: string) => {
+                if (section === 'cargoTools') {
+                    return mockCargoToolsConfig;
+                }
+                if (section === 'rust-analyzer') {
+                    return mockRustAnalyzerConfig;
+                }
+                return originalGetConfiguration(section);
+            };
+
+            try {
+                // Test setting a platform target
+                workspace.setSelectedPlatformTarget('wasm32-unknown-unknown');
+                assert.strictEqual(rustAnalyzerTargetValue, 'initial-value', 'Should not change rust-analyzer cargo target when disabled');
+
+                // Test removing platform target
+                workspace.setSelectedPlatformTarget(null);
+                assert.strictEqual(rustAnalyzerTargetValue, 'initial-value', 'Should not change rust-analyzer cargo target when disabled');
+            } finally {
                 require('vscode').workspace.getConfiguration = originalGetConfiguration;
             }
         });

@@ -7,6 +7,7 @@ export interface CargoConfiguration {
     cargoCommand: string;
     cargoPath: string;
     useRustAnalyzerEnvAndArgs: boolean;
+    updateRustAnalyzerTarget: boolean;
     defaultProfile: string;
     extraEnv: { [key: string]: string };
     buildArgs: string[];
@@ -118,6 +119,7 @@ export class CargoConfigurationReader implements vscode.Disposable {
             cargoCommand: cargoCommand,
             cargoPath: config.get<string>('cargoPath', 'cargo'),
             useRustAnalyzerEnvAndArgs: useRustAnalyzerEnvAndArgs,
+            updateRustAnalyzerTarget: config.get<boolean>('updateRustAnalyzerTarget', false),
             defaultProfile: config.get<string>('defaultProfile', 'dev'),
             extraEnv: extraEnv,
             buildArgs: config.get<string[]>('buildArgs', []),
@@ -200,6 +202,10 @@ export class CargoConfigurationReader implements vscode.Disposable {
         return this.configData.useRustAnalyzerEnvAndArgs;
     }
 
+    get updateRustAnalyzerTarget(): boolean {
+        return this.configData.updateRustAnalyzerTarget;
+    }
+
     get defaultProfile(): string {
         return this.configData.defaultProfile;
     }
@@ -265,6 +271,7 @@ export class CargoConfigurationReader implements vscode.Disposable {
         cargoCommand: new vscode.EventEmitter<string>(),
         cargoPath: new vscode.EventEmitter<string>(),
         useRustAnalyzerEnvAndArgs: new vscode.EventEmitter<boolean>(),
+        updateRustAnalyzerTarget: new vscode.EventEmitter<boolean>(),
         defaultProfile: new vscode.EventEmitter<string>(),
         extraEnv: new vscode.EventEmitter<{ [key: string]: string }>(),
         buildArgs: new vscode.EventEmitter<string[]>(),

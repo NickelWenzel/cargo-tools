@@ -515,6 +515,21 @@ export class CargoWorkspace {
         if (this._selectedPlatformTarget !== targetTriple) {
             this._selectedPlatformTarget = targetTriple;
             this._onDidChangeSelectedPlatformTarget.fire(this._selectedPlatformTarget);
+
+            // Update rust-analyzer target setting if enabled
+            const config = vscode.workspace.getConfiguration('cargoTools');
+            const updateRustAnalyzer = config.get<boolean>('updateRustAnalyzerTarget', false);
+            
+            if (updateRustAnalyzer) {
+                const rustAnalyzerConfig = vscode.workspace.getConfiguration('rust-analyzer');
+                if (targetTriple) {
+                    // Set rust-analyzer cargo target to the selected platform target
+                    rustAnalyzerConfig.update('cargo.target', targetTriple, vscode.ConfigurationTarget.Workspace);
+                } else {
+                    // Remove rust-analyzer cargo target setting when no selection
+                    rustAnalyzerConfig.update('cargo.target', undefined, vscode.ConfigurationTarget.Workspace);
+                }
+            }
         }
     }
 

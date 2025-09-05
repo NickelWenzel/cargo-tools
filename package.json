@@ -568,6 +568,11 @@
           "default": false,
           "description": "Use rust-analyzer settings for cargo command and environment. When enabled, reads rust-analyzer.cargo.extraArgs, rust-analyzer.cargo.extraEnv, rust-analyzer.runnables.extraArgs, and rust-analyzer.runnables.extraTestBinaryArgs to configure this extension."
         },
+        "cargoTools.updateRustAnalyzerTarget": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically update rust-analyzer.cargo.target setting when Platform Selection changes. When enabled, changing the platform target will also set rust-analyzer's cargo target configuration."
+        },
         "cargoTools.cargoPath": {
           "type": "string",
           "default": "cargo",
