@@ -519,7 +519,7 @@ export class CargoWorkspace {
             // Update rust-analyzer target setting if enabled
             const config = vscode.workspace.getConfiguration('cargoTools');
             const updateRustAnalyzer = config.get<boolean>('updateRustAnalyzerTarget', false);
-            
+
             if (updateRustAnalyzer) {
                 const rustAnalyzerConfig = vscode.workspace.getConfiguration('rust-analyzer');
                 if (targetTriple) {

@@ -65,6 +65,12 @@
         "icon": "$(cloud-download)"
       },
       {
+        "command": "cargo-tools.setRustAnalyzerCheckTargets",
+        "title": "Set rust-analyzer check targets",
+        "category": "Cargo Tools",
+        "icon": "$(checklist)"
+      },
+      {
         "command": "cargo-tools.buildDocs",
         "title": "Build Documentation",
         "category": "Cargo Tools",

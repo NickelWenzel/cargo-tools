@@ -247,6 +247,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectBenchmarkTarget',
             'selectPlatformTarget',
             'installPlatformTarget',
+            'setRustAnalyzerCheckTargets',
             'buildDocs',
             'setBuildTarget',
             'setRunTarget',
@@ -979,6 +980,61 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to get available platform targets: ${error}`);
+        }
+    }
+
+    async setRustAnalyzerCheckTargets(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            return;
+        }
+
+        try {
+            // Get installed platform targets
+            const installedTargets = await this.cargoWorkspace.getInstalledPlatformTargets();
+
+            if (installedTargets.length === 0) {
+                vscode.window.showInformationMessage('No installed platform targets found. Install targets first using "Install Platform Target" command.');
+                return;
+            }
+
+            // Get current rust-analyzer check targets setting
+            const rustAnalyzerConfig = vscode.workspace.getConfiguration('rust-analyzer');
+            const currentTargets: string[] = rustAnalyzerConfig.get('check.targets', []) || [];
+
+            // Create QuickPickItems with checkboxes for installed targets
+            const items: vscode.QuickPickItem[] = installedTargets.map(target => ({
+                label: target,
+                description: currentTargets.includes(target) ? '✓ Selected' : '',
+                detail: `Platform target for rust-analyzer checks`,
+                picked: currentTargets.includes(target)
+            }));
+
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Select platform targets for rust-analyzer checks (use Space to toggle)',
+                canPickMany: true,
+                ignoreFocusOut: true
+            });
+
+            if (selected !== undefined) {
+                // Update rust-analyzer check targets setting
+                const newTargets = selected.map(item => item.label);
+
+                if (newTargets.length === 0) {
+                    // Remove setting if no targets selected
+                    await rustAnalyzerConfig.update('check.targets', undefined, vscode.ConfigurationTarget.Workspace);
+                } else {
+                    // Set the new targets
+                    await rustAnalyzerConfig.update('check.targets', newTargets, vscode.ConfigurationTarget.Workspace);
+                }
+
+                const message = newTargets.length === 0
+                    ? 'Cleared rust-analyzer check targets'
+                    : `Set rust-analyzer check targets: ${newTargets.join(', ')}`;
+                vscode.window.showInformationMessage(message);
+            }
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to set rust-analyzer check targets: ${error}`);
         }
     }
 
