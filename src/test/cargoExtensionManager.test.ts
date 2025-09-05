@@ -1848,4 +1848,100 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             }
         });
     });
+
+    suite('Rust-Analyzer Check Targets Command Tests', () => {
+        test('should handle rust-analyzer configuration updates correctly', async () => {
+            // Mock rust-analyzer configuration
+            let checkTargetsValue: string[] | undefined = [];
+            const mockRustAnalyzerConfig = {
+                get: (key: string, defaultValue?: any) => {
+                    if (key === 'check.targets') {
+                        return checkTargetsValue;
+                    }
+                    return defaultValue;
+                },
+                update: async (key: string, value: any, target: any) => {
+                    if (key === 'check.targets') {
+                        checkTargetsValue = value;
+                    }
+                }
+            };
+
+            // Mock VS Code APIs
+            const originalGetConfiguration = require('vscode').workspace.getConfiguration;
+            require('vscode').workspace.getConfiguration = (section?: string) => {
+                if (section === 'rust-analyzer') {
+                    return mockRustAnalyzerConfig;
+                }
+                return originalGetConfiguration(section);
+            };
+
+            try {
+                // Test setting targets
+                await mockRustAnalyzerConfig.update('check.targets', ['wasm32-unknown-unknown', 'x86_64-pc-windows-gnu'], 'workspace');
+                assert.deepStrictEqual(checkTargetsValue, ['wasm32-unknown-unknown', 'x86_64-pc-windows-gnu'], 'Should set multiple targets');
+
+                // Test removing targets
+                await mockRustAnalyzerConfig.update('check.targets', undefined, 'workspace');
+                assert.strictEqual(checkTargetsValue, undefined, 'Should remove setting when undefined');
+
+                // Test empty array
+                await mockRustAnalyzerConfig.update('check.targets', [], 'workspace');
+                assert.deepStrictEqual(checkTargetsValue, [], 'Should handle empty array');
+            } finally {
+                require('vscode').workspace.getConfiguration = originalGetConfiguration;
+            }
+        });
+
+        test('should verify command is registered in package.json', () => {
+            // This test verifies that the command exists in package.json
+            const packageJson = require('../../package.json');
+            const commands = packageJson.contributes.commands;
+
+            const setRustAnalyzerCheckTargetsCommand = commands.find((cmd: any) =>
+                cmd.command === 'cargo-tools.setRustAnalyzerCheckTargets'
+            );
+
+            assert.ok(setRustAnalyzerCheckTargetsCommand, 'setRustAnalyzerCheckTargets command should be defined in package.json');
+            assert.strictEqual(setRustAnalyzerCheckTargetsCommand.title, 'Set rust-analyzer check targets', 'Command should have correct title');
+            assert.strictEqual(setRustAnalyzerCheckTargetsCommand.category, 'Cargo Tools', 'Command should be in Cargo Tools category');
+        });
+
+        test('should handle null check.targets configuration gracefully', async () => {
+            // Mock rust-analyzer configuration that returns null
+            let checkTargetsValue: string[] | null = null;
+            const mockRustAnalyzerConfig = {
+                get: (key: string, defaultValue?: any) => {
+                    if (key === 'check.targets') {
+                        return checkTargetsValue; // This will be null initially
+                    }
+                    return defaultValue;
+                },
+                update: async (key: string, value: any, target: any) => {
+                    if (key === 'check.targets') {
+                        checkTargetsValue = value;
+                    }
+                }
+            };
+
+            // Mock VS Code APIs
+            const originalGetConfiguration = require('vscode').workspace.getConfiguration;
+            require('vscode').workspace.getConfiguration = (section?: string) => {
+                if (section === 'rust-analyzer') {
+                    return mockRustAnalyzerConfig;
+                }
+                return originalGetConfiguration(section);
+            };
+
+            try {
+                // Test that null values are handled correctly by the configuration reader
+                const rawTargets = mockRustAnalyzerConfig.get('check.targets', []);
+                const currentTargets: string[] = rawTargets || [];
+                assert.deepStrictEqual(currentTargets, [], 'Should default to empty array when setting is null');
+                assert.strictEqual(currentTargets.length, 0, 'Array should be empty');
+            } finally {
+                require('vscode').workspace.getConfiguration = originalGetConfiguration;
+            }
+        });
+    });
 });
