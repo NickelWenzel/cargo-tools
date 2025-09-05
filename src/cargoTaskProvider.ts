@@ -230,10 +230,53 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     }
 
     private createCargoTask(definition: CargoTaskDefinition): vscode.Task {
-        const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
-        const args = this.buildCargoArgs(definition);
+        // Get command override settings from configuration
+        const config = this.configReader || { runCommandOverride: '', testCommandOverride: '' };
 
-        const execution = new vscode.ShellExecution(cargoPath, args, {
+        let command: string;
+        let args: string[];
+
+        // Check if we should use command overrides
+        if (definition.command === 'run' && config.runCommandOverride && config.runCommandOverride.trim() !== '') {
+            // Use run command override - split into command and initial args
+            const overrideTokens = config.runCommandOverride.trim().split(/\s+/);
+            command = overrideTokens[0];
+            const overrideArgs = overrideTokens.slice(1);
+
+            // Build cargo args but replace 'run' command with override args
+            const cargoArgs = this.buildCargoArgs(definition);
+            const runIndex = cargoArgs.indexOf('run');
+            if (runIndex >= 0) {
+                // Replace 'run' with override args, keep the rest
+                args = [...overrideArgs, ...cargoArgs.slice(runIndex + 1)];
+            } else {
+                // Fallback: use override args + all cargo args
+                args = [...overrideArgs, ...cargoArgs];
+            }
+        } else if (definition.command === 'test' && config.testCommandOverride && config.testCommandOverride.trim() !== '') {
+            // Use test command override - split into command and initial args
+            const overrideTokens = config.testCommandOverride.trim().split(/\s+/);
+            command = overrideTokens[0];
+            const overrideArgs = overrideTokens.slice(1);
+
+            // Build cargo args but replace 'test' command with override args
+            const cargoArgs = this.buildCargoArgs(definition);
+            const testIndex = cargoArgs.indexOf('test');
+            if (testIndex >= 0) {
+                // Replace 'test' with override args, keep the rest
+                args = [...overrideArgs, ...cargoArgs.slice(testIndex + 1)];
+            } else {
+                // Fallback: use override args + all cargo args
+                args = [...overrideArgs, ...cargoArgs];
+            }
+        } else {
+            // Use default cargo command
+            const cargoPath = vscode.workspace.getConfiguration('cargoTools').get<string>('cargoPath', 'cargo');
+            command = cargoPath;
+            args = this.buildCargoArgs(definition);
+        }
+
+        const execution = new vscode.ShellExecution(command, args, {
             cwd: this.workspace.workspaceRoot
         });
 

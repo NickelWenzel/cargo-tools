@@ -1192,4 +1192,158 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             assert.ok(profileNames.includes('release'), 'Should include release profile');
         });
     });
+
+    suite('Command Override Settings Tests', () => {
+        class MockCargoConfigurationReader {
+            constructor(
+                public runCommandOverride: string = '',
+                public testCommandOverride: string = ''
+            ) { }
+
+            get cargoPath() { return 'cargo'; }
+            get buildArgs() { return []; }
+            get runArgs() { return []; }
+            get testArgs() { return []; }
+            get environment() { return {}; }
+            get features() { return []; }
+            get allFeatures() { return false; }
+            get noDefaultFeatures() { return false; }
+        }
+
+        function createMockWorkspace(targets: CargoTarget[] = []): any {
+            return {
+                workspaceRoot: '/test/workspace',
+                targets: targets,
+                currentProfile: CargoProfile.dev,
+                selectedFeatures: new Set<string>(),
+                selectedPackage: undefined as string | undefined,
+                isWorkspace: false
+            };
+        }
+
+        test('should use default cargo run when no override is set', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReader('', ''); // No overrides
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.strictEqual(task.definition.command, 'run', 'Should use run command');
+        });
+
+        test('should use default cargo test when no override is set', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const mockWorkspace = createMockWorkspace();
+            const mockConfig = new MockCargoConfigurationReader('', ''); // No overrides
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const target = new CargoTarget('my-test', ['test'], '/test/src/test.rs');
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Test);
+
+            assert.ok(task, 'Should create a task');
+            assert.strictEqual(task.definition.command, 'test', 'Should use test command');
+        });
+
+        test('should include override settings in configuration interface', () => {
+            const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', 'cargo nextest run');
+
+            assert.strictEqual(mockConfig.runCommandOverride, 'cargo watch -x run', 'Should store run override');
+            assert.strictEqual(mockConfig.testCommandOverride, 'cargo nextest run', 'Should store test override');
+        });
+
+        test('should work with binary targets and run override', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const mockWorkspace = createMockWorkspace([target]);
+            const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', '');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.strictEqual(task.definition.command, 'run', 'Should still use run in definition');
+            assert.strictEqual(task.definition.targetName, 'my-binary', 'Should preserve target name');
+            assert.strictEqual(task.definition.targetKind, 'bin', 'Should preserve target kind');
+        });
+
+        test('should work with test targets and test override', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const target = new CargoTarget('integration_tests', ['test'], '/test/tests/integration.rs');
+            const mockWorkspace = createMockWorkspace([target]);
+            const mockConfig = new MockCargoConfigurationReader('', 'cargo nextest run');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Test);
+
+            assert.ok(task, 'Should create a task');
+            assert.strictEqual(task.definition.command, 'test', 'Should still use test in definition');
+            assert.strictEqual(task.definition.targetName, 'integration_tests', 'Should preserve target name');
+            assert.strictEqual(task.definition.targetKind, 'test', 'Should preserve target kind');
+        });
+
+        test('should work with example targets and run override', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const target = new CargoTarget('simple-server', ['example'], '/test/examples/simple.rs');
+            const mockWorkspace = createMockWorkspace([target]);
+            const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', '');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.strictEqual(task.definition.command, 'run', 'Should still use run in definition');
+            assert.strictEqual(task.definition.targetName, 'simple-server', 'Should preserve target name');
+            assert.strictEqual(task.definition.targetKind, 'example', 'Should preserve target kind');
+        });
+
+        test('should not affect build commands', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const mockWorkspace = createMockWorkspace([target]);
+            const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', 'cargo nextest run');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
+
+            assert.ok(task, 'Should create a task');
+            assert.strictEqual(task.definition.command, 'build', 'Should use build command, not affected by overrides');
+        });
+
+        test('should preserve workspace and package settings with overrides', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs', '2021', 'my-package');
+            const mockWorkspace = createMockWorkspace([target]);
+            mockWorkspace.selectedPackage = 'my-package';
+            mockWorkspace.isWorkspace = true;
+
+            const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', '');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.strictEqual(task.definition.packageName, 'my-package', 'Should preserve package information');
+            assert.strictEqual(task.definition.targetName, 'my-binary', 'Should preserve target name');
+        });
+
+        test('should preserve features settings with overrides', () => {
+            const { CargoTaskProvider } = require('../cargoTaskProvider');
+            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const mockWorkspace = createMockWorkspace([target]);
+            mockWorkspace.selectedFeatures = new Set(['feature1', 'feature2']);
+
+            const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', '');
+            const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
+
+            const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
+
+            assert.ok(task, 'Should create a task');
+            assert.ok(Array.isArray(task.definition.features), 'Should have features array');
+            assert.ok(task.definition.features?.includes('feature1'), 'Should preserve feature1');
+            assert.ok(task.definition.features?.includes('feature2'), 'Should preserve feature2');
+        });
+    });
 });
