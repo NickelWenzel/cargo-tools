@@ -1,6 +1,7 @@
 export enum TargetActionType {
     Build = 'build',
     Run = 'run',
+    Debug = 'debug',
     Test = 'test',
     Bench = 'bench'
 }
@@ -49,9 +50,10 @@ export class CargoTarget {
         // All targets can be built
         actions.push(TargetActionType.Build);
 
-        // Executables (bin and example) can be run
+        // Executables (bin and example) can be run and debugged
         if (this.isExecutable || this.isExample) {
             actions.push(TargetActionType.Run);
+            actions.push(TargetActionType.Debug);
         }
 
         // Test targets can be tested
@@ -83,6 +85,8 @@ export class CargoTarget {
                 return 'build';
             case TargetActionType.Run:
                 return 'run';
+            case TargetActionType.Debug:
+                return 'build'; // Debug builds first, then launches debugger
             case TargetActionType.Test:
                 return 'test';
             case TargetActionType.Bench:

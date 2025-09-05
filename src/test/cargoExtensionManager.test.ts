@@ -813,10 +813,11 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const libActions = libTarget.supportedActionTypes;
             const testActions = testTarget.supportedActionTypes;
 
-            // Binary targets support build and run
+            // Binary targets support build, run, and debug
             assert.ok(binaryActions.includes(TargetActionType.Build));
             assert.ok(binaryActions.includes(TargetActionType.Run));
-            assert.strictEqual(binaryActions.length, 2);
+            assert.ok(binaryActions.includes(TargetActionType.Debug));
+            assert.strictEqual(binaryActions.length, 3);
 
             // Library targets only support build
             assert.ok(libActions.includes(TargetActionType.Build));

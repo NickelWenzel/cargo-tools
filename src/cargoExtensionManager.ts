@@ -213,10 +213,12 @@ export class CargoExtensionManager implements vscode.Disposable {
             'refresh',
             'executeDefaultBuild',
             'executeDefaultRun',
+            'executeDefaultDebug',
             'executeDefaultTest',
             'executeDefaultBench',
             'executeBuildAction',
             'executeRunAction',
+            'executeDebugAction',
             'executeTestAction',
             'executeBenchAction'
         ];
@@ -236,6 +238,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             'projectOutline.testPackage',
             'projectOutline.buildTarget',
             'projectOutline.runTarget',
+            'projectOutline.debugTarget',
             'projectOutline.benchTarget'
         ];
 
@@ -243,6 +246,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         const projectStatusCommands = [
             'projectStatus.build',
             'projectStatus.run',
+            'projectStatus.debug',
             'projectStatus.test',
             'projectStatus.bench'
         ];
@@ -1098,7 +1102,13 @@ export class CargoExtensionManager implements vscode.Disposable {
             throw new Error('No cargo workspace or task provider available');
         }
 
-        // Use the task provider to create and execute a VS Code task
+        // Debug action requires special handling
+        if (actionType === TargetActionType.Debug) {
+            await this.startDebugSession(target);
+            return;
+        }
+
+        // Use the task provider to create and execute a VS Code task for other actions
         const task = this.taskProvider.createTaskForTargetAction(target, actionType);
         if (task) {
             await vscode.tasks.executeTask(task);
@@ -1106,6 +1116,135 @@ export class CargoExtensionManager implements vscode.Disposable {
         } else {
             throw new Error(`Failed to create task for ${actionType} on ${target.name}`);
         }
+    }
+
+    /**
+     * Start a debug session for a specific target
+     */
+    private async startDebugSession(target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        // First, build the target to ensure we have debug symbols
+        await this.buildTargetForDebug(target);
+
+        // Get the executable path
+        const executablePath = this.getExecutablePathForTarget(target);
+
+        // Create debug configuration
+        const debugConfig: vscode.DebugConfiguration = {
+            name: `Debug ${target.name}`,
+            type: 'lldb', // Default to LLDB, could be configurable
+            request: 'launch',
+            program: executablePath,
+            args: [], // Could be made configurable
+            cwd: this.getWorkingDirectoryForTarget(target),
+            stopOnEntry: false,
+            showDisplayString: true,
+            sourceLanguages: ['rust']
+        };
+
+        // Start the debug session
+        const started = await vscode.debug.startDebugging(
+            vscode.workspace.getWorkspaceFolder(vscode.Uri.file(this.cargoWorkspace.workspaceRoot)),
+            debugConfig
+        );
+
+        if (started) {
+            vscode.window.showInformationMessage(`Started debugging ${target.name}...`);
+        } else {
+            throw new Error('Failed to start debug session');
+        }
+    }
+
+    /**
+     * Build target with debug symbols
+     */
+    private async buildTargetForDebug(target: CargoTarget): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider) {
+            throw new Error('No cargo workspace or task provider available');
+        }
+
+        // Create build task for debug
+        const task = this.taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
+        if (task) {
+            // Execute build and wait for completion
+            const execution = await vscode.tasks.executeTask(task);
+
+            // Wait for the task to complete
+            await new Promise<void>((resolve, reject) => {
+                const disposable = vscode.tasks.onDidEndTask(e => {
+                    if (e.execution === execution) {
+                        disposable.dispose();
+                        if (e.execution.task.definition.type === 'cargo') {
+                            resolve();
+                        } else {
+                            reject(new Error('Build task failed'));
+                        }
+                    }
+                });
+            });
+        } else {
+            throw new Error('Failed to create build task for debug');
+        }
+    }
+
+    /**
+     * Get the executable path for a target
+     */
+    private getExecutablePathForTarget(target: CargoTarget): string {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        // Get target directory from metadata, fallback to default
+        const targetDir = this.cargoWorkspace.targetDirectory ||
+            path.join(this.cargoWorkspace.workspaceRoot, 'target');
+
+        // Build path components: target_dir[/platform_target]/profile/executable
+        const pathComponents = [targetDir];
+
+        // Add platform target if explicitly set
+        if (this.cargoWorkspace.selectedPlatformTarget) {
+            pathComponents.push(this.cargoWorkspace.selectedPlatformTarget);
+        }
+
+        // Add profile directory - default to 'dev' when no explicit selection
+        const profile = this.cargoWorkspace.currentProfile.toString();
+        let profilePath: string;
+        if (profile === 'none') {
+            profilePath = 'debug'; // Default to dev profile (debug directory) when no explicit selection
+        } else if (profile === 'dev') {
+            profilePath = 'debug';
+        } else {
+            profilePath = profile;
+        }
+        pathComponents.push(profilePath);
+
+        // Handle different target types and their subdirectories
+        if (target.kind.includes('example')) {
+            // Examples are placed in the examples/ subdirectory
+            pathComponents.push('examples');
+        }
+
+        let executableName = target.name;
+
+        // Handle different target types
+        if (target.kind.includes('bin')) {
+            executableName = target.name;
+        } else if (target.kind.includes('example')) {
+            executableName = target.name;
+        }
+
+        // On Windows, add .exe extension
+        if (process.platform === 'win32') {
+            executableName += '.exe';
+        }
+
+        pathComponents.push(executableName);
+
+        return path.join(...pathComponents);
     }
 
     /**
@@ -1208,6 +1347,10 @@ export class CargoExtensionManager implements vscode.Disposable {
         await this.executeDefaultAction(TargetActionType.Run);
     }
 
+    async executeDefaultDebug(): Promise<void> {
+        await this.executeDefaultAction(TargetActionType.Debug);
+    }
+
     async executeDefaultTest(): Promise<void> {
         await this.executeDefaultAction(TargetActionType.Test);
     }
@@ -1222,6 +1365,10 @@ export class CargoExtensionManager implements vscode.Disposable {
 
     async executeRunAction(target: CargoTarget): Promise<void> {
         await this.executeTargetAction(target, TargetActionType.Run);
+    }
+
+    async executeDebugAction(target: CargoTarget): Promise<void> {
+        await this.executeTargetAction(target, TargetActionType.Debug);
     }
 
     async executeTestAction(target: CargoTarget): Promise<void> {
@@ -1342,18 +1489,6 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         // For single-package projects or when package path is not available, use workspace root
         return this.cargoWorkspace.workspaceRoot;
-    }
-
-    /**
-     * Get executable path for a specific target
-     */
-    private getTargetExecutablePathForTarget(target: CargoTarget): string {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        const profile = this.cargoWorkspace.currentProfile === CargoProfile.release ? 'release' : 'debug';
-        return path.join(this.cargoWorkspace.workspaceRoot, 'target', profile, target.name);
     }
 
     // ==================== PROJECT OUTLINE COMMANDS ====================
@@ -1697,6 +1832,30 @@ export class CargoExtensionManager implements vscode.Disposable {
     }
 
     /**
+     * Debug a specific target directly without changing current selections
+     */
+    async projectOutline_debugTarget(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !node?.data) {
+            return;
+        }
+
+        const target = node.data as CargoTarget;
+
+        // Check if target is debuggable
+        if (!target.supportsActionType(TargetActionType.Debug)) {
+            vscode.window.showErrorMessage(`Target ${target.name} is not debuggable`);
+            return;
+        }
+
+        try {
+            await this.startDebugSession(target);
+        } catch (error) {
+            console.error('Target debug failed:', error);
+            vscode.window.showErrorMessage(`Debug failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
      * Run benchmark for a specific target directly without changing current selections
      */
     async projectOutline_benchTarget(node?: any): Promise<void> {
@@ -1885,6 +2044,51 @@ export class CargoExtensionManager implements vscode.Disposable {
         } catch (error) {
             console.error('Run command failed:', error);
             vscode.window.showErrorMessage(`Run failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Debug command from Project Status view - debugs current run selection
+     */
+    async projectStatus_debug(): Promise<void> {
+        if (!this.cargoWorkspace) {
+            throw new Error('No cargo workspace available');
+        }
+
+        try {
+            const selectedRunTarget = this.cargoWorkspace.selectedRunTarget;
+            const selectedPackage = this.cargoWorkspace.selectedPackage;
+
+            if (!selectedPackage) {
+                throw new Error('Cannot debug targets when no package is selected. Please select a specific package.');
+            }
+
+            if (selectedRunTarget) {
+                // Specific target selected - find and debug it
+                const target = this.cargoWorkspace.targets.find(t => t.name === selectedRunTarget);
+                if (target) {
+                    await this.executeTargetAction(target, TargetActionType.Debug);
+                } else {
+                    throw new Error(`Target ${selectedRunTarget} not found`);
+                }
+            } else {
+                // Auto-detect debuggable target for the selected package
+                const packageTargets = this.cargoWorkspace.targets.filter(t => t.packageName === selectedPackage);
+                const debuggableTarget = packageTargets.find(t =>
+                    Array.isArray(t.kind) ?
+                        t.kind.includes('bin') || t.kind.includes('example') :
+                        t.kind === 'bin' || t.kind === 'example'
+                );
+
+                if (debuggableTarget) {
+                    await this.executeTargetAction(debuggableTarget, TargetActionType.Debug);
+                } else {
+                    throw new Error(`No debuggable targets found in package ${selectedPackage}`);
+                }
+            }
+        } catch (error) {
+            console.error('Debug command failed:', error);
+            vscode.window.showErrorMessage(`Debug failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 

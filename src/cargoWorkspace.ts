@@ -32,6 +32,7 @@ interface CargoMetadata {
     packages: CargoMetadataPackage[];
     workspace_members: string[];
     workspace_root: string;
+    target_directory: string;
 }
 
 export interface CargoManifest {
@@ -53,6 +54,7 @@ export interface CargoManifest {
 
 export class CargoWorkspace {
     private _workspaceRoot: string;
+    private _targetDirectory: string | null = null; // Target directory from cargo metadata
     private _manifest: CargoManifest | null = null;
     private _targets: CargoTarget[] = [];
     private _currentProfile: CargoProfile = CargoProfile.none;
@@ -127,6 +129,10 @@ export class CargoWorkspace {
 
     get selectedPlatformTarget(): string | null {
         return this._selectedPlatformTarget;
+    }
+
+    get targetDirectory(): string | null {
+        return this._targetDirectory;
     }
 
     get selectedFeatures(): Set<string> {
@@ -248,6 +254,9 @@ export class CargoWorkspace {
             });
 
             const metadata: CargoMetadata = JSON.parse(stdout);
+
+            // Store target directory from metadata
+            this._targetDirectory = metadata.target_directory;
 
             // Extract workspace package names from metadata
             const workspacePackageNames = new Set<string>();
