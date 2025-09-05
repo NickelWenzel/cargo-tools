@@ -1,9 +1,9 @@
-* ✅ debug support
 * settings to override `cargo run`, `cargo test`, etc
+* make project outline view filtrable (name of crate, type of target)
 * use rust-analyzer settings where it makes sense (cargo paths, additional arguments etc)
 * set rust-analyzer settings through convenience commands
-* persist selections via extension constext and appropriate keys analoguous to vscode-cmake-tools
-* cargo make (Makefilew.toml) support
+* persist selections via extension context and appropriate keys analoguous to vscode-cmake-tools
+* cargo make (Makefile.toml) support
     * discover tasks
     * task view by category
     * package selection
