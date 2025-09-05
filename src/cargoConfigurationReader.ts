@@ -9,6 +9,8 @@ export interface CargoConfiguration {
     buildArgs: string[];
     runArgs: string[];
     testArgs: string[];
+    runCommandOverride: string;
+    testCommandOverride: string;
     environment: { [key: string]: string };
     features: string[];
     allFeatures: boolean;
@@ -81,6 +83,8 @@ export class CargoConfigurationReader implements vscode.Disposable {
             buildArgs: config.get<string[]>('buildArgs', []),
             runArgs: config.get<string[]>('runArgs', []),
             testArgs: config.get<string[]>('testArgs', []),
+            runCommandOverride: config.get<string>('runCommandOverride', ''),
+            testCommandOverride: config.get<string>('testCommandOverride', ''),
             environment: config.get<{ [key: string]: string }>('environment', {}),
             features: config.get<string[]>('features', []),
             allFeatures: config.get<boolean>('allFeatures', false),
@@ -160,6 +164,14 @@ export class CargoConfigurationReader implements vscode.Disposable {
         return this.configData.testArgs;
     }
 
+    get runCommandOverride(): string {
+        return this.configData.runCommandOverride;
+    }
+
+    get testCommandOverride(): string {
+        return this.configData.testCommandOverride;
+    }
+
     get environment(): { [key: string]: string } {
         return this.configData.environment;
     }
@@ -183,6 +195,8 @@ export class CargoConfigurationReader implements vscode.Disposable {
         buildArgs: new vscode.EventEmitter<string[]>(),
         runArgs: new vscode.EventEmitter<string[]>(),
         testArgs: new vscode.EventEmitter<string[]>(),
+        runCommandOverride: new vscode.EventEmitter<string>(),
+        testCommandOverride: new vscode.EventEmitter<string>(),
         environment: new vscode.EventEmitter<{ [key: string]: string }>(),
         features: new vscode.EventEmitter<string[]>(),
         allFeatures: new vscode.EventEmitter<boolean>(),

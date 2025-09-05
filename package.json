@@ -495,6 +495,16 @@
           "default": false,
           "description": "Disable default features"
         },
+        "cargoTools.runCommandOverride": {
+          "type": "string",
+          "default": "",
+          "description": "Override command for 'cargo run'. If empty, 'cargo run' will be used. Use this to customize the run command (e.g., 'cargo watch -x run' or custom scripts)."
+        },
+        "cargoTools.testCommandOverride": {
+          "type": "string",
+          "default": "",
+          "description": "Override command for 'cargo test'. If empty, 'cargo test' will be used. Use this to customize the test command (e.g., 'cargo nextest run' or custom scripts)."
+        },
         "cargoTools.groupTargetsByWorkspaceMember": {
           "type": "boolean",
           "default": true,
