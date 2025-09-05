@@ -1,4 +1,3 @@
-* use rust-analyzer settings where it makes sense (cargo paths, additional arguments etc)
 * set rust-analyzer settings through convenience commands
 * persist selections via extension context and appropriate keys analoguous to vscode-cmake-tools
 * cargo make (Makefile.toml) support
