@@ -31,21 +31,17 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     private isRefreshing = false;
     private subscriptions: vscode.Disposable[] = [];
 
+    // Filter state
+    private workspaceMemberFilter: string = '';
+    private targetTypeFilter: Set<string> = new Set(['bin', 'lib', 'example', 'bench']);
+    private isTargetTypeFilterActive: boolean = false;
+    private showFeatures: boolean = true;
+
+    // Debounce timer for filter updates
+    private filterUpdateTimer: NodeJS.Timeout | undefined;
+
     constructor() {
-        // Load configuration
-        this.updateConfiguration();
-
-        // Listen for configuration changes
-        vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('cargoTools.groupTargetsByWorkspaceMember')) {
-                this.updateConfiguration();
-                this.refresh();
-            }
-        });
-    }
-
-    private updateConfiguration(): void {
-        this.groupByWorkspaceMember = vscode.workspace.getConfiguration('cargoTools').get('groupTargetsByWorkspaceMember', true);
+        // No configuration loading needed anymore
     }
 
     refresh(): void {
@@ -151,25 +147,28 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
         const nodes: ProjectOutlineNode[] = [];
 
-        // Add root-level Features node 
-        const rootFeaturesNode = new ProjectOutlineNode(
-            'Features',
-            vscode.TreeItemCollapsibleState.Expanded,
-            'features',
-            undefined,
-            undefined,
-            'Project features',
-            'Features available for the entire project',
-            { packageName: undefined, features: ['all-features'] }
-        );
-        rootFeaturesNode.iconPath = new vscode.ThemeIcon('symbol-misc');
-        nodes.push(rootFeaturesNode);
+        // Add root-level Features node (only if features are enabled in filter)
+        if (this.showFeatures) {
+            const rootFeaturesNode = new ProjectOutlineNode(
+                'Features',
+                vscode.TreeItemCollapsibleState.Expanded,
+                'features',
+                undefined,
+                undefined,
+                'Project features',
+                'Features available for the entire project',
+                { packageName: undefined, features: ['all-features'] }
+            );
+            rootFeaturesNode.iconPath = new vscode.ThemeIcon('symbol-misc');
+            nodes.push(rootFeaturesNode);
+        }
 
         if (this.groupByWorkspaceMember && this.workspace.isWorkspace) {
             // Group by workspace member
             const workspaceMembers = this.workspace.getWorkspaceMembers();
+            const filteredWorkspaceMembers = this.filterWorkspaceMembers(workspaceMembers);
 
-            for (const [memberName, targets] of workspaceMembers) {
+            for (const [memberName, targets] of filteredWorkspaceMembers) {
                 // Check if this package is selected
                 const isSelectedPackage = this.workspace.selectedPackage === memberName;
 
@@ -205,7 +204,8 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             }
         } else {
             // Group by target type
-            const targetsByType = this.groupTargetsByType(this.workspace.targets);
+            const allTargets = this.filterTargets(this.workspace.targets);
+            const targetsByType = this.groupTargetsByType(allTargets);
 
             for (const [type, targets] of targetsByType) {
                 const typeNode = new ProjectOutlineNode(
@@ -229,8 +229,8 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     private createWorkspaceMemberChildren(data: { memberName: string; targets: CargoTarget[] }): ProjectOutlineNode[] {
         const nodes: ProjectOutlineNode[] = [];
 
-        // Add Features node for this package
-        if (this.workspace) {
+        // Add Features node for this package (only if features are enabled in filter)
+        if (this.workspace && this.showFeatures) {
             const packageFeatures = this.workspace.getPackageFeatures(data.memberName);
             if (packageFeatures.length > 0) {
                 const featuresNode = new ProjectOutlineNode(
@@ -243,14 +243,14 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     `Features available for package ${data.memberName}`,
                     { packageName: data.memberName, features: packageFeatures }
                 );
-                featuresNode.iconPath = new vscode.ThemeIcon('settings-gear');
                 featuresNode.iconPath = new vscode.ThemeIcon('symbol-misc');
                 nodes.push(featuresNode);
             }
         }
 
         // Add target groups
-        const targetsByType = this.groupTargetsByType(data.targets);
+        const filteredTargets = this.filterTargets(data.targets);
+        const targetsByType = this.groupTargetsByType(filteredTargets);
 
         for (const [type, targets] of targetsByType) {
             const typeNode = new ProjectOutlineNode(
@@ -517,7 +517,279 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         return `${target.name} (${kindStr})\nPackage: ${target.packageName}\nPath: ${target.srcPath}`;
     }
 
+    // Filter methods
+    public async setWorkspaceMemberFilter(): Promise<void> {
+        if (!this.workspace || !this.workspace.isWorkspace) {
+            // Fallback to simple input for non-workspace projects
+            const input = await vscode.window.showInputBox({
+                prompt: 'Enter workspace member filter (leave empty to clear)',
+                value: this.workspaceMemberFilter,
+                placeHolder: 'Filter workspace members...'
+            });
+
+            if (input !== undefined) {
+                this.workspaceMemberFilter = input.trim();
+                this.refresh();
+            }
+            return;
+        }
+
+        // Get all workspace members for preview
+        const workspaceMembers = this.workspace.getWorkspaceMembers();
+        const allMemberNames = Array.from(workspaceMembers.keys()).sort();
+
+        // Store original filter value to restore on cancel
+        const originalFilter = this.workspaceMemberFilter;
+        let wasAccepted = false;
+
+        // Create QuickPick for real-time filtering with preview
+        const quickPick = vscode.window.createQuickPick();
+        quickPick.placeholder = 'Type to filter workspace members, then press Enter to apply...';
+        quickPick.value = this.workspaceMemberFilter;
+        quickPick.matchOnDescription = true;
+        quickPick.matchOnDetail = true;
+
+        // Function to update QuickPick items based on current filter
+        const updateItems = (filterValue: string) => {
+            const filter = filterValue.toLowerCase().trim();
+
+            if (!filter) {
+                // Show all members when no filter
+                const memberItems = allMemberNames.map(memberName => ({
+                    label: `$(package) ${memberName}`,
+                    description: `${workspaceMembers.get(memberName)?.length || 0} targets`
+                }));
+
+                quickPick.items = memberItems;
+            } else {
+                // Filter and show matching members
+                const matchingMembers = allMemberNames.filter(name =>
+                    name.toLowerCase().includes(filter)
+                );
+
+                const memberItems = matchingMembers.map(memberName => ({
+                    label: `$(package) ${memberName}`,
+                    description: `${workspaceMembers.get(memberName)?.length || 0} targets`
+                }));
+
+                quickPick.items = memberItems;
+            }
+        };
+
+        // Initial population
+        updateItems(quickPick.value);
+
+        // Ensure no default selection and keep clearing selections
+        quickPick.selectedItems = [];
+
+        // Real-time update as user types with debouncing
+        const disposable = quickPick.onDidChangeValue((value) => {
+            // Clear existing timer
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+
+            // Set a new timer for debounced UI update
+            this.filterUpdateTimer = setTimeout(() => {
+                updateItems(value);
+                // Clear any selections after updating items
+                quickPick.selectedItems = [];
+            }, 100); // Fast response for UI updates            // Also update the actual filter in real-time for immediate tree preview
+            // Use a separate shorter debounce for tree updates
+            setTimeout(() => {
+                this.workspaceMemberFilter = value.trim();
+                this.refresh();
+            }, 200); // Slightly longer to avoid too frequent tree refreshes
+        });
+
+        quickPick.onDidAccept(() => {
+            // Apply the typed filter value (items are unselectable)
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+            wasAccepted = true;
+
+            // Always use the typed value as filter since items are unselectable
+            this.workspaceMemberFilter = quickPick.value.trim();
+
+            this.refresh();
+            quickPick.hide();
+        });
+
+        quickPick.onDidHide(() => {
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+
+            // If user canceled (didn't accept), restore original filter
+            if (!wasAccepted) {
+                this.workspaceMemberFilter = originalFilter;
+                this.refresh();
+            }
+
+            disposable.dispose();
+            quickPick.dispose();
+        });
+
+        quickPick.show();
+    }
+
+    public async showTargetTypeFilter(): Promise<void> {
+        interface FilterQuickPickItem extends vscode.QuickPickItem {
+            targetType: string;
+            isFeature: boolean;
+        }
+
+        const allTargetTypes = ['bin', 'lib', 'example', 'bench'];
+
+        // Store original filter values to restore on cancel
+        const originalTargetTypeFilter = new Set(this.targetTypeFilter);
+        const originalShowFeatures = this.showFeatures;
+        const originalIsTargetTypeFilterActive = this.isTargetTypeFilterActive;
+        let wasAccepted = false;
+
+        const allFilterOptions: FilterQuickPickItem[] = [
+            ...allTargetTypes.map(type => ({
+                label: this.getDisplayNameForTargetType(type),
+                picked: this.targetTypeFilter.has(type),
+                targetType: type,
+                isFeature: false
+            })),
+            {
+                label: 'Features',
+                picked: this.showFeatures,
+                targetType: 'features',
+                isFeature: true
+            }
+        ];
+
+        // Use QuickPick for real-time updates
+        const quickPick = vscode.window.createQuickPick<FilterQuickPickItem>();
+        quickPick.placeholder = 'Select what to show in Project Outline';
+        quickPick.canSelectMany = true;
+        quickPick.items = allFilterOptions;
+        quickPick.selectedItems = allFilterOptions.filter(item => item.picked);
+
+        // Update filter in real-time as user changes selection
+        const disposable = quickPick.onDidChangeSelection((items) => {
+            // Clear existing timer
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+
+            // Set a new timer for debounced update
+            this.filterUpdateTimer = setTimeout(() => {
+                this.targetTypeFilter.clear();
+                this.showFeatures = false;
+
+                for (const item of items) {
+                    if (item.isFeature) {
+                        this.showFeatures = true;
+                    } else {
+                        this.targetTypeFilter.add(item.targetType);
+                    }
+                }
+
+                this.isTargetTypeFilterActive = this.targetTypeFilter.size < allTargetTypes.length || !this.showFeatures;
+                this.refresh();
+            }, 100); // Shorter debounce for real-time feel
+        });
+
+        quickPick.onDidAccept(() => {
+            // Immediate update on accept
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+            wasAccepted = true;
+            quickPick.hide();
+        });
+
+        quickPick.onDidHide(() => {
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+
+            // If user canceled (didn't accept), restore original filter values
+            if (!wasAccepted) {
+                this.targetTypeFilter = originalTargetTypeFilter;
+                this.showFeatures = originalShowFeatures;
+                this.isTargetTypeFilterActive = originalIsTargetTypeFilterActive;
+                this.refresh();
+            }
+
+            disposable.dispose();
+            quickPick.dispose();
+        });
+
+        quickPick.show();
+    }
+
+    public clearWorkspaceMemberFilter(): void {
+        this.workspaceMemberFilter = '';
+        this.refresh();
+    }
+
+    public clearTargetTypeFilter(): void {
+        this.targetTypeFilter = new Set(['bin', 'lib', 'example', 'bench']);
+        this.showFeatures = true;
+        this.isTargetTypeFilterActive = false;
+        this.refresh();
+    }
+
+    public clearAllFilters(): void {
+        this.workspaceMemberFilter = '';
+        this.targetTypeFilter = new Set(['bin', 'lib', 'example', 'bench']);
+        this.showFeatures = true;
+        this.isTargetTypeFilterActive = false;
+        this.refresh();
+    }
+
+    public toggleWorkspaceMemberGrouping(): void {
+        this.groupByWorkspaceMember = !this.groupByWorkspaceMember;
+        this.refresh();
+    }
+
+    // Apply filters to workspace members
+    private filterWorkspaceMembers(workspaceMembers: Map<string, CargoTarget[]>): Map<string, CargoTarget[]> {
+        const filtered = new Map<string, CargoTarget[]>();
+
+        for (const [memberName, targets] of workspaceMembers) {
+            // Apply workspace member filter
+            if (this.workspaceMemberFilter && !memberName.toLowerCase().includes(this.workspaceMemberFilter.toLowerCase())) {
+                continue;
+            }
+
+            // Apply target type filter
+            const filteredTargets = targets.filter(target => {
+                const targetKinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
+                return targetKinds.some(kind => this.targetTypeFilter.has(kind));
+            });
+
+            if (filteredTargets.length > 0) {
+                filtered.set(memberName, filteredTargets);
+            }
+        }
+
+        return filtered;
+    }
+
+    // Apply filters to targets
+    private filterTargets(targets: CargoTarget[]): CargoTarget[] {
+        return targets.filter(target => {
+            const targetKinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
+            return targetKinds.some(kind => this.targetTypeFilter.has(kind));
+        });
+    }
+
+    // Check if any filters are active
+    public hasActiveFilters(): boolean {
+        return this.workspaceMemberFilter !== '' || this.isTargetTypeFilterActive;
+    }
+
     dispose(): void {
+        if (this.filterUpdateTimer) {
+            clearTimeout(this.filterUpdateTimer);
+        }
         this.subscriptions.forEach(sub => sub.dispose());
         this.subscriptions = [];
     }

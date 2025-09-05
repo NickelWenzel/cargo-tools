@@ -195,6 +195,48 @@
         "title": "Benchmark Target",
         "category": "Cargo Tools",
         "icon": "$(dashboard)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.setWorkspaceMemberFilter",
+        "title": "Filter Workspace Members",
+        "category": "Cargo Tools",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.editWorkspaceMemberFilter",
+        "title": "Edit Member Filter",
+        "category": "Cargo Tools",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
+        "title": "Clear Member Filter",
+        "category": "Cargo Tools",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.showTargetTypeFilter",
+        "title": "Filter Target Types",
+        "category": "Cargo Tools",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.clearTargetTypeFilter",
+        "title": "Clear Type Filter",
+        "category": "Cargo Tools",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.clearAllFilters",
+        "title": "Clear All Filters",
+        "category": "Cargo Tools",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
+        "title": "Toggle Workspace Member Grouping",
+        "category": "Cargo Tools",
+        "icon": "$(group-by-ref-type)"
       }
     ],
     "viewsContainers": {
@@ -243,6 +285,26 @@
           "command": "cargo-tools.installPlatformTarget",
           "when": "view == cargoToolsProjectStatus",
           "group": "navigation"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setWorkspaceMemberFilter",
+          "when": "view == cargoToolsProjectOutline",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.showTargetTypeFilter",
+          "when": "view == cargoToolsProjectOutline",
+          "group": "navigation@2"
+        },
+        {
+          "command": "cargo-tools.projectOutline.clearAllFilters",
+          "when": "view == cargoToolsProjectOutline",
+          "group": "navigation@3"
+        },
+        {
+          "command": "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
+          "when": "view == cargoToolsProjectOutline",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -370,6 +432,31 @@
           "command": "cargo-tools.projectStatus.bench",
           "when": "view == cargoToolsProjectStatus && viewItem == benchmarkTargetSelection",
           "group": "inline"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setWorkspaceMemberFilter",
+          "when": "view == cargoToolsProjectOutline && viewItem == memberFilter",
+          "group": "inline"
+        },
+        {
+          "command": "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
+          "when": "view == cargoToolsProjectOutline && viewItem == memberFilter",
+          "group": "modify@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.showTargetTypeFilter",
+          "when": "view == cargoToolsProjectOutline && viewItem == typeFilter",
+          "group": "inline"
+        },
+        {
+          "command": "cargo-tools.projectOutline.clearTargetTypeFilter",
+          "when": "view == cargoToolsProjectOutline && viewItem == typeFilter",
+          "group": "modify@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.clearAllFilters",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /memberFilter|typeFilter/",
+          "group": "modify@2"
         }
       ],
       "commandPalette": [
@@ -423,6 +510,34 @@
         },
         {
           "command": "cargo-tools.projectOutline.benchTarget",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.setWorkspaceMemberFilter",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.editWorkspaceMemberFilter",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.showTargetTypeFilter",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.clearTargetTypeFilter",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.clearAllFilters",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
           "when": "never"
         }
       ]
@@ -504,11 +619,6 @@
           "type": "string",
           "default": "",
           "description": "Override command for 'cargo test'. If empty, 'cargo test' will be used. Use this to customize the test command (e.g., 'cargo nextest run' or custom scripts)."
-        },
-        "cargoTools.groupTargetsByWorkspaceMember": {
-          "type": "boolean",
-          "default": true,
-          "description": "Group targets by workspace member in the BUILD TARGETS tree view. When enabled, targets are first organized by workspace member, then by type (bin, lib, etc.). When disabled, targets are grouped directly by type."
         }
       }
     },

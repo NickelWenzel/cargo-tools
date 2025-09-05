@@ -6,6 +6,8 @@ import { CargoProfile } from './cargoProfile';
 import { CargoTarget, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
 import { StatusBarProvider } from './statusBarProvider';
+import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
+import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 
 /**
  * Generates a unique correlation ID for tracking commands and operations
@@ -27,6 +29,8 @@ export class CargoExtensionManager implements vscode.Disposable {
     private cargoWorkspace?: CargoWorkspace;
     private taskProvider?: CargoTaskProvider;
     private statusBarProvider?: StatusBarProvider;
+    private projectOutlineTreeProvider?: ProjectOutlineTreeProvider;
+    private projectStatusTreeProvider?: ProjectStatusTreeProvider;
 
     // Configuration management
     private readonly workspaceConfig: CargoConfigurationReader = CargoConfigurationReader.create();
@@ -154,6 +158,14 @@ export class CargoExtensionManager implements vscode.Disposable {
     }
 
     /**
+     * Register tree providers with the extension manager for command access
+     */
+    public registerTreeProviders(projectOutlineProvider: ProjectOutlineTreeProvider, projectStatusProvider: ProjectStatusTreeProvider): void {
+        this.projectOutlineTreeProvider = projectOutlineProvider;
+        this.projectStatusTreeProvider = projectStatusProvider;
+    }
+
+    /**
      * Register all extension commands with error handling wrapper
      */
     private registerCommands(): void {
@@ -239,7 +251,13 @@ export class CargoExtensionManager implements vscode.Disposable {
             'projectOutline.buildTarget',
             'projectOutline.runTarget',
             'projectOutline.debugTarget',
-            'projectOutline.benchTarget'
+            'projectOutline.benchTarget',
+            'projectOutline.setWorkspaceMemberFilter',
+            'projectOutline.clearWorkspaceMemberFilter',
+            'projectOutline.showTargetTypeFilter',
+            'projectOutline.clearTargetTypeFilter',
+            'projectOutline.clearAllFilters',
+            'projectOutline.toggleWorkspaceMemberGrouping'
         ];
 
         // Project Status execution commands
@@ -1904,6 +1922,74 @@ export class CargoExtensionManager implements vscode.Disposable {
             console.error('Target benchmark failed:', error);
             vscode.window.showErrorMessage(`Benchmark failed: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+
+    // ==================== PROJECT OUTLINE FILTER COMMANDS ====================
+
+    /**
+     * Set workspace member filter
+     */
+    async projectOutline_setWorkspaceMemberFilter(): Promise<void> {
+        if (!this.projectOutlineTreeProvider) {
+            return;
+        }
+
+        await this.projectOutlineTreeProvider.setWorkspaceMemberFilter();
+    }
+
+    /**
+     * Clear workspace member filter
+     */
+    async projectOutline_clearWorkspaceMemberFilter(): Promise<void> {
+        if (!this.projectOutlineTreeProvider) {
+            return;
+        }
+
+        this.projectOutlineTreeProvider.clearWorkspaceMemberFilter();
+    }
+
+    /**
+     * Show target type filter menu
+     */
+    async projectOutline_showTargetTypeFilter(): Promise<void> {
+        if (!this.projectOutlineTreeProvider) {
+            return;
+        }
+
+        await this.projectOutlineTreeProvider.showTargetTypeFilter();
+    }
+
+    /**
+     * Clear target type filter
+     */
+    async projectOutline_clearTargetTypeFilter(): Promise<void> {
+        if (!this.projectOutlineTreeProvider) {
+            return;
+        }
+
+        this.projectOutlineTreeProvider.clearTargetTypeFilter();
+    }
+
+    /**
+     * Clear all active filters
+     */
+    async projectOutline_clearAllFilters(): Promise<void> {
+        if (!this.projectOutlineTreeProvider) {
+            return;
+        }
+
+        this.projectOutlineTreeProvider.clearAllFilters();
+    }
+
+    /**
+     * Toggle workspace member grouping in Project Outline view
+     */
+    async projectOutline_toggleWorkspaceMemberGrouping(): Promise<void> {
+        if (!this.projectOutlineTreeProvider) {
+            return;
+        }
+
+        this.projectOutlineTreeProvider.toggleWorkspaceMemberGrouping();
     }
 
     // ==================== PROJECT STATUS COMMANDS ====================
