@@ -1,6 +1,6 @@
 * debug support
 * settings to override `cargo run`, `cargo test`, etc
-* use rust-analyzer settings where it makes sense (cargo etc paths)
+* use rust-analyzer settings where it makes sense (cargo paths, additional arguments etc)
 * set rust-analyzer settings through convenience commands
 * persist selections via extension constext and appropriate keys analoguous to vscode-cmake-tools
 * cargo make (Makefilew.toml) support
