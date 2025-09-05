@@ -509,6 +509,26 @@ class RunActionButton extends StatusBarButton {
 }
 
 /**
+ * Debug Action Button - executes debug action
+ */
+class DebugActionButton extends StatusBarButton {
+    readonly settingsName = 'debugAction';
+
+    constructor(config: CargoConfigurationReader, priority: number) {
+        super(config, priority);
+        this.button.command = 'cargo-tools.projectStatus.debug';
+    }
+
+    protected getTextNormal(): string {
+        return '$(debug-alt)';
+    }
+
+    protected getTooltipNormal(): string {
+        return 'Debug current target';
+    }
+}
+
+/**
  * Test Action Button - executes test action
  */
 class TestActionButton extends StatusBarButton {
@@ -559,6 +579,7 @@ export class StatusBarProvider implements vscode.Disposable {
     private readonly _buildActionButton: BuildActionButton;
     private readonly _runTargetButton: RunTargetSelectionButton;
     private readonly _runActionButton: RunActionButton;
+    private readonly _debugActionButton: DebugActionButton;
     private readonly _testActionButton: TestActionButton;
     private readonly _benchmarkTargetButton: BenchmarkTargetSelectionButton;
     private readonly _benchmarkActionButton: BenchmarkActionButton;
@@ -578,6 +599,7 @@ export class StatusBarProvider implements vscode.Disposable {
         this._buildActionButton = new BuildActionButton(this._config, 3.75);
         this._runTargetButton = new RunTargetSelectionButton(this._config, 3.7);
         this._runActionButton = new RunActionButton(this._config, 3.65);
+        this._debugActionButton = new DebugActionButton(this._config, 3.63);
         this._benchmarkTargetButton = new BenchmarkTargetSelectionButton(this._config, 3.6);
         this._benchmarkActionButton = new BenchmarkActionButton(this._config, 3.55);
         this._featuresButton = new FeatureSelectionButton(this._config, 3.5);
@@ -591,6 +613,7 @@ export class StatusBarProvider implements vscode.Disposable {
             this._buildActionButton,
             this._runTargetButton,
             this._runActionButton,
+            this._debugActionButton,
             this._benchmarkTargetButton,
             this._benchmarkActionButton,
             this._featuresButton

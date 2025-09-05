@@ -1,4 +1,4 @@
-* debug support
+* ✅ debug support
 * settings to override `cargo run`, `cargo test`, etc
 * use rust-analyzer settings where it makes sense (cargo paths, additional arguments etc)
 * set rust-analyzer settings through convenience commands

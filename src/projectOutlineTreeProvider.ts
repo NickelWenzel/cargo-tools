@@ -461,13 +461,13 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         for (const kind of kinds) {
             switch (kind) {
                 case 'bin':
-                    contextParts.push('isExecutable', 'supportsBuild', 'supportsRun');
+                    contextParts.push('isExecutable', 'supportsBuild', 'supportsRun', 'supportsDebug');
                     break;
                 case 'lib':
                     contextParts.push('isLibrary', 'supportsBuild');
                     break;
                 case 'example':
-                    contextParts.push('isExample', 'isExecutable', 'supportsBuild', 'supportsRun');
+                    contextParts.push('isExample', 'isExecutable', 'supportsBuild', 'supportsRun', 'supportsDebug');
                     break;
                 case 'test':
                     contextParts.push('isTest', 'supportsBuild', 'supportsTest');
