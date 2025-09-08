@@ -1,0 +1,73 @@
+# Core library Makefile.toml
+[config]
+default_to_workspace = false
+
+[env]
+PACKAGE_NAME = "core"
+
+[tasks.default]
+dependencies = ["check"]
+
+[tasks.check]
+description = "Check the core library"
+command = "cargo"
+args = ["check", "--package", "${PACKAGE_NAME}"]
+
+[tasks.build]
+description = "Build the core library"
+command = "cargo"
+args = ["build", "--package", "${PACKAGE_NAME}"]
+
+[tasks.test]
+description = "Test the core library"
+command = "cargo"
+args = ["test", "--package", "${PACKAGE_NAME}"]
+
+[tasks.test-features]
+description = "Test with all features enabled"
+command = "cargo"
+args = ["test", "--package", "${PACKAGE_NAME}", "--all-features"]
+
+[tasks.bench]
+description = "Run benchmarks for core library"
+command = "cargo"
+args = ["bench", "--package", "${PACKAGE_NAME}"]
+
+[tasks.doc]
+description = "Generate documentation for core library"
+command = "cargo"
+args = ["doc", "--package", "${PACKAGE_NAME}", "--no-deps"]
+
+[tasks.clippy]
+description = "Run clippy on core library"
+command = "cargo"
+args = ["clippy", "--package", "${PACKAGE_NAME}", "--all-targets", "--", "-D", "warnings"]
+
+[tasks.fmt]
+description = "Format core library code"
+command = "cargo"
+args = ["fmt", "--package", "${PACKAGE_NAME}"]
+
+[tasks.clean]
+description = "Clean core library build artifacts"
+command = "cargo"
+args = ["clean", "--package", "${PACKAGE_NAME}"]
+
+[tasks.coverage]
+description = "Generate test coverage report"
+command = "cargo"
+args = ["tarpaulin", "--package", "${PACKAGE_NAME}", "--out", "html"]
+
+[tasks.audit]
+description = "Security audit for dependencies"
+command = "cargo"
+args = ["audit"]
+
+[tasks.dev-flow]
+description = "Development workflow"
+dependencies = [
+    "fmt",
+    "clippy",
+    "test",
+    "build"
+]

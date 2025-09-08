@@ -1,0 +1,92 @@
+# CLI application Makefile.toml
+[config]
+default_to_workspace = false
+
+[env]
+PACKAGE_NAME = "cli"
+BINARY_NAME = "cli-main"
+TOOL_BINARY = "cli-tool"
+
+[tasks.default]
+dependencies = ["build"]
+
+[tasks.check]
+description = "Check the CLI application"
+command = "cargo"
+args = ["check", "--package", "${PACKAGE_NAME}"]
+
+[tasks.build]
+description = "Build the CLI application"
+command = "cargo"
+args = ["build", "--package", "${PACKAGE_NAME}"]
+
+[tasks.build-release]
+description = "Build CLI in release mode"
+command = "cargo"
+args = ["build", "--package", "${PACKAGE_NAME}", "--release"]
+
+[tasks.run]
+description = "Run the main CLI binary"
+command = "cargo"
+args = ["run", "--package", "${PACKAGE_NAME}", "--bin", "${BINARY_NAME}"]
+
+[tasks.run-tool]
+description = "Run the CLI tool binary"
+command = "cargo"
+args = ["run", "--package", "${PACKAGE_NAME}", "--bin", "${TOOL_BINARY}"]
+
+[tasks.test]
+description = "Test the CLI application"
+command = "cargo"
+args = ["test", "--package", "${PACKAGE_NAME}"]
+
+[tasks.clippy]
+description = "Run clippy on CLI application"
+command = "cargo"
+args = ["clippy", "--package", "${PACKAGE_NAME}", "--all-targets", "--", "-D", "warnings"]
+
+[tasks.fmt]
+description = "Format CLI application code"
+command = "cargo"
+args = ["fmt", "--package", "${PACKAGE_NAME}"]
+
+[tasks.clean]
+description = "Clean CLI build artifacts"
+command = "cargo"
+args = ["clean", "--package", "${PACKAGE_NAME}"]
+
+[tasks.install]
+description = "Install CLI binaries locally"
+command = "cargo"
+args = ["install", "--path", ".", "--force"]
+
+[tasks.package]
+description = "Package CLI for distribution"
+command = "cargo"
+args = ["package", "--package", "${PACKAGE_NAME}"]
+
+[tasks.size]
+description = "Check binary size"
+script = '''
+cargo build --package ${PACKAGE_NAME} --release
+ls -lh target/release/${BINARY_NAME}
+ls -lh target/release/${TOOL_BINARY}
+'''
+
+[tasks.profile]
+description = "Profile the CLI application"
+command = "cargo"
+args = ["build", "--package", "${PACKAGE_NAME}", "--release"]
+script = '''
+echo "Built release binary for profiling"
+echo "Binary location: target/release/${BINARY_NAME}"
+'''
+
+[tasks.ci-flow]
+description = "CI workflow for CLI"
+dependencies = [
+    "fmt",
+    "clippy", 
+    "test",
+    "build-release"
+]
