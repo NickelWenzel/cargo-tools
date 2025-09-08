@@ -141,6 +141,61 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 
 	context.subscriptions.push(runMakeTaskDisposable);
 
+	// Register makefile task selector command (for command palette)
+	const selectAndRunMakeTaskDisposable = vscode.commands.registerCommand('cargo-tools.makefile.selectAndRunTask',
+		async () => {
+			try {
+				if (!cargoWorkspace || !cargoWorkspace.hasMakefileToml) {
+					vscode.window.showErrorMessage('No Makefile.toml found in workspace');
+					return;
+				}
+
+				const allTasks = cargoWorkspace.makeTasks;
+				if (allTasks.length === 0) {
+					vscode.window.showInformationMessage('No tasks found in Makefile.toml');
+					return;
+				}
+
+				// Create QuickPick items from tasks
+				const taskItems = allTasks.map(task => ({
+					label: task.name,
+					description: task.description || 'No description',
+					detail: task.category ? `Category: ${task.category}` : undefined,
+					task: task
+				}));
+
+				// Show QuickPick
+				const selectedItem = await vscode.window.showQuickPick(taskItems, {
+					placeHolder: 'Select a Makefile task to run'
+				});
+
+				if (!selectedItem) {
+					return; // User cancelled
+				}
+
+				const taskName = selectedItem.task.name;
+
+				// Show which task is being run
+				vscode.window.showInformationMessage(`Running cargo make task: ${taskName}`);
+
+				// Create a terminal and run the cargo make command
+				const terminal = vscode.window.createTerminal({
+					name: `cargo make ${taskName}`,
+					cwd: cargoWorkspace.workspaceRoot
+				});
+
+				terminal.sendText(`cargo make ${taskName}`);
+				terminal.show();
+
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Failed to run cargo make task: ${message}`);
+			}
+		}
+	);
+
+	context.subscriptions.push(selectAndRunMakeTaskDisposable);
+
 	// Register makefile filter commands
 	const setTaskFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.setTaskFilter',
 		async () => {
