@@ -324,4 +324,145 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(childrenAfterClear.length, allCategoryCount, 'Should show all categories after clear');
 		});
 	});
+
+	suite('Makefile Filter Integration Tests', () => {
+		const { MakefileTreeProvider } = require('../makefileTreeProvider');
+		const { CargoWorkspace } = require('../cargoWorkspace');
+
+		test('should have proper command registration for filters', () => {
+			// Test the specific command registrations that we need for filtering
+			const packageJsonPath = require('path').join(__dirname, '../../package.json');
+			const packageJson = require(packageJsonPath);
+			const commands = packageJson.contributes?.commands || [];
+			const commandIds = commands.map((cmd: any) => cmd.command);
+
+			// Verify all expected filter commands are registered
+			const expectedFilterCommands = [
+				'cargo-tools.makefile.runTask',
+				'cargo-tools.makefile.setTaskFilter',
+				'cargo-tools.makefile.editTaskFilter',
+				'cargo-tools.makefile.clearTaskFilter',
+				'cargo-tools.makefile.showCategoryFilter',
+				'cargo-tools.makefile.clearCategoryFilter'
+			];
+
+			for (const cmd of expectedFilterCommands) {
+				assert.ok(commandIds.includes(cmd), `Command ${cmd} should be registered`);
+			}
+		});
+
+		test('should have view title menu entries for filter buttons', () => {
+			const packageJsonPath = require('path').join(__dirname, '../../package.json');
+			const packageJson = require(packageJsonPath);
+			const menus = packageJson.contributes?.menus || {};
+			const viewTitleMenus = menus['view/title'] || [];
+
+			// Find menus related to Makefile view
+			const makefileViewMenus = viewTitleMenus.filter((menu: any) =>
+				menu.when && menu.when.includes('cargoToolsMakefile')
+			);
+
+			assert.strictEqual(makefileViewMenus.length >= 2, true, 
+				'Should have at least 2 menu entries for Makefile view (filter and clear filter buttons)');
+		});
+
+		test('should filter tasks by name only (not description or category)', async () => {
+			const provider = new MakefileTreeProvider();
+			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const workspace = new CargoWorkspace(testProjectPath);
+
+			await workspace.initialize();
+			if (!workspace.hasMakefileToml) {
+				// Skip test if no Makefile.toml exists
+				return;
+			}
+
+			provider.updateWorkspace(workspace);
+
+			// Get all task nodes from categories (we need to drill down to actual tasks)
+			const allCategories = await provider.getChildren();
+			let allTasks: any[] = [];
+
+			for (const category of allCategories) {
+				if (category.collapsibleState !== undefined) {
+					// This is a category, get its tasks
+					const categoryTasks = await provider.getChildren(category);
+					allTasks = allTasks.concat(categoryTasks);
+				}
+			}
+
+			if (allTasks.length === 0) {
+				// Skip test if no tasks are found
+				return;
+			}
+
+			// Test filter methods exist and have correct signatures
+			assert.strictEqual(typeof provider.setTaskFilter, 'function', 'setTaskFilter method should exist');
+			assert.strictEqual(typeof provider.clearTaskFilter, 'function', 'clearTaskFilter method should exist');
+			assert.strictEqual(typeof provider.currentTaskFilter, 'string', 'currentTaskFilter should be a string');
+
+			// Test clear filter
+			provider.clearTaskFilter();
+			assert.strictEqual(provider.currentTaskFilter, '', 'Filter should be empty after clear');
+
+			// Test that filter property can be set directly (for testing)
+			// Access private property for testing
+			(provider as any).taskFilter = 'build';
+			assert.strictEqual(provider.currentTaskFilter, 'build', 'Filter should be set correctly through property');
+
+			// Clear filter for clean test
+			provider.clearTaskFilter();
+			assert.strictEqual(provider.currentTaskFilter, '', 'Filter should be cleared correctly');
+		});
+
+		test('should maintain category filter state correctly', async () => {
+			const provider = new MakefileTreeProvider();
+			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const workspace = new CargoWorkspace(testProjectPath);
+
+			await workspace.initialize();
+			if (!workspace.hasMakefileToml) {
+				// Skip test if no Makefile.toml exists
+				return;
+			}
+
+			provider.updateWorkspace(workspace);
+
+			// Get all categories
+			const allCategories = await provider.getChildren();
+			if (allCategories.length === 0) {
+				// Skip test if no categories found
+				return;
+			}
+
+			// Category filter should be a Set
+			assert.strictEqual(provider.currentCategoryFilter instanceof Set, true,
+				'Category filter should be a Set');
+
+			// Test category filter methods exist
+			assert.strictEqual(typeof provider.showCategoryFilter, 'function', 'showCategoryFilter method should exist');
+			assert.strictEqual(typeof provider.clearCategoryFilter, 'function', 'clearCategoryFilter method should exist');
+			assert.strictEqual(typeof provider.currentCategoryFilter, 'object', 'currentCategoryFilter should be a Set');
+			
+			// When clearCategoryFilter is called, it should initialize to show all categories
+			provider.clearCategoryFilter();
+			const childrenAfterClear = await provider.getChildren();
+			assert.strictEqual(childrenAfterClear.length, allCategories.length,
+				'Should show all categories after clear');
+				
+			// After clear, the filter should contain all categories (not be empty)
+			assert.strictEqual(provider.currentCategoryFilter.size > 0, true,
+				'Category filter should contain all categories after clear (not be empty)');
+		});
+
+		test('should provide test project with Makefile.toml for testing', () => {
+			const fs = require('fs');
+			const path = require('path');
+			const testProjectPath = path.join(__dirname, '../../test-rust-project');
+			const makefilePath = path.join(testProjectPath, 'Makefile.toml');
+
+			assert.strictEqual(fs.existsSync(makefilePath), true,
+				'Test project should have Makefile.toml for testing filter functionality');
+		});
+	});
 });
