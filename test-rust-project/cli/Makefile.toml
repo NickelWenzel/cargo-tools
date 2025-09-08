@@ -43,7 +43,15 @@ args = ["test", "--package", "${PACKAGE_NAME}"]
 [tasks.clippy]
 description = "Run clippy on CLI application"
 command = "cargo"
-args = ["clippy", "--package", "${PACKAGE_NAME}", "--all-targets", "--", "-D", "warnings"]
+args = [
+    "clippy",
+    "--package",
+    "${PACKAGE_NAME}",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings",
+]
 
 [tasks.fmt]
 description = "Format CLI application code"
@@ -84,9 +92,4 @@ echo "Binary location: target/release/${BINARY_NAME}"
 
 [tasks.ci-flow]
 description = "CI workflow for CLI"
-dependencies = [
-    "fmt",
-    "clippy", 
-    "test",
-    "build-release"
-]
+dependencies = ["fmt", "clippy", "test", "build-release"]

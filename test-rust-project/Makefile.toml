@@ -15,7 +15,7 @@ args = ["check", "--workspace"]
 
 [tasks.build-workspace]
 description = "Build all workspace members"
-command = "cargo" 
+command = "cargo"
 args = ["build", "--workspace"]
 
 [tasks.test-workspace]
@@ -52,7 +52,7 @@ args = ["build", "--workspace", "--release"]
 description = "Complete CI flow"
 dependencies = [
     "fmt-workspace",
-    "clippy-workspace", 
+    "clippy-workspace",
     "test-workspace",
-    "doc-workspace"
+    "doc-workspace",
 ]
