@@ -1,0 +1,58 @@
+# Main workspace Makefile.toml for cargo-make
+[config]
+default_to_workspace = false
+
+[env]
+WORKSPACE_ROOT = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.default]
+dependencies = ["check-workspace"]
+
+[tasks.check-workspace]
+description = "Check all workspace members"
+command = "cargo"
+args = ["check", "--workspace"]
+
+[tasks.build-workspace]
+description = "Build all workspace members"
+command = "cargo" 
+args = ["build", "--workspace"]
+
+[tasks.test-workspace]
+description = "Test all workspace members"
+command = "cargo"
+args = ["test", "--workspace"]
+
+[tasks.clean-workspace]
+description = "Clean all workspace members"
+command = "cargo"
+args = ["clean"]
+
+[tasks.fmt-workspace]
+description = "Format all workspace members"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.clippy-workspace]
+description = "Run clippy on all workspace members"
+command = "cargo"
+args = ["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+
+[tasks.doc-workspace]
+description = "Generate documentation for all workspace members"
+command = "cargo"
+args = ["doc", "--workspace", "--no-deps"]
+
+[tasks.release-build]
+description = "Build workspace in release mode"
+command = "cargo"
+args = ["build", "--workspace", "--release"]
+
+[tasks.ci-flow]
+description = "Complete CI flow"
+dependencies = [
+    "fmt-workspace",
+    "clippy-workspace", 
+    "test-workspace",
+    "doc-workspace"
+]
