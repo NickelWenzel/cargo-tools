@@ -41,7 +41,15 @@ args = ["doc", "--package", "${PACKAGE_NAME}", "--no-deps"]
 [tasks.clippy]
 description = "Run clippy on core library"
 command = "cargo"
-args = ["clippy", "--package", "${PACKAGE_NAME}", "--all-targets", "--", "-D", "warnings"]
+args = [
+    "clippy",
+    "--package",
+    "${PACKAGE_NAME}",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings",
+]
 
 [tasks.fmt]
 description = "Format core library code"
@@ -65,9 +73,4 @@ args = ["audit"]
 
 [tasks.dev-flow]
 description = "Development workflow"
-dependencies = [
-    "fmt",
-    "clippy",
-    "test",
-    "build"
-]
+dependencies = ["fmt", "clippy", "test", "build"]
