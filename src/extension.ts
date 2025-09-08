@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
+import { MakefileTreeProvider } from './makefileTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
 
 let extensionManager: CargoExtensionManager | undefined;
@@ -55,13 +56,18 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		return {};
 	}
 
+	// Set the Makefile context based on whether Makefile.toml exists
+	await setMakefileContext(cargoWorkspace.hasMakefileToml);
+
 	// New tree providers for the modern UI
 	const projectStatusProvider = new ProjectStatusTreeProvider();
 	const projectOutlineProvider = new ProjectOutlineTreeProvider();
+	const makefileProvider = new MakefileTreeProvider();
 
 	// Update providers with workspace
 	projectStatusProvider.updateWorkspace(cargoWorkspace);
 	projectOutlineProvider.updateWorkspace(cargoWorkspace);
+	makefileProvider.updateWorkspace(cargoWorkspace);
 
 	// Register tree providers with extension manager for command access
 	extensionManager.registerTreeProviders(projectOutlineProvider, projectStatusProvider);
@@ -79,10 +85,17 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		canSelectMany: false
 	});
 
+	vscode.window.createTreeView('cargoToolsMakefile', {
+		treeDataProvider: makefileProvider,
+		showCollapseAll: true,
+		canSelectMany: false
+	});
+
 	// Subscribe to workspace changes to update providers
 	cargoWorkspace.onDidChangeTargets(() => {
 		projectStatusProvider.refresh();
 		projectOutlineProvider.refresh();
+		makefileProvider.refresh();
 	});
 
 	cargoWorkspace.onDidChangeProfile(() => {
@@ -110,6 +123,14 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 async function setCargoContext(hasCargo: boolean): Promise<void> {
 	await vscode.commands.executeCommand('setContext', 'cargoTools:workspaceHasCargo', hasCargo);
 	console.log(`Context set: cargoTools:workspaceHasCargo = ${hasCargo}`);
+}
+
+/**
+ * Helper function to set makefile context for when clauses
+ */
+async function setMakefileContext(hasMakefile: boolean): Promise<void> {
+	await vscode.commands.executeCommand('setContext', 'cargoTools:workspaceHasMakefile', hasMakefile);
+	console.log(`Context set: cargoTools:workspaceHasMakefile = ${hasMakefile}`);
 }
 
 

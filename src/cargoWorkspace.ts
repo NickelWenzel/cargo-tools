@@ -67,6 +67,7 @@ export class CargoWorkspace {
     private _selectedBenchmarkTarget: string | null = null; // Selected benchmark target
     private _selectedPlatformTarget: string | null = null; // Selected platform target (e.g., x86_64-unknown-linux-gnu)
     private _selectedFeatures: Set<string> = new Set(); // Selected features, default to none (no features selected)
+    private _hasMakefileToml: boolean = false; // Whether Makefile.toml exists in workspace root
     private _onDidChangeProfile = new vscode.EventEmitter<CargoProfile>();
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeTargets = new vscode.EventEmitter<CargoTarget[]>();
@@ -159,6 +160,10 @@ export class CargoWorkspace {
             : this._manifest?.workspace?.members || [];
     }
 
+    get hasMakefileToml(): boolean {
+        return this._hasMakefileToml;
+    }
+
     getWorkspaceMembers(): Map<string, CargoTarget[]> {
         const members = new Map<string, CargoTarget[]>();
 
@@ -178,6 +183,7 @@ export class CargoWorkspace {
         await this.loadManifest();
         await this.discoverTargets();
         await this.discoverCustomProfiles();
+        await this.discoverMakefileToml();
         this.setDefaultTarget();
     }
 
@@ -452,6 +458,20 @@ export class CargoWorkspace {
             }
         } catch (error) {
             console.error(`Failed to parse config.toml at ${configPath}:`, error);
+        }
+    }
+
+    private async discoverMakefileToml(): Promise<void> {
+        try {
+            const makefilePath = path.join(this._workspaceRoot, 'Makefile.toml');
+            this._hasMakefileToml = fs.existsSync(makefilePath);
+            
+            if (this._hasMakefileToml) {
+                console.log('Found Makefile.toml at workspace root');
+            }
+        } catch (error) {
+            console.error('Failed to discover Makefile.toml:', error);
+            this._hasMakefileToml = false;
         }
     }
 
