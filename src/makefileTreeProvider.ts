@@ -30,6 +30,8 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
 
     // Filter state
     private taskFilter: string = '';
+    private categoryFilter: Set<string> = new Set();
+    private isCategoryFilterActive: boolean = false;
     private filterUpdateTimer?: NodeJS.Timeout;
 
     constructor() {
@@ -89,6 +91,13 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
         }
 
         const tasks = this.workspace.makeTasks;
+
+        // Initialize category filter with all categories if not set
+        if (this.categoryFilter.size === 0 && !this.isCategoryFilterActive) {
+            const allCategories = [...new Set(tasks.map(task => task.category))];
+            this.categoryFilter = new Set(allCategories);
+        }
+
         const categories = new Map<string, CargoMakeTask[]>();
 
         // Apply task filter if active
@@ -106,9 +115,14 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
             categories.get(task.category)!.push(task);
         }
 
-        // Create category nodes (only for categories that have tasks after filtering)
+        // Apply category filter - only show categories that are in the filter
         const categoryNodes: MakefileNode[] = [];
         for (const [categoryName, categoryTasks] of categories) {
+            // Skip categories that are filtered out
+            if (this.isCategoryFilterActive && !this.categoryFilter.has(categoryName)) {
+                continue;
+            }
+
             const categoryNode = new MakefileNode(
                 categoryName,
                 vscode.TreeItemCollapsibleState.Expanded,
@@ -287,6 +301,110 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
 
     public get currentTaskFilter(): string {
         return this.taskFilter;
+    }
+
+    // Category filter methods
+    public async showCategoryFilter(): Promise<void> {
+        if (!this.workspace || !this.workspace.hasMakefileToml) {
+            vscode.window.showWarningMessage('No Makefile.toml found in workspace');
+            return;
+        }
+
+        interface CategoryFilterQuickPickItem extends vscode.QuickPickItem {
+            categoryName: string;
+        }
+
+        // Get all available categories
+        const allTasks = this.workspace.makeTasks;
+        const allCategories = [...new Set(allTasks.map(task => task.category))].sort();
+
+        // Initialize filter if not set
+        if (this.categoryFilter.size === 0 && !this.isCategoryFilterActive) {
+            this.categoryFilter = new Set(allCategories);
+        }
+
+        // Store original filter values to restore on cancel
+        const originalCategoryFilter = new Set(this.categoryFilter);
+        const originalIsCategoryFilterActive = this.isCategoryFilterActive;
+        let wasAccepted = false;
+
+        const allFilterOptions: CategoryFilterQuickPickItem[] = allCategories.map(category => ({
+            label: category,
+            description: `${allTasks.filter(t => t.category === category).length} tasks`,
+            picked: this.categoryFilter.has(category),
+            categoryName: category
+        }));
+
+        // Use QuickPick for real-time updates
+        const quickPick = vscode.window.createQuickPick<CategoryFilterQuickPickItem>();
+        quickPick.placeholder = 'Select which categories to show in Makefile view';
+        quickPick.canSelectMany = true;
+        quickPick.items = allFilterOptions;
+        quickPick.selectedItems = allFilterOptions.filter(item => item.picked);
+
+        // Update filter in real-time as user changes selection
+        const disposable = quickPick.onDidChangeSelection((items) => {
+            // Clear existing timer
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+
+            // Set a new timer for debounced update
+            this.filterUpdateTimer = setTimeout(() => {
+                this.categoryFilter.clear();
+
+                for (const item of items) {
+                    this.categoryFilter.add(item.categoryName);
+                }
+
+                this.isCategoryFilterActive = this.categoryFilter.size < allCategories.length;
+                this.refresh();
+            }, 100); // Shorter debounce for real-time feel
+        });
+
+        quickPick.onDidAccept(() => {
+            // Immediate update on accept
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+            wasAccepted = true;
+            quickPick.hide();
+        });
+
+        quickPick.onDidHide(() => {
+            if (this.filterUpdateTimer) {
+                clearTimeout(this.filterUpdateTimer);
+            }
+
+            // If user canceled (didn't accept), restore original filter values
+            if (!wasAccepted) {
+                this.categoryFilter = originalCategoryFilter;
+                this.isCategoryFilterActive = originalIsCategoryFilterActive;
+                this.refresh();
+            }
+
+            disposable.dispose();
+            quickPick.dispose();
+        });
+
+        quickPick.show();
+    }
+
+    public clearCategoryFilter(): void {
+        if (!this.workspace) {
+            return;
+        }
+
+        // Reset to show all categories
+        const allTasks = this.workspace.makeTasks;
+        const allCategories = [...new Set(allTasks.map(task => task.category))];
+        this.categoryFilter = new Set(allCategories);
+        this.isCategoryFilterActive = false;
+        this.refresh();
+    }
+
+    public get currentCategoryFilter(): Set<string> {
+        return this.categoryFilter;
     }
 
     dispose(): void {
