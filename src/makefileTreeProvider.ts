@@ -159,18 +159,14 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
             const taskNode = new MakefileNode(
                 task.name,
                 vscode.TreeItemCollapsibleState.None,
-                'task',
+                'makefileTask',
                 undefined,
-                {
-                    command: 'cargo-tools.makefile.runTask',
-                    title: 'Run Task',
-                    arguments: [task.name]
-                },
+                undefined, // Remove the click command
                 task.description,
-                `Run task: ${task.name}`,
+                `Task: ${task.name}${task.description ? '\n' + task.description : ''}`,
                 { task }
             );
-            taskNode.iconPath = new vscode.ThemeIcon('play');
+            taskNode.iconPath = new vscode.ThemeIcon('gear');
             return taskNode;
         });
     }

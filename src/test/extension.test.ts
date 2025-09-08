@@ -304,20 +304,20 @@ suite('Extension Test Suite', () => {
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
 			const workspace = new CargoWorkspace(testProjectPath);
-			
+
 			await workspace.initialize();
 			provider.updateWorkspace(workspace);
-			
+
 			// Get all categories first
 			const allChildren = await provider.getChildren();
 			const allCategoryCount = allChildren.length;
 			assert.strictEqual(allCategoryCount > 0, true, 'Should have categories when no filter is applied');
-			
+
 			// Test category filter methods exist
 			assert.strictEqual(typeof provider.showCategoryFilter, 'function', 'showCategoryFilter method should exist');
 			assert.strictEqual(typeof provider.clearCategoryFilter, 'function', 'clearCategoryFilter method should exist');
 			assert.strictEqual(typeof provider.currentCategoryFilter, 'object', 'currentCategoryFilter should be a Set');
-			
+
 			// Test clear category filter
 			provider.clearCategoryFilter();
 			const childrenAfterClear = await provider.getChildren();
@@ -362,7 +362,7 @@ suite('Extension Test Suite', () => {
 				menu.when && menu.when.includes('cargoToolsMakefile')
 			);
 
-			assert.strictEqual(makefileViewMenus.length >= 2, true, 
+			assert.strictEqual(makefileViewMenus.length >= 2, true,
 				'Should have at least 2 menu entries for Makefile view (filter and clear filter buttons)');
 		});
 
@@ -443,13 +443,13 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(typeof provider.showCategoryFilter, 'function', 'showCategoryFilter method should exist');
 			assert.strictEqual(typeof provider.clearCategoryFilter, 'function', 'clearCategoryFilter method should exist');
 			assert.strictEqual(typeof provider.currentCategoryFilter, 'object', 'currentCategoryFilter should be a Set');
-			
+
 			// When clearCategoryFilter is called, it should initialize to show all categories
 			provider.clearCategoryFilter();
 			const childrenAfterClear = await provider.getChildren();
 			assert.strictEqual(childrenAfterClear.length, allCategories.length,
 				'Should show all categories after clear');
-				
+
 			// After clear, the filter should contain all categories (not be empty)
 			assert.strictEqual(provider.currentCategoryFilter.size > 0, true,
 				'Category filter should contain all categories after clear (not be empty)');
@@ -463,6 +463,71 @@ suite('Extension Test Suite', () => {
 
 			assert.strictEqual(fs.existsSync(makefilePath), true,
 				'Test project should have Makefile.toml for testing filter functionality');
+		});
+
+		test('should have task nodes without click commands (button-triggered execution)', async () => {
+			const provider = new MakefileTreeProvider();
+			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const workspace = new CargoWorkspace(testProjectPath);
+
+			await workspace.initialize();
+			if (!workspace.hasMakefileToml) {
+				// Skip test if no Makefile.toml exists
+				return;
+			}
+
+			provider.updateWorkspace(workspace);
+
+			// Get all categories
+			const allCategories = await provider.getChildren();
+			if (allCategories.length === 0) {
+				// Skip test if no categories found
+				return;
+			}
+
+			// Get tasks from first category
+			const firstCategory = allCategories[0];
+			if (firstCategory.collapsibleState !== undefined) {
+				const tasks = await provider.getChildren(firstCategory);
+
+				if (tasks.length > 0) {
+					const firstTask = tasks[0];
+
+					// Task should have proper context value for context menu
+					assert.strictEqual(firstTask.contextValue, 'makefileTask',
+						'Task should have makefileTask context value for context menu');
+
+					// Task should not have a click command (button-triggered execution)
+					assert.strictEqual(firstTask.command, undefined,
+						'Task should not have click command - execution should be button-triggered');
+
+					// Task should have gear icon instead of play icon
+					assert.strictEqual(firstTask.iconPath instanceof vscode.ThemeIcon, true,
+						'Task should have an icon');
+					if (firstTask.iconPath instanceof vscode.ThemeIcon) {
+						assert.strictEqual((firstTask.iconPath as any).id, 'gear',
+							'Task should have gear icon instead of play icon');
+					}
+				}
+			}
+		});
+
+		test('should have context menu entry for task execution', () => {
+			const packageJsonPath = require('path').join(__dirname, '../../package.json');
+			const packageJson = require(packageJsonPath);
+			const menus = packageJson.contributes?.menus || {};
+			const contextMenus = menus['view/item/context'] || [];
+
+			// Find the makefile task context menu entry
+			const makefileTaskMenu = contextMenus.find((menu: any) =>
+				menu.when && menu.when.includes('cargoToolsMakefile') &&
+				menu.when.includes('makefileTask') &&
+				menu.command === 'cargo-tools.makefile.runTask'
+			);
+
+			assert.ok(makefileTaskMenu, 'Should have context menu entry for makefile task execution');
+			assert.strictEqual(makefileTaskMenu.group, 'inline@1',
+				'Task execution button should be inline in context menu');
 		});
 	});
 });

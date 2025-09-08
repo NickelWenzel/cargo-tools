@@ -93,10 +93,21 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 
 	// Register makefile task runner command
 	const runMakeTaskDisposable = vscode.commands.registerCommand('cargo-tools.makefile.runTask',
-		async (taskName: string) => {
+		async (taskNameOrNode: string | any) => {
 			try {
 				if (!cargoWorkspace || !cargoWorkspace.hasMakefileToml) {
 					vscode.window.showErrorMessage('No Makefile.toml found in workspace');
+					return;
+				}
+
+				// Handle both string parameter (old usage) and node parameter (context menu)
+				let taskName: string;
+				if (typeof taskNameOrNode === 'string') {
+					taskName = taskNameOrNode;
+				} else if (taskNameOrNode?.data?.task?.name) {
+					taskName = taskNameOrNode.data.task.name;
+				} else {
+					vscode.window.showErrorMessage('Unable to determine task name');
 					return;
 				}
 
@@ -145,13 +156,13 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	context.subscriptions.push(clearTaskFilterDisposable);
 
 	// Register makefile category filter commands
-	const showCategoryFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.showCategoryFilter', 
+	const showCategoryFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.showCategoryFilter',
 		async () => {
 			await makefileProvider.showCategoryFilter();
 		}
 	);
 
-	const clearCategoryFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.clearCategoryFilter', 
+	const clearCategoryFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.clearCategoryFilter',
 		() => {
 			makefileProvider.clearCategoryFilter();
 		}

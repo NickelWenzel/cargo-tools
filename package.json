@@ -520,6 +520,11 @@
           "command": "cargo-tools.projectOutline.clearAllFilters",
           "when": "view == cargoToolsProjectOutline && viewItem =~ /memberFilter|typeFilter/",
           "group": "modify@2"
+        },
+        {
+          "command": "cargo-tools.makefile.runTask",
+          "when": "view == cargoToolsMakefile && viewItem == makefileTask",
+          "group": "inline@1"
         }
       ],
       "commandPalette": [
