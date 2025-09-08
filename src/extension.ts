@@ -70,7 +70,7 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	makefileProvider.updateWorkspace(cargoWorkspace);
 
 	// Register tree providers with extension manager for command access
-	extensionManager.registerTreeProviders(projectOutlineProvider, projectStatusProvider);
+	extensionManager.registerTreeProviders(projectOutlineProvider, projectStatusProvider, makefileProvider);
 
 	// Register new tree views
 	vscode.window.createTreeView('cargoToolsProjectStatus', {

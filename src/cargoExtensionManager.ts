@@ -8,6 +8,7 @@ import { CargoConfigurationReader } from './cargoConfigurationReader';
 import { StatusBarProvider } from './statusBarProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
+import { MakefileTreeProvider } from './makefileTreeProvider';
 import { StateManager } from './stateManager';
 
 /**
@@ -32,6 +33,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     private statusBarProvider?: StatusBarProvider;
     private projectOutlineTreeProvider?: ProjectOutlineTreeProvider;
     private projectStatusTreeProvider?: ProjectStatusTreeProvider;
+    private makefileTreeProvider?: MakefileTreeProvider;
     private stateManager?: StateManager;
 
     // Configuration management
@@ -194,15 +196,22 @@ export class CargoExtensionManager implements vscode.Disposable {
     /**
      * Register tree providers with the extension manager for command access
      */
-    public registerTreeProviders(projectOutlineProvider: ProjectOutlineTreeProvider, projectStatusProvider: ProjectStatusTreeProvider): void {
+    public registerTreeProviders(projectOutlineProvider: ProjectOutlineTreeProvider, projectStatusProvider: ProjectStatusTreeProvider, makefileProvider?: MakefileTreeProvider): void {
         this.projectOutlineTreeProvider = projectOutlineProvider;
         this.projectStatusTreeProvider = projectStatusProvider;
+        this.makefileTreeProvider = makefileProvider;
 
         // Set up state management for tree providers if we have a state manager
         if (this.stateManager) {
             projectOutlineProvider.setStateManager(this.stateManager);
             // Load persisted state for the project outline provider
             projectOutlineProvider.loadPersistedState();
+
+            if (makefileProvider) {
+                makefileProvider.setStateManager(this.stateManager);
+                // Load persisted state for the makefile provider
+                makefileProvider.loadPersistedState();
+            }
         }
     }
 
@@ -470,6 +479,10 @@ export class CargoExtensionManager implements vscode.Disposable {
             if (this.projectOutlineTreeProvider) {
                 this.projectOutlineTreeProvider.setStateManager(this.stateManager);
                 await this.projectOutlineTreeProvider.loadPersistedState();
+            }
+
+            if (this.makefileTreeProvider) {
+                this.makefileTreeProvider.setStateManager(this.stateManager);
             }
 
             // Set up workspace event subscriptions
