@@ -9,6 +9,12 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+export interface CargoMakeTask {
+    name: string;
+    category: string;
+    description: string;
+}
+
 interface CargoMetadataTarget {
     name: string;
     kind: string[];
@@ -68,6 +74,7 @@ export class CargoWorkspace {
     private _selectedPlatformTarget: string | null = null; // Selected platform target (e.g., x86_64-unknown-linux-gnu)
     private _selectedFeatures: Set<string> = new Set(); // Selected features, default to none (no features selected)
     private _hasMakefileToml: boolean = false; // Whether Makefile.toml exists in workspace root
+    private _makeTasks: CargoMakeTask[] = []; // Available cargo-make tasks
     private _onDidChangeProfile = new vscode.EventEmitter<CargoProfile>();
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeTargets = new vscode.EventEmitter<CargoTarget[]>();
@@ -164,6 +171,10 @@ export class CargoWorkspace {
         return this._hasMakefileToml;
     }
 
+    get makeTasks(): CargoMakeTask[] {
+        return this._makeTasks;
+    }
+
     getWorkspaceMembers(): Map<string, CargoTarget[]> {
         const members = new Map<string, CargoTarget[]>();
 
@@ -184,6 +195,9 @@ export class CargoWorkspace {
         await this.discoverTargets();
         await this.discoverCustomProfiles();
         await this.discoverMakefileToml();
+        if (this._hasMakefileToml) {
+            await this.discoverMakeTasks();
+        }
         this.setDefaultTarget();
     }
 
@@ -465,7 +479,7 @@ export class CargoWorkspace {
         try {
             const makefilePath = path.join(this._workspaceRoot, 'Makefile.toml');
             this._hasMakefileToml = fs.existsSync(makefilePath);
-            
+
             if (this._hasMakefileToml) {
                 console.log('Found Makefile.toml at workspace root');
             }
@@ -473,6 +487,72 @@ export class CargoWorkspace {
             console.error('Failed to discover Makefile.toml:', error);
             this._hasMakefileToml = false;
         }
+    }
+
+    private async discoverMakeTasks(): Promise<void> {
+        try {
+            this._makeTasks = [];
+
+            // Run cargo make --list-all-steps to get task information
+            const { stdout } = await execAsync('cargo make --list-all-steps', {
+                cwd: this._workspaceRoot
+            });
+
+            this._makeTasks = this.parseCargoMakeOutput(stdout);
+            console.log(`Discovered ${this._makeTasks.length} cargo-make tasks`);
+
+        } catch (error) {
+            console.error('Failed to discover cargo-make tasks:', error);
+            this._makeTasks = [];
+        }
+    }
+
+    private parseCargoMakeOutput(output: string): CargoMakeTask[] {
+        const tasks: CargoMakeTask[] = [];
+        const lines = output.split('\n');
+
+        let currentCategory = '';
+        let inTaskSection = false;
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            // Skip empty lines and header
+            if (!trimmedLine || trimmedLine.includes('cargo make') || trimmedLine.includes('Build File:') ||
+                trimmedLine.includes('Task:') || trimmedLine.includes('Profile:')) {
+                continue;
+            }
+
+            // Check if this is a category header (ends with dashes)
+            if (trimmedLine.match(/^[A-Za-z\s]+$/g) && lines[lines.indexOf(line) + 1]?.trim().match(/^-+$/)) {
+                currentCategory = trimmedLine;
+                inTaskSection = true;
+                continue;
+            }
+
+            // Skip the dashes line
+            if (trimmedLine.match(/^-+$/)) {
+                continue;
+            }
+
+            // Parse task line: "task-name - Description"
+            const taskMatch = trimmedLine.match(/^([a-zA-Z0-9_-]+)\s*-\s*(.+)$/);
+            if (taskMatch && inTaskSection) {
+                const [, taskName, description] = taskMatch;
+
+                // Skip some internal tasks that users typically don't need
+                if (!taskName.startsWith('pre-') && !taskName.startsWith('post-') &&
+                    !taskName.startsWith('end-') && !taskName.startsWith('init-')) {
+                    tasks.push({
+                        name: taskName,
+                        category: currentCategory || 'Other',
+                        description: description || 'No description'
+                    });
+                }
+            }
+        }
+
+        return tasks;
     }
 
     private setDefaultTarget(): void {

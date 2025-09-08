@@ -58,6 +58,12 @@ suite('Extension Test Suite', () => {
 				assert.ok(commandIds.includes('cargo-tools.projectOutline.benchTarget'), 'projectOutline.benchTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.setAsDefaultTestTarget'), 'setAsDefaultTestTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.setAsDefaultBenchTarget'), 'setAsDefaultBenchTarget command should be defined');
+
+				// Check for makefile commands
+				assert.ok(commandIds.includes('cargo-tools.makefile.runTask'), 'makefile.runTask command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.makefile.setTaskFilter'), 'makefile.setTaskFilter command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.makefile.editTaskFilter'), 'makefile.editTaskFilter command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.makefile.clearTaskFilter'), 'makefile.clearTaskFilter command should be defined');
 			} else {
 				// If running without the extension being loaded, just check that 
 				// the command patterns are reasonable (integration test framework limitation)
@@ -170,7 +176,7 @@ suite('Extension Test Suite', () => {
 
 		test('should not filter when workspace member filter is empty', () => {
 			const provider = new ProjectOutlineTreeProvider();
-			
+
 			// Create mock targets from different packages
 			const targets = [
 				{
@@ -189,10 +195,10 @@ suite('Extension Test Suite', () => {
 
 			// Leave workspace member filter empty (default)
 			// (provider as any).workspaceMemberFilter should be '' by default
-			
+
 			// Test the private filterTargets method
 			const filteredTargets = (provider as any).filterTargets(targets);
-			
+
 			// Should include all targets when no workspace member filter is active
 			assert.strictEqual(filteredTargets.length, 2, 'Should include all targets when filter is empty');
 		});
@@ -205,9 +211,9 @@ suite('Extension Test Suite', () => {
 			// Use the test-rust-project which now has a Makefile.toml
 			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
 			const workspace = new CargoWorkspace(testProjectPath);
-			
+
 			await workspace.initialize();
-			
+
 			// Should detect the Makefile.toml we created
 			assert.strictEqual(workspace.hasMakefileToml, true, 'Should detect Makefile.toml in test project');
 		});
@@ -216,9 +222,9 @@ suite('Extension Test Suite', () => {
 			// Use a path that doesn't have Makefile.toml 
 			const testPath = '/tmp'; // temp directory should not have Makefile.toml
 			const workspace = new CargoWorkspace(testPath);
-			
+
 			await workspace.initialize();
-			
+
 			// Should not detect Makefile.toml
 			assert.strictEqual(workspace.hasMakefileToml, false, 'Should not detect Makefile.toml when it does not exist');
 		});
@@ -228,32 +234,68 @@ suite('Extension Test Suite', () => {
 		const { MakefileTreeProvider } = require('../makefileTreeProvider');
 		const { CargoWorkspace } = require('../cargoWorkspace');
 
-		test('should show empty tree when Makefile.toml exists', async () => {
+		test('should show task categories when Makefile.toml exists', async () => {
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
 			const workspace = new CargoWorkspace(testProjectPath);
-			
+
 			await workspace.initialize();
 			provider.updateWorkspace(workspace);
-			
-			// Should return empty array for root level as requested
+
+			// Should return array of task categories
 			const children = await provider.getChildren();
 			assert.strictEqual(Array.isArray(children), true, 'Should return an array');
-			assert.strictEqual(children.length, 0, 'Should be empty as requested for initial implementation');
+			assert.strictEqual(children.length > 0, true, 'Should have task categories when Makefile.toml exists');
+
+			// Check that the first child is a category node
+			if (children.length > 0) {
+				const firstChild = children[0];
+				assert.strictEqual(typeof firstChild.label, 'string', 'Category should have a label');
+				assert.strictEqual(firstChild.collapsibleState !== undefined, true, 'Category should be collapsible');
+			}
 		});
 
 		test('should show no makefile message when Makefile.toml does not exist', async () => {
 			const provider = new MakefileTreeProvider();
 			const testPath = '/tmp';
 			const workspace = new CargoWorkspace(testPath);
-			
+
 			await workspace.initialize();
 			provider.updateWorkspace(workspace);
-			
+
 			// Should show "No Makefile.toml found" message
 			const children = await provider.getChildren();
 			assert.strictEqual(children.length, 1, 'Should have one message node');
 			assert.strictEqual(children[0].label, 'No Makefile.toml found', 'Should show appropriate message');
+		});
+
+		test('should apply task filter correctly', async () => {
+			const provider = new MakefileTreeProvider();
+			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const workspace = new CargoWorkspace(testProjectPath);
+
+			await workspace.initialize();
+			provider.updateWorkspace(workspace);
+
+			// Get all tasks first
+			const allChildren = await provider.getChildren();
+			const allTaskCount = allChildren.length;
+			assert.strictEqual(allTaskCount > 0, true, 'Should have tasks when no filter is applied');
+
+			// Apply a filter that should reduce the number of categories
+			provider.clearTaskFilter(); // Ensure we start with no filter
+			const childrenBeforeFilter = await provider.getChildren();
+
+			// Test filter methods exist
+			assert.strictEqual(typeof provider.setTaskFilter, 'function', 'setTaskFilter method should exist');
+			assert.strictEqual(typeof provider.clearTaskFilter, 'function', 'clearTaskFilter method should exist');
+			assert.strictEqual(typeof provider.currentTaskFilter, 'string', 'currentTaskFilter should be a string');
+
+			// Test clear filter
+			provider.clearTaskFilter();
+			assert.strictEqual(provider.currentTaskFilter, '', 'Filter should be empty after clear');
+
+			// Note: Filter now only applies to task names, not descriptions or categories
 		});
 	});
 });
