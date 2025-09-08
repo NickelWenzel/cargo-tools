@@ -170,7 +170,7 @@ suite('Extension Test Suite', () => {
 
 		test('should not filter when workspace member filter is empty', () => {
 			const provider = new ProjectOutlineTreeProvider();
-
+			
 			// Create mock targets from different packages
 			const targets = [
 				{
@@ -189,12 +189,71 @@ suite('Extension Test Suite', () => {
 
 			// Leave workspace member filter empty (default)
 			// (provider as any).workspaceMemberFilter should be '' by default
-
+			
 			// Test the private filterTargets method
 			const filteredTargets = (provider as any).filterTargets(targets);
-
+			
 			// Should include all targets when no workspace member filter is active
 			assert.strictEqual(filteredTargets.length, 2, 'Should include all targets when filter is empty');
+		});
+	});
+
+	suite('Makefile.toml Detection Tests', () => {
+		const { CargoWorkspace } = require('../cargoWorkspace');
+
+		test('should detect Makefile.toml when it exists', async () => {
+			// Use the test-rust-project which now has a Makefile.toml
+			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const workspace = new CargoWorkspace(testProjectPath);
+			
+			await workspace.initialize();
+			
+			// Should detect the Makefile.toml we created
+			assert.strictEqual(workspace.hasMakefileToml, true, 'Should detect Makefile.toml in test project');
+		});
+
+		test('should return false when Makefile.toml does not exist', async () => {
+			// Use a path that doesn't have Makefile.toml 
+			const testPath = '/tmp'; // temp directory should not have Makefile.toml
+			const workspace = new CargoWorkspace(testPath);
+			
+			await workspace.initialize();
+			
+			// Should not detect Makefile.toml
+			assert.strictEqual(workspace.hasMakefileToml, false, 'Should not detect Makefile.toml when it does not exist');
+		});
+	});
+
+	suite('Makefile Tree Provider Tests', () => {
+		const { MakefileTreeProvider } = require('../makefileTreeProvider');
+		const { CargoWorkspace } = require('../cargoWorkspace');
+
+		test('should show empty tree when Makefile.toml exists', async () => {
+			const provider = new MakefileTreeProvider();
+			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const workspace = new CargoWorkspace(testProjectPath);
+			
+			await workspace.initialize();
+			provider.updateWorkspace(workspace);
+			
+			// Should return empty array for root level as requested
+			const children = await provider.getChildren();
+			assert.strictEqual(Array.isArray(children), true, 'Should return an array');
+			assert.strictEqual(children.length, 0, 'Should be empty as requested for initial implementation');
+		});
+
+		test('should show no makefile message when Makefile.toml does not exist', async () => {
+			const provider = new MakefileTreeProvider();
+			const testPath = '/tmp';
+			const workspace = new CargoWorkspace(testPath);
+			
+			await workspace.initialize();
+			provider.updateWorkspace(workspace);
+			
+			// Should show "No Makefile.toml found" message
+			const children = await provider.getChildren();
+			assert.strictEqual(children.length, 1, 'Should have one message node');
+			assert.strictEqual(children[0].label, 'No Makefile.toml found', 'Should show appropriate message');
 		});
 	});
 });

@@ -272,6 +272,12 @@
           "id": "cargoToolsProjectOutline",
           "name": "Project Outline",
           "when": "cargoTools:workspaceHasCargo"
+        },
+        {
+          "id": "cargoToolsMakefile",
+          "name": "Makefile",
+          "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile",
+          "icon": "$(tools)"
         }
       ]
     },
