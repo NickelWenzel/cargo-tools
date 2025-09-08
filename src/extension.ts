@@ -91,6 +91,59 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 		canSelectMany: false
 	});
 
+	// Register makefile task runner command
+	const runMakeTaskDisposable = vscode.commands.registerCommand('cargo-tools.makefile.runTask',
+		async (taskName: string) => {
+			try {
+				if (!cargoWorkspace || !cargoWorkspace.hasMakefileToml) {
+					vscode.window.showErrorMessage('No Makefile.toml found in workspace');
+					return;
+				}
+
+				// Show which task is being run
+				vscode.window.showInformationMessage(`Running cargo make task: ${taskName}`);
+
+				// Create a terminal and run the cargo make command
+				const terminal = vscode.window.createTerminal({
+					name: `cargo make ${taskName}`,
+					cwd: cargoWorkspace.workspaceRoot
+				});
+
+				terminal.sendText(`cargo make ${taskName}`);
+				terminal.show();
+
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Failed to run cargo make task: ${message}`);
+			}
+		}
+	);
+
+	context.subscriptions.push(runMakeTaskDisposable);
+
+	// Register makefile filter commands
+	const setTaskFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.setTaskFilter',
+		async () => {
+			await makefileProvider.setTaskFilter();
+		}
+	);
+
+	const editTaskFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.editTaskFilter',
+		async () => {
+			await makefileProvider.editTaskFilter();
+		}
+	);
+
+	const clearTaskFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.clearTaskFilter',
+		() => {
+			makefileProvider.clearTaskFilter();
+		}
+	);
+
+	context.subscriptions.push(setTaskFilterDisposable);
+	context.subscriptions.push(editTaskFilterDisposable);
+	context.subscriptions.push(clearTaskFilterDisposable);
+
 	// Subscribe to workspace changes to update providers
 	cargoWorkspace.onDidChangeTargets(() => {
 		projectStatusProvider.refresh();

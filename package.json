@@ -89,6 +89,30 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "cargo-tools.makefile.runTask",
+        "title": "Run Makefile Task",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.makefile.setTaskFilter",
+        "title": "Filter Tasks",
+        "category": "Cargo Tools",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "cargo-tools.makefile.editTaskFilter",
+        "title": "Edit Task Filter",
+        "category": "Cargo Tools",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "cargo-tools.makefile.clearTaskFilter",
+        "title": "Clear Task Filter",
+        "category": "Cargo Tools",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "cargo-tools.projectStatus.build",
         "title": "Build",
         "category": "Cargo Tools",
@@ -317,6 +341,16 @@
           "command": "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
           "when": "view == cargoToolsProjectOutline",
           "group": "navigation@4"
+        },
+        {
+          "command": "cargo-tools.makefile.setTaskFilter",
+          "when": "view == cargoToolsMakefile",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cargo-tools.makefile.clearTaskFilter",
+          "when": "view == cargoToolsMakefile",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
