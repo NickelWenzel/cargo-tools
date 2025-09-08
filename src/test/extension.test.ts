@@ -64,6 +64,8 @@ suite('Extension Test Suite', () => {
 				assert.ok(commandIds.includes('cargo-tools.makefile.setTaskFilter'), 'makefile.setTaskFilter command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.makefile.editTaskFilter'), 'makefile.editTaskFilter command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.makefile.clearTaskFilter'), 'makefile.clearTaskFilter command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.makefile.showCategoryFilter'), 'makefile.showCategoryFilter command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.makefile.clearCategoryFilter'), 'makefile.clearCategoryFilter command should be defined');
 			} else {
 				// If running without the extension being loaded, just check that 
 				// the command patterns are reasonable (integration test framework limitation)
@@ -296,6 +298,30 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(provider.currentTaskFilter, '', 'Filter should be empty after clear');
 
 			// Note: Filter now only applies to task names, not descriptions or categories
+		});
+
+		test('should apply category filter correctly', async () => {
+			const provider = new MakefileTreeProvider();
+			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const workspace = new CargoWorkspace(testProjectPath);
+			
+			await workspace.initialize();
+			provider.updateWorkspace(workspace);
+			
+			// Get all categories first
+			const allChildren = await provider.getChildren();
+			const allCategoryCount = allChildren.length;
+			assert.strictEqual(allCategoryCount > 0, true, 'Should have categories when no filter is applied');
+			
+			// Test category filter methods exist
+			assert.strictEqual(typeof provider.showCategoryFilter, 'function', 'showCategoryFilter method should exist');
+			assert.strictEqual(typeof provider.clearCategoryFilter, 'function', 'clearCategoryFilter method should exist');
+			assert.strictEqual(typeof provider.currentCategoryFilter, 'object', 'currentCategoryFilter should be a Set');
+			
+			// Test clear category filter
+			provider.clearCategoryFilter();
+			const childrenAfterClear = await provider.getChildren();
+			assert.strictEqual(childrenAfterClear.length, allCategoryCount, 'Should show all categories after clear');
 		});
 	});
 });

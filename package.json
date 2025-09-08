@@ -113,6 +113,18 @@
         "icon": "$(clear-all)"
       },
       {
+        "command": "cargo-tools.makefile.showCategoryFilter",
+        "title": "Filter Categories",
+        "category": "Cargo Tools",
+        "icon": "$(symbol-class)"
+      },
+      {
+        "command": "cargo-tools.makefile.clearCategoryFilter",
+        "title": "Clear Category Filter",
+        "category": "Cargo Tools",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "cargo-tools.projectStatus.build",
         "title": "Build",
         "category": "Cargo Tools",
@@ -348,9 +360,14 @@
           "group": "navigation@1"
         },
         {
-          "command": "cargo-tools.makefile.clearTaskFilter",
+          "command": "cargo-tools.makefile.showCategoryFilter",
           "when": "view == cargoToolsMakefile",
           "group": "navigation@2"
+        },
+        {
+          "command": "cargo-tools.makefile.clearTaskFilter",
+          "when": "view == cargoToolsMakefile",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [

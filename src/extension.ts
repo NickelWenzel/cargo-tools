@@ -144,6 +144,22 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	context.subscriptions.push(editTaskFilterDisposable);
 	context.subscriptions.push(clearTaskFilterDisposable);
 
+	// Register makefile category filter commands
+	const showCategoryFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.showCategoryFilter', 
+		async () => {
+			await makefileProvider.showCategoryFilter();
+		}
+	);
+
+	const clearCategoryFilterDisposable = vscode.commands.registerCommand('cargo-tools.makefile.clearCategoryFilter', 
+		() => {
+			makefileProvider.clearCategoryFilter();
+		}
+	);
+
+	context.subscriptions.push(showCategoryFilterDisposable);
+	context.subscriptions.push(clearCategoryFilterDisposable);
+
 	// Subscribe to workspace changes to update providers
 	cargoWorkspace.onDidChangeTargets(() => {
 		projectStatusProvider.refresh();
