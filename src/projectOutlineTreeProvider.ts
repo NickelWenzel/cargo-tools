@@ -849,6 +849,19 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     // Apply filters to targets
     private filterTargets(targets: CargoTarget[]): CargoTarget[] {
         return targets.filter(target => {
+            // Apply workspace member filter
+            if (this.workspaceMemberFilter) {
+                // If packageName is undefined, filter it out when workspace member filter is active
+                if (!target.packageName) {
+                    return false;
+                }
+                // Filter out if packageName doesn't contain the filter string
+                if (!target.packageName.toLowerCase().includes(this.workspaceMemberFilter.toLowerCase())) {
+                    return false;
+                }
+            }
+
+            // Apply target type filter
             const targetKinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
             return targetKinds.some(kind => this.targetTypeFilter.has(kind));
         });

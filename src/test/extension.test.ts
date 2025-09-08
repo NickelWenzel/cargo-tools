@@ -90,4 +90,111 @@ suite('Extension Test Suite', () => {
 			}
 		});
 	});
+
+	suite('Project Outline View Filter Tests', () => {
+		// Import the ProjectOutlineTreeProvider at the top to avoid circular imports
+		const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+
+		test('should apply workspace member filter when grouping is disabled', () => {
+			const provider = new ProjectOutlineTreeProvider();
+
+			// Create mock targets from different packages
+			const targets = [
+				{
+					name: 'app1',
+					packageName: 'my-app',
+					kind: ['bin'],
+					srcPath: '/path/to/app1.rs'
+				},
+				{
+					name: 'lib1',
+					packageName: 'my-library',
+					kind: ['lib'],
+					srcPath: '/path/to/lib1.rs'
+				},
+				{
+					name: 'app2',
+					packageName: 'my-app',
+					kind: ['bin'],
+					srcPath: '/path/to/app2.rs'
+				}
+			];
+
+			// Set workspace member filter to 'app' - should only show targets from packages containing 'app'
+			// Access private field for testing
+			(provider as any).workspaceMemberFilter = 'app';
+
+			// Test the private filterTargets method using bracket notation to access it
+			const filteredTargets = (provider as any).filterTargets(targets);
+
+			// Should only include targets from 'my-app' package (contains 'app')
+			assert.strictEqual(filteredTargets.length, 2, 'Should filter to 2 targets from my-app package');
+			assert.ok(filteredTargets.every((target: any) => target.packageName === 'my-app'),
+				'All filtered targets should be from my-app package');
+			assert.ok(filteredTargets.some((target: any) => target.name === 'app1'),
+				'Should include app1 target');
+			assert.ok(filteredTargets.some((target: any) => target.name === 'app2'),
+				'Should include app2 target');
+		});
+
+		test('should handle targets with undefined packageName gracefully', () => {
+			const provider = new ProjectOutlineTreeProvider();
+
+			// Create mock targets with some having undefined packageName
+			const targets = [
+				{
+					name: 'app1',
+					packageName: 'my-app',
+					kind: ['bin'],
+					srcPath: '/path/to/app1.rs'
+				},
+				{
+					name: 'lib1',
+					packageName: undefined,
+					kind: ['lib'],
+					srcPath: '/path/to/lib1.rs'
+				}
+			];
+
+			// Set workspace member filter
+			// Access private field for testing
+			(provider as any).workspaceMemberFilter = 'app';
+
+			// Test the private filterTargets method
+			const filteredTargets = (provider as any).filterTargets(targets);
+
+			// Should only include targets with defined packageName that matches the filter
+			assert.strictEqual(filteredTargets.length, 1, 'Should filter to 1 target');
+			assert.strictEqual(filteredTargets[0].name, 'app1', 'Should include app1 target');
+		});
+
+		test('should not filter when workspace member filter is empty', () => {
+			const provider = new ProjectOutlineTreeProvider();
+
+			// Create mock targets from different packages
+			const targets = [
+				{
+					name: 'app1',
+					packageName: 'my-app',
+					kind: ['bin'],
+					srcPath: '/path/to/app1.rs'
+				},
+				{
+					name: 'lib1',
+					packageName: 'my-library',
+					kind: ['lib'],
+					srcPath: '/path/to/lib1.rs'
+				}
+			];
+
+			// Leave workspace member filter empty (default)
+			// (provider as any).workspaceMemberFilter should be '' by default
+
+			// Test the private filterTargets method
+			const filteredTargets = (provider as any).filterTargets(targets);
+
+			// Should include all targets when no workspace member filter is active
+			assert.strictEqual(filteredTargets.length, 2, 'Should include all targets when filter is empty');
+		});
+	});
 });
