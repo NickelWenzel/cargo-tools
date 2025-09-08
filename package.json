@@ -95,6 +95,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "cargo-tools.makefile.selectAndRunTask",
+        "title": "Run Makefile Task...",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
         "command": "cargo-tools.makefile.setTaskFilter",
         "title": "Filter Tasks",
         "category": "Cargo Tools",

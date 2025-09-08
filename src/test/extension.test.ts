@@ -61,6 +61,7 @@ suite('Extension Test Suite', () => {
 
 				// Check for makefile commands
 				assert.ok(commandIds.includes('cargo-tools.makefile.runTask'), 'makefile.runTask command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.makefile.selectAndRunTask'), 'makefile.selectAndRunTask command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.makefile.setTaskFilter'), 'makefile.setTaskFilter command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.makefile.editTaskFilter'), 'makefile.editTaskFilter command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.makefile.clearTaskFilter'), 'makefile.clearTaskFilter command should be defined');
@@ -339,6 +340,7 @@ suite('Extension Test Suite', () => {
 			// Verify all expected filter commands are registered
 			const expectedFilterCommands = [
 				'cargo-tools.makefile.runTask',
+				'cargo-tools.makefile.selectAndRunTask',
 				'cargo-tools.makefile.setTaskFilter',
 				'cargo-tools.makefile.editTaskFilter',
 				'cargo-tools.makefile.clearTaskFilter',
