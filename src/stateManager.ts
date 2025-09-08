@@ -164,6 +164,41 @@ export class StateManager {
         await this._update('showFeatures', showFeatures, folderName, isMultiProject);
     }
 
+    // Makefile View State - Filter settings for the Makefile view
+
+    /**
+     * The current task filter string
+     */
+    getMakefileTaskFilter(folderName: string, isMultiProject: boolean): string {
+        return this._get<string>('makefileTaskFilter', folderName, isMultiProject) || '';
+    }
+
+    async setMakefileTaskFilter(folderName: string, filter: string, isMultiProject: boolean) {
+        await this._update('makefileTaskFilter', filter, folderName, isMultiProject);
+    }
+
+    /**
+     * The current category filter set
+     */
+    getMakefileCategoryFilter(folderName: string, isMultiProject: boolean): string[] {
+        return this._get<string[]>('makefileCategoryFilter', folderName, isMultiProject) || [];
+    }
+
+    async setMakefileCategoryFilter(folderName: string, categories: string[], isMultiProject: boolean) {
+        await this._update('makefileCategoryFilter', categories, folderName, isMultiProject);
+    }
+
+    /**
+     * Whether the category filter is active (not showing all categories)
+     */
+    getIsMakefileCategoryFilterActive(folderName: string, isMultiProject: boolean): boolean {
+        return this._get<boolean>('isMakefileCategoryFilterActive', folderName, isMultiProject) ?? false;
+    }
+
+    async setIsMakefileCategoryFilterActive(folderName: string, isActive: boolean, isMultiProject: boolean) {
+        await this._update('isMakefileCategoryFilterActive', isActive, folderName, isMultiProject);
+    }
+
     /**
      * Reset all current workspace state. Mostly for troubleshooting
      */
@@ -183,5 +218,10 @@ export class StateManager {
         await this.setTargetTypeFilter(folderName, ['bin', 'lib', 'example', 'bench'], isMultiProject);
         await this.setIsTargetTypeFilterActive(folderName, false, isMultiProject);
         await this.setShowFeatures(folderName, true, isMultiProject);
+
+        // Makefile View state
+        await this.setMakefileTaskFilter(folderName, '', isMultiProject);
+        await this.setMakefileCategoryFilter(folderName, [], isMultiProject);
+        await this.setIsMakefileCategoryFilterActive(folderName, false, isMultiProject);
     }
 }

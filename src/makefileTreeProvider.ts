@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace, CargoMakeTask } from './cargoWorkspace';
+import { StateManager } from './stateManager';
 
 export class MakefileNode extends vscode.TreeItem {
     constructor(
@@ -27,6 +28,7 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
 
     private workspace?: CargoWorkspace;
     private subscriptions: vscode.Disposable[] = [];
+    private stateManager?: StateManager;
 
     // Filter state
     private taskFilter: string = '';
@@ -42,6 +44,84 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
         this._onDidChangeTreeData.fire();
     }
 
+    setStateManager(stateManager: StateManager): void {
+        this.stateManager = stateManager;
+    }
+
+    /**
+     * Load filter state from persistence
+     */
+    async loadPersistedState(): Promise<void> {
+        if (!this.stateManager) {
+            return;
+        }
+
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                return;
+            }
+
+            const folderName = workspaceFolder.name;
+            const isMultiProject = (vscode.workspace.workspaceFolders?.length || 0) > 1;
+
+            // Load persisted filter state
+            this.taskFilter = this.stateManager.getMakefileTaskFilter(folderName, isMultiProject);
+            const savedCategoryFilter = this.stateManager.getMakefileCategoryFilter(folderName, isMultiProject);
+            this.categoryFilter = new Set(savedCategoryFilter);
+            this.isCategoryFilterActive = this.stateManager.getIsMakefileCategoryFilterActive(folderName, isMultiProject);
+
+            console.log('Loaded persisted Makefile view state for workspace:', folderName);
+        } catch (error) {
+            console.error('Failed to load persisted Makefile view state:', error);
+        }
+    }
+
+    private async loadState(): Promise<void> {
+        if (!this.stateManager || !this.workspace) {
+            return;
+        }
+
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(this.workspace.workspaceRoot));
+        if (!workspaceFolder) {
+            return;
+        }
+
+        const folderName = workspaceFolder.name;
+        const isMultiProject = (vscode.workspace.workspaceFolders?.length || 0) > 1;
+
+        try {
+            this.taskFilter = this.stateManager.getMakefileTaskFilter(folderName, isMultiProject);
+            const savedCategoryFilter = this.stateManager.getMakefileCategoryFilter(folderName, isMultiProject);
+            this.categoryFilter = new Set(savedCategoryFilter);
+            this.isCategoryFilterActive = this.stateManager.getIsMakefileCategoryFilterActive(folderName, isMultiProject);
+        } catch (error) {
+            console.error('Failed to load Makefile view state:', error);
+        }
+    }
+
+    private async saveState(): Promise<void> {
+        if (!this.stateManager || !this.workspace) {
+            return;
+        }
+
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(this.workspace.workspaceRoot));
+        if (!workspaceFolder) {
+            return;
+        }
+
+        const folderName = workspaceFolder.name;
+        const isMultiProject = (vscode.workspace.workspaceFolders?.length || 0) > 1;
+
+        try {
+            await this.stateManager.setMakefileTaskFilter(folderName, this.taskFilter, isMultiProject);
+            await this.stateManager.setMakefileCategoryFilter(folderName, Array.from(this.categoryFilter), isMultiProject);
+            await this.stateManager.setIsMakefileCategoryFilterActive(folderName, this.isCategoryFilterActive, isMultiProject);
+        } catch (error) {
+            console.error('Failed to save Makefile view state:', error);
+        }
+    }
+
     updateWorkspace(workspace: CargoWorkspace | undefined): void {
         // Dispose existing subscriptions
         this.subscriptions.forEach(sub => sub.dispose());
@@ -49,11 +129,11 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
 
         this.workspace = workspace;
 
-        // Set up new subscriptions if workspace is available
         if (workspace) {
-            this.subscriptions.push(
-                workspace.onDidChangeTargets(() => this.refresh())
-            );
+            // Subscribe to workspace events
+            this.subscriptions.push(workspace.onDidChangeTargets(() => {
+                this.refresh();
+            }));
         }
 
         this.refresh();
@@ -262,6 +342,7 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
 
             // Always use the typed value as filter since items are unselectable
             this.taskFilter = quickPick.value.trim();
+            this.saveState();
             this.refresh();
 
             quickPick.hide();
@@ -292,6 +373,7 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
 
     public clearTaskFilter(): void {
         this.taskFilter = '';
+        this.saveState();
         this.refresh();
     }
 
@@ -354,6 +436,7 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
                 }
 
                 this.isCategoryFilterActive = this.categoryFilter.size < allCategories.length;
+                this.saveState();
                 this.refresh();
             }, 100); // Shorter debounce for real-time feel
         });
@@ -396,6 +479,7 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
         const allCategories = [...new Set(allTasks.map(task => task.category))];
         this.categoryFilter = new Set(allCategories);
         this.isCategoryFilterActive = false;
+        this.saveState();
         this.refresh();
     }
 

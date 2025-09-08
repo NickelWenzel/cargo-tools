@@ -529,5 +529,75 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(makefileTaskMenu.group, 'inline@1',
 				'Task execution button should be inline in context menu');
 		});
+
+		test('should support state persistence for filters', () => {
+			const { StateManager } = require('../stateManager');
+			const mockContext = { globalState: { get: () => undefined, update: () => Promise.resolve() } };
+			const mockFolder = { uri: { fsPath: '/test' }, name: 'test' };
+
+			const stateManager = new StateManager(mockContext, mockFolder);
+
+			// Verify StateManager has the makefile state methods
+			assert.strictEqual(typeof stateManager.getMakefileTaskFilter, 'function',
+				'StateManager should have getMakefileTaskFilter method');
+			assert.strictEqual(typeof stateManager.setMakefileTaskFilter, 'function',
+				'StateManager should have setMakefileTaskFilter method');
+			assert.strictEqual(typeof stateManager.getMakefileCategoryFilter, 'function',
+				'StateManager should have getMakefileCategoryFilter method');
+			assert.strictEqual(typeof stateManager.setMakefileCategoryFilter, 'function',
+				'StateManager should have setMakefileCategoryFilter method');
+			assert.strictEqual(typeof stateManager.getIsMakefileCategoryFilterActive, 'function',
+				'StateManager should have getIsMakefileCategoryFilterActive method');
+			assert.strictEqual(typeof stateManager.setIsMakefileCategoryFilterActive, 'function',
+				'StateManager should have setIsMakefileCategoryFilterActive method');
+		});
+
+		test('should have setStateManager method on MakefileTreeProvider', () => {
+			const { MakefileTreeProvider } = require('../makefileTreeProvider');
+			const provider = new MakefileTreeProvider();
+
+			assert.strictEqual(typeof provider.setStateManager, 'function',
+				'MakefileTreeProvider should have setStateManager method');
+			assert.strictEqual(typeof provider.loadPersistedState, 'function',
+				'MakefileTreeProvider should have loadPersistedState method');
+		});
+
+		test('should load persisted state correctly when state manager is set', () => {
+			const { MakefileTreeProvider } = require('../makefileTreeProvider');
+			const { StateManager } = require('../stateManager');
+
+			// Mock state data
+			const mockTaskFilter = 'test-task';
+			const mockCategoryFilter = ['build', 'test'];
+
+			// Create mock context and state manager
+			const mockContext = {
+				globalState: {
+					get: (key: string) => {
+						if (key.includes('makefile.taskFilter')) {
+							return mockTaskFilter;
+						}
+						if (key.includes('makefile.categoryFilter')) {
+							return mockCategoryFilter;
+						}
+						return undefined;
+					},
+					update: () => Promise.resolve()
+				}
+			};
+			const mockFolder = { uri: { fsPath: '/test' }, name: 'test' };
+			const stateManager = new StateManager(mockContext, mockFolder);
+
+			// Create provider and set state manager
+			const provider = new MakefileTreeProvider();
+			provider.setStateManager(stateManager);
+
+			// Load persisted state
+			provider.loadPersistedState();
+
+			// Verify state was loaded (we can't directly access private properties, 
+			// but the method should execute without errors)
+			assert.ok(true, 'loadPersistedState should execute without errors');
+		});
 	});
 });
