@@ -600,4 +600,111 @@ suite('Extension Test Suite', () => {
 			assert.ok(true, 'loadPersistedState should execute without errors');
 		});
 	});
+
+	suite('Pinned Makefile Tasks Integration Tests', () => {
+		test('should have pinned makefile tasks commands registered in package.json', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const commands = packageJson.contributes?.commands || [];
+				const commandIds = commands.map((cmd: any) => cmd.command);
+
+				// Check for pinned makefile tasks commands
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.add'), 'pinnedMakefileTasks.add command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.remove'), 'pinnedMakefileTasks.remove command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.execute'), 'pinnedMakefileTasks.execute command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.makefile.pinTask'), 'makefile.pinTask command should be defined');
+			}
+		});
+
+		test('should have pinned makefile tasks view defined in package.json', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const views = packageJson.contributes?.views?.cargoTools || [];
+				const viewIds = views.map((view: any) => view.id);
+
+				assert.ok(viewIds.includes('cargoToolsPinnedMakefileTasks'), 'Pinned Makefile Tasks view should be defined');
+			}
+		});
+
+		test('should have context menu entries for pinned tasks', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const menus = packageJson.contributes?.menus?.['view/item/context'] || [];
+
+				// Check for context menu entries
+				const pinnedTaskExecuteMenu = menus.find((menu: any) =>
+					menu.command === 'cargo-tools.pinnedMakefileTasks.execute' &&
+					menu.when.includes('cargoToolsPinnedMakefileTasks') &&
+					menu.when.includes('pinned-task')
+				);
+
+				const pinnedTaskRemoveMenu = menus.find((menu: any) =>
+					menu.command === 'cargo-tools.pinnedMakefileTasks.remove' &&
+					menu.when.includes('cargoToolsPinnedMakefileTasks') &&
+					menu.when.includes('pinned-task')
+				);
+
+				const pinTaskMenu = menus.find((menu: any) =>
+					menu.command === 'cargo-tools.makefile.pinTask' &&
+					menu.when.includes('cargoToolsMakefile') &&
+					menu.when.includes('makefileTask')
+				);
+
+				assert.ok(pinnedTaskExecuteMenu, 'Execute pinned task context menu should be defined');
+				assert.ok(pinnedTaskRemoveMenu, 'Remove pinned task context menu should be defined');
+				assert.ok(pinTaskMenu, 'Pin task context menu should be defined');
+			}
+		});
+
+		test('should have PinnedMakefileTasksTreeProvider methods', () => {
+			const { PinnedMakefileTasksTreeProvider } = require('../pinnedMakefileTasksTreeProvider');
+
+			// Create a provider instance
+			const provider = new PinnedMakefileTasksTreeProvider();
+
+			// Verify the methods exist
+			assert.strictEqual(typeof provider.setStateManager, 'function',
+				'PinnedMakefileTasksTreeProvider should have setStateManager method');
+			assert.strictEqual(typeof provider.loadPersistedState, 'function',
+				'PinnedMakefileTasksTreeProvider should have loadPersistedState method');
+			assert.strictEqual(typeof provider.addPinnedTask, 'function',
+				'PinnedMakefileTasksTreeProvider should have addPinnedTask method');
+			assert.strictEqual(typeof provider.removePinnedTask, 'function',
+				'PinnedMakefileTasksTreeProvider should have removePinnedTask method');
+			assert.strictEqual(typeof provider.showAddTaskQuickPick, 'function',
+				'PinnedMakefileTasksTreeProvider should have showAddTaskQuickPick method');
+		});
+
+		test('should support state persistence for pinned tasks', () => {
+			const { StateManager } = require('../stateManager');
+			const mockContext = { globalState: { get: () => undefined, update: () => Promise.resolve() } };
+			const mockFolder = { uri: { fsPath: '/test' }, name: 'test' };
+
+			const stateManager = new StateManager(mockContext, mockFolder);
+
+			// Verify StateManager has the pinned tasks state methods
+			assert.strictEqual(typeof stateManager.getPinnedMakefileTasks, 'function',
+				'StateManager should have getPinnedMakefileTasks method');
+			assert.strictEqual(typeof stateManager.setPinnedMakefileTasks, 'function',
+				'StateManager should have setPinnedMakefileTasks method');
+		});
+
+		test('should have view title menu entry for add button', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const viewTitleMenus = packageJson.contributes?.menus?.['view/title'] || [];
+
+				const addPinnedTaskMenu = viewTitleMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.pinnedMakefileTasks.add' &&
+					menu.when === 'view == cargoToolsPinnedMakefileTasks'
+				);
+
+				assert.ok(addPinnedTaskMenu, 'Add pinned task view title menu should be defined');
+			}
+		});
+	});
 });

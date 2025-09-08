@@ -9,6 +9,7 @@ import { StatusBarProvider } from './statusBarProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
+import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { StateManager } from './stateManager';
 
 /**
@@ -34,6 +35,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     private projectOutlineTreeProvider?: ProjectOutlineTreeProvider;
     private projectStatusTreeProvider?: ProjectStatusTreeProvider;
     private makefileTreeProvider?: MakefileTreeProvider;
+    private pinnedMakefileTasksTreeProvider?: PinnedMakefileTasksTreeProvider;
     private stateManager?: StateManager;
 
     // Configuration management
@@ -196,10 +198,11 @@ export class CargoExtensionManager implements vscode.Disposable {
     /**
      * Register tree providers with the extension manager for command access
      */
-    public registerTreeProviders(projectOutlineProvider: ProjectOutlineTreeProvider, projectStatusProvider: ProjectStatusTreeProvider, makefileProvider?: MakefileTreeProvider): void {
+    public registerTreeProviders(projectOutlineProvider: ProjectOutlineTreeProvider, projectStatusProvider: ProjectStatusTreeProvider, makefileProvider?: MakefileTreeProvider, pinnedMakefileTasksProvider?: PinnedMakefileTasksTreeProvider): void {
         this.projectOutlineTreeProvider = projectOutlineProvider;
         this.projectStatusTreeProvider = projectStatusProvider;
         this.makefileTreeProvider = makefileProvider;
+        this.pinnedMakefileTasksTreeProvider = pinnedMakefileTasksProvider;
 
         // Set up state management for tree providers if we have a state manager
         if (this.stateManager) {
@@ -211,6 +214,12 @@ export class CargoExtensionManager implements vscode.Disposable {
                 makefileProvider.setStateManager(this.stateManager);
                 // Load persisted state for the makefile provider
                 makefileProvider.loadPersistedState();
+            }
+
+            if (pinnedMakefileTasksProvider) {
+                pinnedMakefileTasksProvider.setStateManager(this.stateManager);
+                // Load persisted state for the pinned makefile tasks provider
+                pinnedMakefileTasksProvider.loadPersistedState();
             }
         }
     }

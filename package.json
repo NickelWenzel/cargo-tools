@@ -125,6 +125,30 @@
         "icon": "$(clear-all)"
       },
       {
+        "command": "cargo-tools.pinnedMakefileTasks.add",
+        "title": "Add Task",
+        "category": "Cargo Tools",
+        "icon": "$(add)"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.remove",
+        "title": "Remove Task",
+        "category": "Cargo Tools",
+        "icon": "$(remove)"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute",
+        "title": "Execute Task",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.makefile.pinTask",
+        "title": "Pin Task",
+        "category": "Cargo Tools",
+        "icon": "$(pin)"
+      },
+      {
         "command": "cargo-tools.projectStatus.build",
         "title": "Build",
         "category": "Cargo Tools",
@@ -314,6 +338,12 @@
           "name": "Makefile",
           "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile",
           "icon": "$(tools)"
+        },
+        {
+          "id": "cargoToolsPinnedMakefileTasks",
+          "name": "Pinned Makefile Tasks",
+          "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile",
+          "icon": "$(pin)"
         }
       ]
     },
@@ -368,6 +398,11 @@
           "command": "cargo-tools.makefile.clearTaskFilter",
           "when": "view == cargoToolsMakefile",
           "group": "navigation@3"
+        },
+        {
+          "command": "cargo-tools.pinnedMakefileTasks.add",
+          "when": "view == cargoToolsPinnedMakefileTasks",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -525,6 +560,21 @@
           "command": "cargo-tools.makefile.runTask",
           "when": "view == cargoToolsMakefile && viewItem == makefileTask",
           "group": "inline@1"
+        },
+        {
+          "command": "cargo-tools.makefile.pinTask",
+          "when": "view == cargoToolsMakefile && viewItem == makefileTask",
+          "group": "context@1"
+        },
+        {
+          "command": "cargo-tools.pinnedMakefileTasks.execute",
+          "when": "view == cargoToolsPinnedMakefileTasks && viewItem == pinned-task",
+          "group": "inline@1"
+        },
+        {
+          "command": "cargo-tools.pinnedMakefileTasks.remove",
+          "when": "view == cargoToolsPinnedMakefileTasks && viewItem == pinned-task",
+          "group": "context@1"
         }
       ],
       "commandPalette": [
@@ -606,6 +656,26 @@
         },
         {
           "command": "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.makefile.runTask",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.makefile.pinTask",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.pinnedMakefileTasks.add",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.pinnedMakefileTasks.remove",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.pinnedMakefileTasks.execute",
           "when": "never"
         }
       ]
