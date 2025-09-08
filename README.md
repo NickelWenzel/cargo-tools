@@ -23,6 +23,18 @@ A comprehensive Visual Studio Code extension that provides advanced Rust/Cargo d
 - **Visual Indicators**: Icons and descriptions for different target types (bin, lib, example, test, bench)
 - **Direct File Access**: Click any target to open its source file
 - **Context Menus**: Right-click targets for build, run, test, debug actions
+- **Advanced Filtering**: Filter by workspace member and target type with real-time preview
+- **Customizable Grouping**: Toggle between workspace member and target type organization
+
+### 💾 State Persistence
+- **Session Memory**: Remembers your selections across VS Code sessions
+- **Workspace-Specific**: Each workspace maintains its own state independently  
+- **Multi-Project Support**: Different behavior for single vs multi-project workspaces
+- **Preserved Settings**:
+  - Selected package, build/run/benchmark targets, platform target
+  - Selected features and build profile
+  - Project outline filters and grouping preferences
+  - Target type filters and workspace member filters
 
 ## Getting Started
 
@@ -70,6 +82,16 @@ Configure the grouping with: `cargoTools.groupTargetsByWorkspaceMember`
 
 - **`defaultProfile`**: Choose between "dev" and "release" build profiles
 - **`features`**: Default features to enable for builds
+
+### State Persistence
+
+The extension automatically persists the following preferences across VS Code sessions:
+
+- **Project Status View**: Selected build profile and target
+- **Project Outline View**: Filter settings and workspace member grouping
+- **Per-Workspace**: State is unique to each workspace/project
+
+Persisted state is workspace-specific and automatically restored when reopening projects.
 
 ## Commands
 
