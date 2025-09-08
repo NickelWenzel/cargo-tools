@@ -8,6 +8,7 @@ import { CargoConfigurationReader } from './cargoConfigurationReader';
 import { StatusBarProvider } from './statusBarProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
+import { StateManager } from './stateManager';
 
 /**
  * Generates a unique correlation ID for tracking commands and operations
@@ -31,6 +32,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     private statusBarProvider?: StatusBarProvider;
     private projectOutlineTreeProvider?: ProjectOutlineTreeProvider;
     private projectStatusTreeProvider?: ProjectStatusTreeProvider;
+    private stateManager?: StateManager;
 
     // Configuration management
     private readonly workspaceConfig: CargoConfigurationReader = CargoConfigurationReader.create();
@@ -195,6 +197,13 @@ export class CargoExtensionManager implements vscode.Disposable {
     public registerTreeProviders(projectOutlineProvider: ProjectOutlineTreeProvider, projectStatusProvider: ProjectStatusTreeProvider): void {
         this.projectOutlineTreeProvider = projectOutlineProvider;
         this.projectStatusTreeProvider = projectStatusProvider;
+
+        // Set up state management for tree providers if we have a state manager
+        if (this.stateManager) {
+            projectOutlineProvider.setStateManager(this.stateManager);
+            // Load persisted state for the project outline provider
+            projectOutlineProvider.loadPersistedState();
+        }
     }
 
     /**
@@ -445,11 +454,23 @@ export class CargoExtensionManager implements vscode.Disposable {
                 return;
             }
 
+            // Create state manager for this workspace
+            this.stateManager = new StateManager(this.extensionContext, workspaceFolder);
+
             this.cargoWorkspace = new CargoWorkspace(workspaceFolder.uri.fsPath);
             await this.cargoWorkspace.initialize();
 
+            // Load persisted state
+            await this.loadPersistedState(workspaceFolder);
+
             // Initialize workspace-dependent components
             await this.initializeWorkspaceComponents();
+
+            // Set up state management for tree providers if they're already registered
+            if (this.projectOutlineTreeProvider) {
+                this.projectOutlineTreeProvider.setStateManager(this.stateManager);
+                await this.projectOutlineTreeProvider.loadPersistedState();
+            }
 
             // Set up workspace event subscriptions
             this.setupWorkspaceSubscriptions();
@@ -473,41 +494,49 @@ export class CargoExtensionManager implements vscode.Disposable {
         const targetChangedSub = this.cargoWorkspace.onDidChangeTarget((target: CargoTarget | null) => {
             console.log('Target changed:', target?.name || 'none');
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const profileChangedSub = this.cargoWorkspace.onDidChangeProfile((profile: CargoProfile) => {
             console.log('Profile changed:', CargoProfile.getDisplayName(profile));
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const packageChangedSub = this.cargoWorkspace.onDidChangeSelectedPackage((packageName: string | undefined) => {
             console.log('Package changed:', packageName || 'No selection');
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const buildTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBuildTarget((targetName: string | null) => {
             console.log('Build target changed:', targetName || 'none');
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const runTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedRunTarget((targetName: string | null) => {
             console.log('Run target changed:', targetName || 'none');
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const benchmarkTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBenchmarkTarget((targetName: string | null) => {
             console.log('Benchmark target changed:', targetName || 'none');
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const platformTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedPlatformTarget((targetTriple: string | null) => {
             console.log('Platform target changed:', targetTriple || 'none');
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const featuresChangedSub = this.cargoWorkspace.onDidChangeSelectedFeatures((features: Set<string>) => {
             console.log('Features changed:', Array.from(features));
             this.updateStatusBar();
+            this.saveCurrentState(); // Persist state changes
         });
 
         const targetsChangedSub = this.cargoWorkspace.onDidChangeTargets((targets: CargoTarget[]) => {
@@ -634,6 +663,99 @@ export class CargoExtensionManager implements vscode.Disposable {
     private disposeWorkspaceSubscriptions(): void {
         this.workspaceSubscriptions.forEach(sub => sub.dispose());
         this.workspaceSubscriptions = [];
+    }
+
+    /**
+     * Load persisted state from previous sessions and apply it to the workspace
+     */
+    private async loadPersistedState(workspaceFolder: vscode.WorkspaceFolder): Promise<void> {
+        if (!this.stateManager || !this.cargoWorkspace) {
+            return;
+        }
+
+        try {
+            const folderName = workspaceFolder.name;
+            const isMultiProject = (vscode.workspace.workspaceFolders?.length || 0) > 1;
+
+            // Load Project Status View state
+            const selectedPackage = this.stateManager.getSelectedPackage(folderName, isMultiProject);
+            const selectedBuildTarget = this.stateManager.getSelectedBuildTarget(folderName, isMultiProject);
+            const selectedRunTarget = this.stateManager.getSelectedRunTarget(folderName, isMultiProject);
+            const selectedBenchmarkTarget = this.stateManager.getSelectedBenchmarkTarget(folderName, isMultiProject);
+            const selectedPlatformTarget = this.stateManager.getSelectedPlatformTarget(folderName, isMultiProject);
+            const selectedFeatures = this.stateManager.getSelectedFeatures(folderName, isMultiProject);
+            const selectedProfile = this.stateManager.getSelectedProfile(folderName, isMultiProject);
+
+            // Apply persisted state to workspace
+            if (selectedPackage !== undefined) {
+                this.cargoWorkspace.setSelectedPackage(selectedPackage);
+            }
+            if (selectedBuildTarget !== null) {
+                this.cargoWorkspace.setSelectedBuildTarget(selectedBuildTarget);
+            }
+            if (selectedRunTarget !== null) {
+                this.cargoWorkspace.setSelectedRunTarget(selectedRunTarget);
+            }
+            if (selectedBenchmarkTarget !== null) {
+                this.cargoWorkspace.setSelectedBenchmarkTarget(selectedBenchmarkTarget);
+            }
+            if (selectedPlatformTarget !== null) {
+                this.cargoWorkspace.setSelectedPlatformTarget(selectedPlatformTarget);
+            }
+            if (selectedFeatures.length > 0) {
+                this.cargoWorkspace.setSelectedFeatures(new Set(selectedFeatures));
+            }
+            if (selectedProfile !== null) {
+                const profile = CargoProfile.fromString(selectedProfile);
+                if (profile) {
+                    this.cargoWorkspace.setProfile(profile);
+                }
+            }
+
+            // Load Project Outline View state
+            const groupByWorkspaceMember = this.stateManager.getGroupByWorkspaceMember(folderName, isMultiProject);
+            const workspaceMemberFilter = this.stateManager.getWorkspaceMemberFilter(folderName, isMultiProject);
+            const targetTypeFilter = this.stateManager.getTargetTypeFilter(folderName, isMultiProject);
+            const isTargetTypeFilterActive = this.stateManager.getIsTargetTypeFilterActive(folderName, isMultiProject);
+            const showFeatures = this.stateManager.getShowFeatures(folderName, isMultiProject);
+
+            // Apply filter state to project outline tree provider (will be done when initializing components)
+            console.log('Loaded persisted state for workspace:', folderName);
+        } catch (error) {
+            console.error('Failed to load persisted state:', error);
+        }
+    }
+
+    /**
+     * Save current state when it changes
+     */
+    private async saveCurrentState(): Promise<void> {
+        if (!this.stateManager || !this.cargoWorkspace) {
+            return;
+        }
+
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                return;
+            }
+
+            const folderName = workspaceFolder.name;
+            const isMultiProject = (vscode.workspace.workspaceFolders?.length || 0) > 1;
+
+            // Save Project Status View state
+            await this.stateManager.setSelectedPackage(folderName, this.cargoWorkspace.selectedPackage, isMultiProject);
+            await this.stateManager.setSelectedBuildTarget(folderName, this.cargoWorkspace.selectedBuildTarget, isMultiProject);
+            await this.stateManager.setSelectedRunTarget(folderName, this.cargoWorkspace.selectedRunTarget, isMultiProject);
+            await this.stateManager.setSelectedBenchmarkTarget(folderName, this.cargoWorkspace.selectedBenchmarkTarget, isMultiProject);
+            await this.stateManager.setSelectedPlatformTarget(folderName, this.cargoWorkspace.selectedPlatformTarget, isMultiProject);
+            await this.stateManager.setSelectedFeatures(folderName, Array.from(this.cargoWorkspace.selectedFeatures), isMultiProject);
+            await this.stateManager.setSelectedProfile(folderName, CargoProfile.toString(this.cargoWorkspace.currentProfile), isMultiProject);
+
+            // Save Project Outline View state (will be saved when tree provider state changes)
+        } catch (error) {
+            console.error('Failed to save current state:', error);
+        }
     }
 
     // Command implementations

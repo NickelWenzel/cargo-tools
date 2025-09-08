@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTarget } from './cargoTarget';
+import { StateManager } from './stateManager';
 
 export class ProjectOutlineNode extends vscode.TreeItem {
     constructor(
@@ -27,6 +28,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     readonly onDidChangeTreeData: vscode.Event<ProjectOutlineNode | undefined | null | void> = this._onDidChangeTreeData.event;
 
     private workspace?: CargoWorkspace;
+    private stateManager?: StateManager;
     private groupByWorkspaceMember: boolean = true;
     private isRefreshing = false;
     private subscriptions: vscode.Disposable[] = [];
@@ -75,6 +77,71 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         }
 
         this.refresh();
+    }
+
+    /**
+     * Set the state manager for persisting view state
+     */
+    setStateManager(stateManager: StateManager): void {
+        this.stateManager = stateManager;
+    }
+
+    /**
+     * Load filter and grouping state from persistence
+     */
+    async loadPersistedState(): Promise<void> {
+        if (!this.stateManager) {
+            return;
+        }
+
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                return;
+            }
+
+            const folderName = workspaceFolder.name;
+            const isMultiProject = (vscode.workspace.workspaceFolders?.length || 0) > 1;
+
+            // Load persisted filter and grouping state
+            this.groupByWorkspaceMember = this.stateManager.getGroupByWorkspaceMember(folderName, isMultiProject);
+            this.workspaceMemberFilter = this.stateManager.getWorkspaceMemberFilter(folderName, isMultiProject);
+            this.targetTypeFilter = new Set(this.stateManager.getTargetTypeFilter(folderName, isMultiProject));
+            this.isTargetTypeFilterActive = this.stateManager.getIsTargetTypeFilterActive(folderName, isMultiProject);
+            this.showFeatures = this.stateManager.getShowFeatures(folderName, isMultiProject);
+
+            console.log('Loaded persisted outline view state for workspace:', folderName);
+        } catch (error) {
+            console.error('Failed to load persisted outline view state:', error);
+        }
+    }
+
+    /**
+     * Save current filter and grouping state to persistence
+     */
+    async saveCurrentState(): Promise<void> {
+        if (!this.stateManager) {
+            return;
+        }
+
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                return;
+            }
+
+            const folderName = workspaceFolder.name;
+            const isMultiProject = (vscode.workspace.workspaceFolders?.length || 0) > 1;
+
+            // Save current filter and grouping state
+            await this.stateManager.setGroupByWorkspaceMember(folderName, this.groupByWorkspaceMember, isMultiProject);
+            await this.stateManager.setWorkspaceMemberFilter(folderName, this.workspaceMemberFilter, isMultiProject);
+            await this.stateManager.setTargetTypeFilter(folderName, Array.from(this.targetTypeFilter), isMultiProject);
+            await this.stateManager.setIsTargetTypeFilterActive(folderName, this.isTargetTypeFilterActive, isMultiProject);
+            await this.stateManager.setShowFeatures(folderName, this.showFeatures, isMultiProject);
+        } catch (error) {
+            console.error('Failed to save outline view state:', error);
+        }
     }
 
     getTreeItem(element: ProjectOutlineNode): vscode.TreeItem {
@@ -613,6 +680,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             this.workspaceMemberFilter = quickPick.value.trim();
 
             this.refresh();
+            this.saveCurrentState(); // Persist filter changes
             quickPick.hide();
         });
 
@@ -701,6 +769,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 clearTimeout(this.filterUpdateTimer);
             }
             wasAccepted = true;
+            this.saveCurrentState(); // Persist filter changes
             quickPick.hide();
         });
 
@@ -727,6 +796,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     public clearWorkspaceMemberFilter(): void {
         this.workspaceMemberFilter = '';
         this.refresh();
+        this.saveCurrentState(); // Persist filter changes
     }
 
     public clearTargetTypeFilter(): void {
@@ -734,6 +804,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         this.showFeatures = true;
         this.isTargetTypeFilterActive = false;
         this.refresh();
+        this.saveCurrentState(); // Persist filter changes
     }
 
     public clearAllFilters(): void {
@@ -742,11 +813,13 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         this.showFeatures = true;
         this.isTargetTypeFilterActive = false;
         this.refresh();
+        this.saveCurrentState(); // Persist filter changes
     }
 
     public toggleWorkspaceMemberGrouping(): void {
         this.groupByWorkspaceMember = !this.groupByWorkspaceMember;
         this.refresh();
+        this.saveCurrentState(); // Persist grouping changes
     }
 
     // Apply filters to workspace members
