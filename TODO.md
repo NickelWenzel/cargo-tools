@@ -1,7 +1,3 @@
-* cargo make (Makefile.toml) support
-    * discover tasks
-    * task view by category
-    * package selection
 * investigate key kindings/short cuts for common tasks (build, run, test)
 * create extension icon (rust logo with wrench on the lower right corner)
 * extension documentation
