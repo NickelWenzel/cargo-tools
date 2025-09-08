@@ -199,6 +199,19 @@ export class StateManager {
         await this._update('isMakefileCategoryFilterActive', isActive, folderName, isMultiProject);
     }
 
+    // Pinned Makefile Tasks State - List of pinned makefile tasks
+
+    /**
+     * The list of pinned makefile tasks
+     */
+    getPinnedMakefileTasks(folderName: string, isMultiProject: boolean): string[] {
+        return this._get<string[]>('pinnedMakefileTasks', folderName, isMultiProject) || [];
+    }
+
+    async setPinnedMakefileTasks(folderName: string, tasks: string[], isMultiProject: boolean) {
+        await this._update('pinnedMakefileTasks', tasks, folderName, isMultiProject);
+    }
+
     /**
      * Reset all current workspace state. Mostly for troubleshooting
      */
@@ -223,5 +236,8 @@ export class StateManager {
         await this.setMakefileTaskFilter(folderName, '', isMultiProject);
         await this.setMakefileCategoryFilter(folderName, [], isMultiProject);
         await this.setIsMakefileCategoryFilterActive(folderName, false, isMultiProject);
+
+        // Pinned Makefile Tasks state
+        await this.setPinnedMakefileTasks(folderName, [], isMultiProject);
     }
 }

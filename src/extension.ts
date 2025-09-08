@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
+import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
 
 let extensionManager: CargoExtensionManager | undefined;
@@ -63,14 +64,16 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	const projectStatusProvider = new ProjectStatusTreeProvider();
 	const projectOutlineProvider = new ProjectOutlineTreeProvider();
 	const makefileProvider = new MakefileTreeProvider();
+	const pinnedMakefileTasksProvider = new PinnedMakefileTasksTreeProvider();
 
 	// Update providers with workspace
 	projectStatusProvider.updateWorkspace(cargoWorkspace);
 	projectOutlineProvider.updateWorkspace(cargoWorkspace);
 	makefileProvider.updateWorkspace(cargoWorkspace);
+	pinnedMakefileTasksProvider.updateWorkspace(cargoWorkspace);
 
 	// Register tree providers with extension manager for command access
-	extensionManager.registerTreeProviders(projectOutlineProvider, projectStatusProvider, makefileProvider);
+	extensionManager.registerTreeProviders(projectOutlineProvider, projectStatusProvider, makefileProvider, pinnedMakefileTasksProvider);
 
 	// Register new tree views
 	vscode.window.createTreeView('cargoToolsProjectStatus', {
@@ -88,6 +91,12 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	vscode.window.createTreeView('cargoToolsMakefile', {
 		treeDataProvider: makefileProvider,
 		showCollapseAll: true,
+		canSelectMany: false
+	});
+
+	vscode.window.createTreeView('cargoToolsPinnedMakefileTasks', {
+		treeDataProvider: pinnedMakefileTasksProvider,
+		showCollapseAll: false,
 		canSelectMany: false
 	});
 
@@ -171,11 +180,74 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	context.subscriptions.push(showCategoryFilterDisposable);
 	context.subscriptions.push(clearCategoryFilterDisposable);
 
+	// Register pinned makefile tasks commands
+	const addPinnedTaskDisposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.add',
+		async () => {
+			await pinnedMakefileTasksProvider.showAddTaskQuickPick();
+		}
+	);
+
+	const removePinnedTaskDisposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.remove',
+		async (node: any) => {
+			if (node?.taskName) {
+				await pinnedMakefileTasksProvider.removePinnedTask(node.taskName);
+			}
+		}
+	);
+
+	const executePinnedTaskDisposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.execute',
+		async (node: any) => {
+			try {
+				if (!cargoWorkspace || !cargoWorkspace.hasMakefileToml) {
+					vscode.window.showErrorMessage('No Makefile.toml found in workspace');
+					return;
+				}
+
+				const taskName = node?.taskName;
+				if (!taskName) {
+					vscode.window.showErrorMessage('Unable to determine task name');
+					return;
+				}
+
+				// Show which task is being run
+				vscode.window.showInformationMessage(`Running cargo make task: ${taskName}`);
+
+				// Create a terminal and run the cargo make command
+				const terminal = vscode.window.createTerminal({
+					name: `cargo make ${taskName}`,
+					cwd: cargoWorkspace.workspaceRoot
+				});
+
+				terminal.sendText(`cargo make ${taskName}`);
+				terminal.show();
+
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Failed to run cargo make task: ${message}`);
+			}
+		}
+	);
+
+	const pinTaskDisposable = vscode.commands.registerCommand('cargo-tools.makefile.pinTask',
+		async (node: any) => {
+			const taskName = node?.data?.task?.name;
+			if (taskName) {
+				await pinnedMakefileTasksProvider.addPinnedTask(taskName);
+			}
+		}
+	);
+
+	context.subscriptions.push(addPinnedTaskDisposable);
+	context.subscriptions.push(removePinnedTaskDisposable);
+	context.subscriptions.push(executePinnedTaskDisposable);
+	context.subscriptions.push(pinTaskDisposable);
+
 	// Subscribe to workspace changes to update providers
 	cargoWorkspace.onDidChangeTargets(() => {
 		projectStatusProvider.refresh();
 		projectOutlineProvider.refresh();
 		makefileProvider.refresh();
+		pinnedMakefileTasksProvider.refresh();
 	});
 
 	cargoWorkspace.onDidChangeProfile(() => {
