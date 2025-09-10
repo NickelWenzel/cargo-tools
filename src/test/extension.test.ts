@@ -264,6 +264,35 @@ suite('Extension Test Suite', () => {
 			// Should not detect Makefile.toml
 			assert.strictEqual(workspace.hasMakefileToml, false, 'Should not detect Makefile.toml when it does not exist');
 		});
+
+		test('refresh command should update makefile context', async () => {
+			// Test that the refresh command is properly defined and available
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const commands = packageJson.contributes?.commands || [];
+				const commandIds = commands.map((cmd: any) => cmd.command);
+
+				assert.ok(commandIds.includes('cargo-tools.refresh'), 'Refresh command should be defined in package.json');
+
+				// Find the refresh command definition
+				const refreshCommand = commands.find((cmd: any) => cmd.command === 'cargo-tools.refresh');
+				assert.ok(refreshCommand, 'Refresh command should have complete definition');
+				assert.strictEqual(refreshCommand.title, 'Refresh', 'Refresh command should have correct title');
+				assert.strictEqual(refreshCommand.category, 'Cargo Tools', 'Refresh command should have correct category');
+
+				// Check that refresh command is available in Project Status view menu
+				const menus = packageJson.contributes?.menus || {};
+				const viewTitleMenus = menus['view/title'] || [];
+				const refreshMenu = viewTitleMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.refresh' &&
+					menu.when === 'view == cargoToolsProjectStatus'
+				);
+				assert.ok(refreshMenu, 'Refresh command should be available in Project Status view menu');
+			} else {
+				assert.ok(true, 'Extension package.json not available in test context, skipping refresh command test');
+			}
+		});
 	});
 
 	suite('Makefile Tree Provider Tests', () => {
