@@ -298,6 +298,30 @@
         "icon": "$(beaker)"
       },
       {
+        "command": "cargo-tools.projectOutline.cleanPackage",
+        "title": "Clean Package",
+        "category": "Cargo Tools",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.buildWorkspace",
+        "title": "Build Workspace",
+        "category": "Cargo Tools",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.testWorkspace",
+        "title": "Test Workspace",
+        "category": "Cargo Tools",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "cargo-tools.projectOutline.cleanWorkspace",
+        "title": "Clean Workspace",
+        "category": "Cargo Tools",
+        "icon": "$(trash)"
+      },
+      {
         "command": "cargo-tools.projectOutline.buildTarget",
         "title": "Build Target",
         "category": "Cargo Tools",
@@ -521,6 +545,26 @@
           "group": "actions@2"
         },
         {
+          "command": "cargo-tools.projectOutline.cleanPackage",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
+          "group": "actions@3"
+        },
+        {
+          "command": "cargo-tools.projectOutline.buildWorkspace",
+          "when": "view == cargoToolsProjectOutline && viewItem == project",
+          "group": "actions@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.testWorkspace",
+          "when": "view == cargoToolsProjectOutline && viewItem == project",
+          "group": "actions@2"
+        },
+        {
+          "command": "cargo-tools.projectOutline.cleanWorkspace",
+          "when": "view == cargoToolsProjectOutline && viewItem == project",
+          "group": "actions@3"
+        },
+        {
           "command": "cargo-tools.projectOutline.buildTarget",
           "when": "view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/",
           "group": "actions@1"
@@ -549,6 +593,26 @@
           "command": "cargo-tools.projectOutline.testPackage",
           "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
           "group": "inline@2"
+        },
+        {
+          "command": "cargo-tools.projectOutline.cleanPackage",
+          "when": "view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/",
+          "group": "inline@3"
+        },
+        {
+          "command": "cargo-tools.projectOutline.buildWorkspace",
+          "when": "view == cargoToolsProjectOutline && viewItem == project",
+          "group": "inline@1"
+        },
+        {
+          "command": "cargo-tools.projectOutline.testWorkspace",
+          "when": "view == cargoToolsProjectOutline && viewItem == project",
+          "group": "inline@2"
+        },
+        {
+          "command": "cargo-tools.projectOutline.cleanWorkspace",
+          "when": "view == cargoToolsProjectOutline && viewItem == project",
+          "group": "inline@3"
         },
         {
           "command": "cargo-tools.projectOutline.buildTarget",

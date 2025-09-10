@@ -54,6 +54,10 @@ suite('Extension Test Suite', () => {
 				// Check for new project outline action commands
 				assert.ok(commandIds.includes('cargo-tools.projectOutline.buildPackage'), 'projectOutline.buildPackage command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.projectOutline.testPackage'), 'projectOutline.testPackage command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.cleanPackage'), 'projectOutline.cleanPackage command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.buildWorkspace'), 'projectOutline.buildWorkspace command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.testWorkspace'), 'projectOutline.testWorkspace command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.projectOutline.cleanWorkspace'), 'projectOutline.cleanWorkspace command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.projectOutline.buildTarget'), 'projectOutline.buildTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.projectOutline.runTarget'), 'projectOutline.runTarget command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.projectOutline.benchTarget'), 'projectOutline.benchTarget command should be defined');
@@ -864,6 +868,119 @@ suite('Extension Test Suite', () => {
 				);
 				assert.ok(cleanMenu, 'Clean command should be available in Project Status view menu');
 				assert.strictEqual(cleanMenu.group, 'navigation', 'Clean button should be in navigation group');
+			} else {
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
+	});
+
+	suite('Project Outline Command Integration Tests', () => {
+		test('should have package action commands with correct properties', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const commands = packageJson.contributes?.commands || [];
+
+				// Test clean package command
+				const cleanPackageCommand = commands.find((cmd: any) => cmd.command === 'cargo-tools.projectOutline.cleanPackage');
+				assert.ok(cleanPackageCommand, 'Clean package command should be defined');
+				assert.strictEqual(cleanPackageCommand.title, 'Clean Package', 'Clean package command should have correct title');
+				assert.strictEqual(cleanPackageCommand.category, 'Cargo Tools', 'Clean package command should have correct category');
+				assert.strictEqual(cleanPackageCommand.icon, '$(trash)', 'Clean package command should have trash icon');
+			} else {
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
+
+		test('should have workspace action commands with correct properties', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const commands = packageJson.contributes?.commands || [];
+
+				// Test workspace commands
+				const buildWorkspaceCommand = commands.find((cmd: any) => cmd.command === 'cargo-tools.projectOutline.buildWorkspace');
+				assert.ok(buildWorkspaceCommand, 'Build workspace command should be defined');
+				assert.strictEqual(buildWorkspaceCommand.title, 'Build Workspace', 'Build workspace command should have correct title');
+				assert.strictEqual(buildWorkspaceCommand.icon, '$(tools)', 'Build workspace command should have tools icon');
+
+				const testWorkspaceCommand = commands.find((cmd: any) => cmd.command === 'cargo-tools.projectOutline.testWorkspace');
+				assert.ok(testWorkspaceCommand, 'Test workspace command should be defined');
+				assert.strictEqual(testWorkspaceCommand.title, 'Test Workspace', 'Test workspace command should have correct title');
+				assert.strictEqual(testWorkspaceCommand.icon, '$(beaker)', 'Test workspace command should have beaker icon');
+
+				const cleanWorkspaceCommand = commands.find((cmd: any) => cmd.command === 'cargo-tools.projectOutline.cleanWorkspace');
+				assert.ok(cleanWorkspaceCommand, 'Clean workspace command should be defined');
+				assert.strictEqual(cleanWorkspaceCommand.title, 'Clean Workspace', 'Clean workspace command should have correct title');
+				assert.strictEqual(cleanWorkspaceCommand.icon, '$(trash)', 'Clean workspace command should have trash icon');
+			} else {
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
+
+		test('should have package context menu entries', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const menus = packageJson.contributes?.menus || {};
+				const viewItemContextMenus = menus['view/item/context'] || [];
+
+				// Test workspace member clean context menu
+				const cleanPackageContextMenu = viewItemContextMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.projectOutline.cleanPackage' &&
+					menu.when === 'view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/'
+				);
+				assert.ok(cleanPackageContextMenu, 'Clean package command should be available in workspace member context menu');
+				assert.strictEqual(cleanPackageContextMenu.group, 'actions@3', 'Clean package button should be in actions group');
+
+				// Test workspace member clean inline menu
+				const cleanPackageInlineMenu = viewItemContextMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.projectOutline.cleanPackage' &&
+					menu.when === 'view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/' &&
+					menu.group === 'inline@3'
+				);
+				assert.ok(cleanPackageInlineMenu, 'Clean package command should be available as inline button for workspace members');
+			} else {
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
+
+		test('should have workspace root context menu entries', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const menus = packageJson.contributes?.menus || {};
+				const viewItemContextMenus = menus['view/item/context'] || [];
+
+				// Test workspace root build context menu
+				const buildWorkspaceContextMenu = viewItemContextMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.projectOutline.buildWorkspace' &&
+					menu.when === 'view == cargoToolsProjectOutline && viewItem == project'
+				);
+				assert.ok(buildWorkspaceContextMenu, 'Build workspace command should be available in project root context menu');
+				assert.strictEqual(buildWorkspaceContextMenu.group, 'actions@1', 'Build workspace button should be in actions group');
+
+				// Test workspace root inline menus
+				const buildWorkspaceInlineMenu = viewItemContextMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.projectOutline.buildWorkspace' &&
+					menu.when === 'view == cargoToolsProjectOutline && viewItem == project' &&
+					menu.group === 'inline@1'
+				);
+				assert.ok(buildWorkspaceInlineMenu, 'Build workspace command should be available as inline button for project root');
+
+				const testWorkspaceInlineMenu = viewItemContextMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.projectOutline.testWorkspace' &&
+					menu.when === 'view == cargoToolsProjectOutline && viewItem == project' &&
+					menu.group === 'inline@2'
+				);
+				assert.ok(testWorkspaceInlineMenu, 'Test workspace command should be available as inline button for project root');
+
+				const cleanWorkspaceInlineMenu = viewItemContextMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.projectOutline.cleanWorkspace' &&
+					menu.when === 'view == cargoToolsProjectOutline && viewItem == project' &&
+					menu.group === 'inline@3'
+				);
+				assert.ok(cleanWorkspaceInlineMenu, 'Clean workspace command should be available as inline button for project root');
 			} else {
 				assert.ok(true, 'Extension package.json not available in test context');
 			}
