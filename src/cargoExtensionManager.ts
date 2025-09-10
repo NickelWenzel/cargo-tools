@@ -593,6 +593,9 @@ export class CargoExtensionManager implements vscode.Disposable {
         // Update status bar with current selections
         this.updateStatusBar();
 
+        // Update makefile context
+        await this.updateMakefileContext();
+
         // Tree providers refresh themselves through event subscriptions
         console.log('UI components updated');
     }
@@ -1296,9 +1299,22 @@ export class CargoExtensionManager implements vscode.Disposable {
         await this.setTarget(TargetActionType.Bench, target);
     }
 
+    /**
+     * Update the makefile context based on current workspace state
+     */
+    private async updateMakefileContext(): Promise<void> {
+        if (this.cargoWorkspace) {
+            const hasMakefile = this.cargoWorkspace.hasMakefileToml;
+            await vscode.commands.executeCommand('setContext', 'cargoTools:workspaceHasMakefile', hasMakefile);
+            console.log(`Context updated: cargoTools:workspaceHasMakefile = ${hasMakefile}`);
+        }
+    }
+
     async refresh(): Promise<void> {
         if (this.cargoWorkspace) {
             await this.cargoWorkspace.initialize();
+            // Update makefile context after workspace refresh
+            await this.updateMakefileContext();
             vscode.window.showInformationMessage('Cargo workspace refreshed');
         }
     }
