@@ -297,6 +297,84 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 	context.subscriptions.push(executePinnedTaskDisposable);
 	context.subscriptions.push(pinTaskDisposable);
 
+	// Helper function to execute a pinned task by its index position
+	async function executePinnedTaskByIndex(index: number, workspace: any, provider: any): Promise<void> {
+		try {
+			if (!workspace || !workspace.hasMakefileToml) {
+				vscode.window.showErrorMessage('No Makefile.toml found in workspace');
+				return;
+			}
+
+			const pinnedTasks = provider.getPinnedTasks();
+			if (pinnedTasks.length === 0) {
+				vscode.window.showErrorMessage('No pinned makefile tasks found');
+				return;
+			}
+
+			if (index >= pinnedTasks.length) {
+				const position = ['1st', '2nd', '3rd', '4th', '5th'][index] || `${index + 1}th`;
+				vscode.window.showErrorMessage(`No ${position} pinned task found. Only ${pinnedTasks.length} task(s) are pinned.`);
+				return;
+			}
+
+			const taskName = pinnedTasks[index];
+			const position = ['1st', '2nd', '3rd', '4th', '5th'][index] || `${index + 1}th`;
+
+			// Show which task is being run
+			vscode.window.showInformationMessage(`Running ${position} pinned cargo make task: ${taskName}`);
+
+			// Create a terminal and run the cargo make command
+			const terminal = vscode.window.createTerminal({
+				name: `cargo make ${taskName}`,
+				cwd: workspace.workspaceRoot
+			});
+
+			terminal.sendText(`cargo make ${taskName}`);
+			terminal.show();
+
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			vscode.window.showErrorMessage(`Failed to run pinned cargo make task: ${message}`);
+		}
+	}
+
+	// Register pinned makefile task execution commands for specific positions (1st to 5th)
+	const executePinnedTask1Disposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.execute1',
+		async () => {
+			await executePinnedTaskByIndex(0, cargoWorkspace, pinnedMakefileTasksProvider);
+		}
+	);
+
+	const executePinnedTask2Disposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.execute2',
+		async () => {
+			await executePinnedTaskByIndex(1, cargoWorkspace, pinnedMakefileTasksProvider);
+		}
+	);
+
+	const executePinnedTask3Disposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.execute3',
+		async () => {
+			await executePinnedTaskByIndex(2, cargoWorkspace, pinnedMakefileTasksProvider);
+		}
+	);
+
+	const executePinnedTask4Disposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.execute4',
+		async () => {
+			await executePinnedTaskByIndex(3, cargoWorkspace, pinnedMakefileTasksProvider);
+		}
+	);
+
+	const executePinnedTask5Disposable = vscode.commands.registerCommand('cargo-tools.pinnedMakefileTasks.execute5',
+		async () => {
+			await executePinnedTaskByIndex(4, cargoWorkspace, pinnedMakefileTasksProvider);
+		}
+	);
+
+	context.subscriptions.push(executePinnedTask1Disposable);
+	context.subscriptions.push(executePinnedTask2Disposable);
+	context.subscriptions.push(executePinnedTask3Disposable);
+	context.subscriptions.push(executePinnedTask4Disposable);
+	context.subscriptions.push(executePinnedTask5Disposable);
+
 	// Subscribe to workspace changes to update providers
 	cargoWorkspace.onDidChangeTargets(() => {
 		projectStatusProvider.refresh();
