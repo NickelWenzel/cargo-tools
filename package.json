@@ -857,6 +857,23 @@
           }
         }
       }
+    ],
+    "keybindings": [
+      {
+        "command": "cargo-tools.projectStatus.build",
+        "key": "f7",
+        "when": "cargoTools:workspaceHasCargo"
+      },
+      {
+        "command": "cargo-tools.projectStatus.run",
+        "key": "ctrl+shift+f5",
+        "when": "cargoTools:workspaceHasCargo"
+      },
+      {
+        "command": "cargo-tools.projectStatus.debug",
+        "key": "shift+f5",
+        "when": "cargoTools:workspaceHasCargo"
+      }
     ]
   },
   "scripts": {
