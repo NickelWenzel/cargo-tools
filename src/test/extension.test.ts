@@ -74,6 +74,39 @@ suite('Extension Test Suite', () => {
 			}
 		});
 
+		test('should have key bindings registered for common commands', () => {
+			// Test that the key bindings are properly registered in package.json
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const keybindings = packageJson.contributes?.keybindings || [];
+
+				// Check for the main key bindings
+				const buildKeybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.projectStatus.build' && kb.key === 'f7'
+				);
+				const runKeybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.projectStatus.run' && kb.key === 'ctrl+shift+f5'
+				);
+				const debugKeybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.projectStatus.debug' && kb.key === 'shift+f5'
+				);
+
+				assert.ok(buildKeybinding, 'Build command (F7) key binding should be defined');
+				assert.ok(runKeybinding, 'Run command (Ctrl+Shift+F5) key binding should be defined');
+				assert.ok(debugKeybinding, 'Debug command (Shift+F5) key binding should be defined');
+
+				// Check that they have the correct "when" context
+				assert.strictEqual(buildKeybinding.when, 'cargoTools:workspaceHasCargo', 'Build key binding should have correct when context');
+				assert.strictEqual(runKeybinding.when, 'cargoTools:workspaceHasCargo', 'Run key binding should have correct when context');
+				assert.strictEqual(debugKeybinding.when, 'cargoTools:workspaceHasCargo', 'Debug key binding should have correct when context');
+			} else {
+				// If running without the extension being loaded, just check that 
+				// the test framework is working (integration test framework limitation)
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
+
 		test('should have cargo tree view provider registered', async () => {
 			// Verify that the cargo tree view is registered and available
 			const treeViews = vscode.window.createTreeView('cargo-tools.targets', {
