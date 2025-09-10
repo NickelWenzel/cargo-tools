@@ -309,6 +309,10 @@ export class CargoExtensionManager implements vscode.Disposable {
             'projectOutline.toggleFeature',
             'projectOutline.buildPackage',
             'projectOutline.testPackage',
+            'projectOutline.cleanPackage',
+            'projectOutline.buildWorkspace',
+            'projectOutline.testWorkspace',
+            'projectOutline.cleanWorkspace',
             'projectOutline.buildTarget',
             'projectOutline.runTarget',
             'projectOutline.debugTarget',
@@ -2131,6 +2135,169 @@ export class CargoExtensionManager implements vscode.Disposable {
         } catch (error) {
             console.error('Package test failed:', error);
             vscode.window.showErrorMessage(`Test failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Clean a package directly without changing current selections
+     */
+    async projectOutline_cleanPackage(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider || !node?.data?.memberName) {
+            return;
+        }
+
+        const packageName = node.data.memberName;
+
+        try {
+            // Create task definition for package clean
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'clean',
+                packageName: packageName
+            };
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                `Clean ${packageName}`,
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage(`Cleaning package ${packageName}...`);
+            } else {
+                throw new Error('Failed to create clean task');
+            }
+        } catch (error) {
+            console.error('Package clean failed:', error);
+            vscode.window.showErrorMessage(`Clean failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Build the entire workspace without package specification
+     */
+    async projectOutline_buildWorkspace(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider) {
+            return;
+        }
+
+        try {
+            // Create task definition for workspace build
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'build'
+            };
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                'Build Workspace',
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage('Building workspace...');
+            } else {
+                throw new Error('Failed to create build task');
+            }
+        } catch (error) {
+            console.error('Workspace build failed:', error);
+            vscode.window.showErrorMessage(`Build failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Test the entire workspace without package specification
+     */
+    async projectOutline_testWorkspace(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider) {
+            return;
+        }
+
+        try {
+            // Create task definition for workspace test
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'test'
+            };
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                'Test Workspace',
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage('Testing workspace...');
+            } else {
+                throw new Error('Failed to create test task');
+            }
+        } catch (error) {
+            console.error('Workspace test failed:', error);
+            vscode.window.showErrorMessage(`Test failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Clean the entire workspace without package specification
+     */
+    async projectOutline_cleanWorkspace(node?: any): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider) {
+            return;
+        }
+
+        try {
+            // Create task definition for workspace clean
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'clean'
+            };
+
+            // Add current profile
+            if (this.cargoWorkspace.currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Create and execute the task
+            const task = this.taskProvider.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                'Clean Workspace',
+                'cargo'
+            ));
+
+            if (task) {
+                await vscode.tasks.executeTask(task);
+                vscode.window.showInformationMessage('Cleaning workspace...');
+            } else {
+                throw new Error('Failed to create clean task');
+            }
+        } catch (error) {
+            console.error('Workspace clean failed:', error);
+            vscode.window.showErrorMessage(`Clean failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
