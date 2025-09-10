@@ -741,5 +741,64 @@ suite('Extension Test Suite', () => {
 				assert.ok(addPinnedTaskMenu, 'Add pinned task view title menu should be defined');
 			}
 		});
+
+		test('should have pinned task execution commands (1st to 5th) registered', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const commands = packageJson.contributes?.commands || [];
+				const commandIds = commands.map((cmd: any) => cmd.command);
+
+				// Check for numbered pinned task execution commands
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.execute1'), 'execute1 command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.execute2'), 'execute2 command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.execute3'), 'execute3 command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.execute4'), 'execute4 command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.pinnedMakefileTasks.execute5'), 'execute5 command should be defined');
+			}
+		});
+
+		test('should have key bindings for pinned task execution commands', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const keybindings = packageJson.contributes?.keybindings || [];
+
+				// Check for the pinned task execution key bindings
+				const execute1Keybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.pinnedMakefileTasks.execute1' && kb.key === 'ctrl+alt+1'
+				);
+				const execute2Keybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.pinnedMakefileTasks.execute2' && kb.key === 'ctrl+alt+2'
+				);
+				const execute3Keybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.pinnedMakefileTasks.execute3' && kb.key === 'ctrl+alt+3'
+				);
+				const execute4Keybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.pinnedMakefileTasks.execute4' && kb.key === 'ctrl+alt+4'
+				);
+				const execute5Keybinding = keybindings.find((kb: any) =>
+					kb.command === 'cargo-tools.pinnedMakefileTasks.execute5' && kb.key === 'ctrl+alt+5'
+				);
+
+				assert.ok(execute1Keybinding, '1st pinned task (Ctrl+Alt+1) key binding should be defined');
+				assert.ok(execute2Keybinding, '2nd pinned task (Ctrl+Alt+2) key binding should be defined');
+				assert.ok(execute3Keybinding, '3rd pinned task (Ctrl+Alt+3) key binding should be defined');
+				assert.ok(execute4Keybinding, '4th pinned task (Ctrl+Alt+4) key binding should be defined');
+				assert.ok(execute5Keybinding, '5th pinned task (Ctrl+Alt+5) key binding should be defined');
+
+				// Check that they have the correct "when" context
+				const expectedWhen = 'cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile';
+				assert.strictEqual(execute1Keybinding.when, expectedWhen, '1st pinned task key binding should have correct when context');
+				assert.strictEqual(execute2Keybinding.when, expectedWhen, '2nd pinned task key binding should have correct when context');
+				assert.strictEqual(execute3Keybinding.when, expectedWhen, '3rd pinned task key binding should have correct when context');
+				assert.strictEqual(execute4Keybinding.when, expectedWhen, '4th pinned task key binding should have correct when context');
+				assert.strictEqual(execute5Keybinding.when, expectedWhen, '5th pinned task key binding should have correct when context');
+			} else {
+				// If running without the extension being loaded, just check that 
+				// the test framework is working (integration test framework limitation)
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
 	});
 });

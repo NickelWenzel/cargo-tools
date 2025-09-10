@@ -155,6 +155,36 @@
         "icon": "$(pin)"
       },
       {
+        "command": "cargo-tools.pinnedMakefileTasks.execute1",
+        "title": "Execute 1st Pinned Task",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute2",
+        "title": "Execute 2nd Pinned Task",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute3",
+        "title": "Execute 3rd Pinned Task",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute4",
+        "title": "Execute 4th Pinned Task",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute5",
+        "title": "Execute 5th Pinned Task",
+        "category": "Cargo Tools",
+        "icon": "$(play)"
+      },
+      {
         "command": "cargo-tools.projectStatus.build",
         "title": "Build",
         "category": "Cargo Tools",
@@ -873,6 +903,31 @@
         "command": "cargo-tools.projectStatus.debug",
         "key": "shift+f5",
         "when": "cargoTools:workspaceHasCargo"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute1",
+        "key": "ctrl+alt+1",
+        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute2",
+        "key": "ctrl+alt+2",
+        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute3",
+        "key": "ctrl+alt+3",
+        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute4",
+        "key": "ctrl+alt+4",
+        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+      },
+      {
+        "command": "cargo-tools.pinnedMakefileTasks.execute5",
+        "key": "ctrl+alt+5",
+        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       }
     ]
   },
