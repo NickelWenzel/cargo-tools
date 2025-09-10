@@ -92,97 +92,113 @@
         "command": "cargo-tools.makefile.runTask",
         "title": "Run Makefile Task",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.makefile.selectAndRunTask",
         "title": "Run Makefile Task...",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.makefile.setTaskFilter",
         "title": "Filter Tasks",
         "category": "Cargo Tools",
-        "icon": "$(filter)"
+        "icon": "$(filter)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.makefile.editTaskFilter",
         "title": "Edit Task Filter",
         "category": "Cargo Tools",
-        "icon": "$(edit)"
+        "icon": "$(edit)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.makefile.clearTaskFilter",
         "title": "Clear Task Filter",
         "category": "Cargo Tools",
-        "icon": "$(clear-all)"
+        "icon": "$(clear-all)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.makefile.showCategoryFilter",
         "title": "Filter Categories",
         "category": "Cargo Tools",
-        "icon": "$(symbol-class)"
+        "icon": "$(symbol-class)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.makefile.clearCategoryFilter",
         "title": "Clear Category Filter",
         "category": "Cargo Tools",
-        "icon": "$(clear-all)"
+        "icon": "$(clear-all)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.add",
         "title": "Add Task",
         "category": "Cargo Tools",
-        "icon": "$(add)"
+        "icon": "$(add)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.remove",
         "title": "Remove Task",
         "category": "Cargo Tools",
-        "icon": "$(remove)"
+        "icon": "$(remove)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.execute",
         "title": "Execute Task",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.makefile.pinTask",
         "title": "Pin Task",
         "category": "Cargo Tools",
-        "icon": "$(pin)"
+        "icon": "$(pin)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.execute1",
         "title": "Execute 1st Pinned Task",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.execute2",
         "title": "Execute 2nd Pinned Task",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.execute3",
         "title": "Execute 3rd Pinned Task",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.execute4",
         "title": "Execute 4th Pinned Task",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.pinnedMakefileTasks.execute5",
         "title": "Execute 5th Pinned Task",
         "category": "Cargo Tools",
-        "icon": "$(play)"
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
         "command": "cargo-tools.projectStatus.build",
