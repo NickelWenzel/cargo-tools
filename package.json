@@ -90,6 +90,12 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "cargo-tools.clean",
+        "title": "Clean Build Artifacts",
+        "category": "Cargo Tools",
+        "icon": "$(trash)"
+      },
+      {
         "command": "cargo-tools.makefile.runTask",
         "title": "Run Makefile Task",
         "category": "Cargo Tools",
@@ -404,6 +410,11 @@
       "view/title": [
         {
           "command": "cargo-tools.refresh",
+          "when": "view == cargoToolsProjectStatus",
+          "group": "navigation"
+        },
+        {
+          "command": "cargo-tools.clean",
           "when": "view == cargoToolsProjectStatus",
           "group": "navigation"
         },

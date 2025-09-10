@@ -283,6 +283,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             'selectFeatures',
             'toggleFeature',
             'refresh',
+            'clean',
             'executeDefaultBuild',
             'executeDefaultRun',
             'executeDefaultDebug',
@@ -1316,6 +1317,85 @@ export class CargoExtensionManager implements vscode.Disposable {
             // Update makefile context after workspace refresh
             await this.updateMakefileContext();
             vscode.window.showInformationMessage('Cargo workspace refreshed');
+        }
+    }
+
+    async clean(): Promise<void> {
+        if (!this.cargoWorkspace || !this.taskProvider) {
+            throw new Error('No cargo workspace or task provider available');
+        }
+
+        try {
+            const selectedPackage = this.cargoWorkspace.selectedPackage;
+            const currentProfile = this.cargoWorkspace.currentProfile;
+            const selectedPlatformTarget = this.cargoWorkspace.selectedPlatformTarget;
+
+            // Create task definition based on current selection
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'clean'
+            };
+
+            // Add package if selected (clean specific package)
+            if (selectedPackage && this.cargoWorkspace.isWorkspace) {
+                taskDefinition.packageName = selectedPackage;
+            }
+
+            // Add current profile (clean specific profile artifacts)
+            if (currentProfile.toString() === 'release') {
+                taskDefinition.profile = 'release';
+            }
+
+            // Note: Platform target (--target) is automatically handled by getCargoArgs() in cargoWorkspace
+            // Note: Features don't apply to clean command as it removes artifacts regardless of features
+
+            // Show progress indicator
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "Cleaning build artifacts...",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0 });
+
+                // Create and execute the task
+                const task = this.taskProvider!.resolveTask(new vscode.Task(
+                    taskDefinition,
+                    vscode.TaskScope.Workspace,
+                    'Clean',
+                    'cargo'
+                ));
+
+                if (task) {
+                    await vscode.tasks.executeTask(task);
+
+                    // Show appropriate message
+                    let message = 'Cleaning';
+                    if (selectedPackage) {
+                        message += ` ${selectedPackage}`;
+                    } else {
+                        message += ' all';
+                    }
+                    message += ' build artifacts';
+                    if (currentProfile.toString() === 'release') {
+                        message += ' (release profile)';
+                    } else {
+                        message += ' (dev profile)';
+                    }
+                    if (selectedPlatformTarget) {
+                        message += ` for ${selectedPlatformTarget}`;
+                    }
+                    message += '...';
+
+                    vscode.window.showInformationMessage(message);
+                    progress.report({ increment: 100 });
+                } else {
+                    throw new Error('Failed to create clean task');
+                }
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('Clean command failed:', error);
+            vscode.window.showErrorMessage(`Clean failed: ${message}`);
         }
     }
 

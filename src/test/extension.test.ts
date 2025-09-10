@@ -33,6 +33,7 @@ suite('Extension Test Suite', () => {
 				assert.ok(commandIds.includes('cargo-tools.selectFeatures'), 'selectFeatures command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.buildDocs'), 'buildDocs command should be defined');
 				assert.ok(commandIds.includes('cargo-tools.refresh'), 'refresh command should be defined');
+				assert.ok(commandIds.includes('cargo-tools.clean'), 'clean command should be defined');
 
 				// Check for context menu commands
 				assert.ok(commandIds.includes('cargo-tools.projectOutline.selectPackage'), 'projectOutline.selectPackage command should be defined');
@@ -826,6 +827,44 @@ suite('Extension Test Suite', () => {
 			} else {
 				// If running without the extension being loaded, just check that 
 				// the test framework is working (integration test framework limitation)
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
+	});
+
+	suite('Clean Command Integration Tests', () => {
+		test('should have clean command with correct properties', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const commands = packageJson.contributes?.commands || [];
+
+				// Find the clean command
+				const cleanCommand = commands.find((cmd: any) => cmd.command === 'cargo-tools.clean');
+				assert.ok(cleanCommand, 'Clean command should be defined');
+				assert.strictEqual(cleanCommand.title, 'Clean Build Artifacts', 'Clean command should have correct title');
+				assert.strictEqual(cleanCommand.category, 'Cargo Tools', 'Clean command should have correct category');
+				assert.strictEqual(cleanCommand.icon, '$(trash)', 'Clean command should have trash icon');
+			} else {
+				assert.ok(true, 'Extension package.json not available in test context');
+			}
+		});
+
+		test('should have clean button in Project Status view menu', () => {
+			const extension = vscode.extensions.getExtension('undefined_publisher.cargo-tools');
+			if (extension) {
+				const packageJson = extension.packageJSON;
+				const menus = packageJson.contributes?.menus || {};
+				const viewTitleMenus = menus['view/title'] || [];
+
+				// Find the clean menu entry
+				const cleanMenu = viewTitleMenus.find((menu: any) =>
+					menu.command === 'cargo-tools.clean' &&
+					menu.when === 'view == cargoToolsProjectStatus'
+				);
+				assert.ok(cleanMenu, 'Clean command should be available in Project Status view menu');
+				assert.strictEqual(cleanMenu.group, 'navigation', 'Clean button should be in navigation group');
+			} else {
 				assert.ok(true, 'Extension package.json not available in test context');
 			}
 		});
