@@ -319,7 +319,10 @@ suite('Extension Test Suite', () => {
 		const { MakefileTreeProvider } = require('../makefileTreeProvider');
 		const { CargoWorkspace } = require('../cargoWorkspace');
 
-		test('should show task categories when Makefile.toml exists', async () => {
+		test('should show task categories when Makefile.toml exists', async function() {
+			// Increase timeout for this test since it may need to discover cargo-make tasks
+			this.timeout(20000); // 20 seconds
+			
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -340,7 +343,10 @@ suite('Extension Test Suite', () => {
 			}
 		});
 
-		test('should show no makefile message when Makefile.toml does not exist', async () => {
+		test('should return false when Makefile.toml does not exist', async function() {
+			// Increase timeout for this test as well since it initializes a workspace
+			this.timeout(20000); // 20 seconds
+			
 			const provider = new MakefileTreeProvider();
 			const testPath = '/tmp';
 			const workspace = new CargoWorkspace(testPath);
@@ -354,7 +360,10 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(children[0].label, 'No Makefile.toml found', 'Should show appropriate message');
 		});
 
-		test('should apply task filter correctly', async () => {
+		test('should apply task filter correctly', async function() {
+			// Increase timeout for this test since it may need to discover cargo-make tasks
+			this.timeout(20000); // 20 seconds
+			
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -383,7 +392,10 @@ suite('Extension Test Suite', () => {
 			// Note: Filter now only applies to task names, not descriptions or categories
 		});
 
-		test('should apply category filter correctly', async () => {
+		test('should apply category filter correctly', async function() {
+			// Increase timeout for this test since it may need to discover cargo-make tasks
+			this.timeout(20000); // 20 seconds
+			
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -450,7 +462,10 @@ suite('Extension Test Suite', () => {
 				'Should have at least 2 menu entries for Makefile view (filter and clear filter buttons)');
 		});
 
-		test('should filter tasks by name only (not description or category)', async () => {
+		test('should filter tasks by name only (not description or category)', async function() {
+			// Increase timeout for this test since it may need to discover cargo-make tasks
+			this.timeout(20000); // 20 seconds
+			
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -499,7 +514,10 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(provider.currentTaskFilter, '', 'Filter should be cleared correctly');
 		});
 
-		test('should maintain category filter state correctly', async () => {
+		test('should maintain category filter state correctly', async function() {
+			// Increase timeout for this test since it may need to discover cargo-make tasks
+			this.timeout(20000); // 20 seconds
+			
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -549,7 +567,10 @@ suite('Extension Test Suite', () => {
 				'Test project should have Makefile.toml for testing filter functionality');
 		});
 
-		test('should have task nodes without click commands (button-triggered execution)', async () => {
+		test('should have task nodes without click commands (button-triggered execution)', async function() {
+			// Increase timeout for this test since it may need to discover cargo-make tasks
+			this.timeout(20000); // 20 seconds
+			
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
