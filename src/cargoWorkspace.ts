@@ -268,9 +268,10 @@ export class CargoWorkspace {
         this._packageFeatures.clear(); // Clear package features before discovery
 
         try {
-            // Use cargo metadata to get accurate target information
+            // Use cargo metadata to get accurate target information with timeout
             const { stdout } = await execAsync('cargo metadata --format-version 1 --no-deps', {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
+                timeout: 10000 // 10 second timeout
             });
 
             const metadata: CargoMetadata = JSON.parse(stdout);
@@ -332,90 +333,105 @@ export class CargoWorkspace {
 
     private async discoverTargetsManually(): Promise<void> {
         // Fallback manual discovery when cargo metadata fails
-        const srcDir = path.join(this._workspaceRoot, 'src');
-        const packageName = this._manifest?.package?.name || path.basename(this._workspaceRoot);
-        const packagePath = this._workspaceRoot; // For manual discovery, package path is workspace root
+        try {
+            const srcDir = path.join(this._workspaceRoot, 'src');
+            const packageName = this._manifest?.package?.name || path.basename(this._workspaceRoot);
+            const packagePath = this._workspaceRoot; // For manual discovery, package path is workspace root
 
-        if (fs.existsSync(srcDir)) {
-            // Check for main.rs (binary target)
-            const mainPath = path.join(srcDir, 'main.rs');
-            if (fs.existsSync(mainPath)) {
-                this._targets.push(new CargoTarget(packageName, ['bin'], mainPath, '2021', packageName, packagePath));
+            if (fs.existsSync(srcDir)) {
+                // Check for main.rs (binary target)
+                const mainPath = path.join(srcDir, 'main.rs');
+                if (fs.existsSync(mainPath)) {
+                    this._targets.push(new CargoTarget(packageName, ['bin'], mainPath, '2021', packageName, packagePath));
+                }
+
+                // Check for lib.rs (library target)
+                const libPath = path.join(srcDir, 'lib.rs');
+                if (fs.existsSync(libPath)) {
+                    const libName = this._manifest?.lib?.name || packageName;
+                    this._targets.push(new CargoTarget(libName, ['lib'], libPath, '2021', packageName, packagePath));
+                }
+
+                // Check for bin directory (additional binary targets)
+                const binDir = path.join(srcDir, 'bin');
+                if (fs.existsSync(binDir)) {
+                    try {
+                        const binFiles = await this.readDirectoryWithTimeout(binDir, 5000);
+                        for (const file of binFiles) {
+                            if (file.endsWith('.rs')) {
+                                const name = path.basename(file, '.rs');
+                                this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file), '2021', packageName, packagePath));
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to read bin directory:', error);
+                    }
+                }
             }
 
-            // Check for lib.rs (library target)
-            const libPath = path.join(srcDir, 'lib.rs');
-            if (fs.existsSync(libPath)) {
-                const libName = this._manifest?.lib?.name || packageName;
-                this._targets.push(new CargoTarget(libName, ['lib'], libPath, '2021', packageName, packagePath));
-            }
-
-            // Check for bin directory (additional binary targets)
-            const binDir = path.join(srcDir, 'bin');
-            if (fs.existsSync(binDir)) {
+            // Check for examples directory
+            const examplesDir = path.join(this._workspaceRoot, 'examples');
+            if (fs.existsSync(examplesDir)) {
                 try {
-                    const binFiles = await fs.promises.readdir(binDir);
-                    for (const file of binFiles) {
+                    const exampleFiles = await this.readDirectoryWithTimeout(examplesDir, 5000);
+                    for (const file of exampleFiles) {
                         if (file.endsWith('.rs')) {
                             const name = path.basename(file, '.rs');
-                            this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file), '2021', packageName, packagePath));
+                            this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file), '2021', packageName, packagePath));
                         }
                     }
                 } catch (error) {
-                    console.error('Failed to read bin directory:', error);
+                    console.error('Failed to read examples directory:', error);
                 }
             }
-        }
 
-        // Check for examples directory
-        const examplesDir = path.join(this._workspaceRoot, 'examples');
-        if (fs.existsSync(examplesDir)) {
-            try {
-                const exampleFiles = await fs.promises.readdir(examplesDir);
-                for (const file of exampleFiles) {
-                    if (file.endsWith('.rs')) {
-                        const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file), '2021', packageName, packagePath));
+            // Check for tests directory
+            const testsDir = path.join(this._workspaceRoot, 'tests');
+            if (fs.existsSync(testsDir)) {
+                try {
+                    const testFiles = await this.readDirectoryWithTimeout(testsDir, 5000);
+                    for (const file of testFiles) {
+                        if (file.endsWith('.rs')) {
+                            const name = path.basename(file, '.rs');
+                            this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file), '2021', packageName, packagePath));
+                        }
                     }
+                } catch (error) {
+                    console.error('Failed to read tests directory:', error);
                 }
-            } catch (error) {
-                console.error('Failed to read examples directory:', error);
             }
-        }
 
-        // Check for tests directory
-        const testsDir = path.join(this._workspaceRoot, 'tests');
-        if (fs.existsSync(testsDir)) {
-            try {
-                const testFiles = await fs.promises.readdir(testsDir);
-                for (const file of testFiles) {
-                    if (file.endsWith('.rs')) {
-                        const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file), '2021', packageName, packagePath));
+            // Check for benches directory
+            const benchesDir = path.join(this._workspaceRoot, 'benches');
+            if (fs.existsSync(benchesDir)) {
+                try {
+                    const benchFiles = await this.readDirectoryWithTimeout(benchesDir, 5000);
+                    for (const file of benchFiles) {
+                        if (file.endsWith('.rs')) {
+                            const name = path.basename(file, '.rs');
+                            this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file), '2021', packageName, packagePath));
+                        }
                     }
+                } catch (error) {
+                    console.error('Failed to read benches directory:', error);
                 }
-            } catch (error) {
-                console.error('Failed to read tests directory:', error);
             }
-        }
 
-        // Check for benches directory
-        const benchesDir = path.join(this._workspaceRoot, 'benches');
-        if (fs.existsSync(benchesDir)) {
-            try {
-                const benchFiles = await fs.promises.readdir(benchesDir);
-                for (const file of benchFiles) {
-                    if (file.endsWith('.rs')) {
-                        const name = path.basename(file, '.rs');
-                        this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file), '2021', packageName, packagePath));
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to read benches directory:', error);
-            }
+            this._onDidChangeTargets.fire(this._targets);
+        } catch (error) {
+            console.error('Manual target discovery failed:', error);
+            // Ensure we always fire the event even if discovery fails
+            this._onDidChangeTargets.fire(this._targets);
         }
+    }
 
-        this._onDidChangeTargets.fire(this._targets);
+    private async readDirectoryWithTimeout(dirPath: string, timeoutMs: number): Promise<string[]> {
+        return Promise.race([
+            fs.promises.readdir(dirPath),
+            new Promise<string[]>((_, reject) => 
+                setTimeout(() => reject(new Error(`Timeout reading directory: ${dirPath}`)), timeoutMs)
+            )
+        ]);
     }
 
     private async discoverCustomProfiles(): Promise<void> {
@@ -493,9 +509,21 @@ export class CargoWorkspace {
         try {
             this._makeTasks = [];
 
-            // Run cargo make --list-all-steps to get task information
+            // First check if cargo-make is available
+            try {
+                await execAsync('cargo make --version', {
+                    cwd: this._workspaceRoot,
+                    timeout: 5000 // 5 second timeout for version check
+                });
+            } catch (error) {
+                console.log('cargo-make not available, skipping task discovery');
+                return;
+            }
+
+            // Run cargo make --list-all-steps to get task information with timeout
             const { stdout } = await execAsync('cargo make --list-all-steps', {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
+                timeout: 15000 // 15 second timeout for cargo-make
             });
 
             this._makeTasks = this.parseCargoMakeOutput(stdout);
@@ -734,7 +762,8 @@ export class CargoWorkspace {
     async getInstalledPlatformTargets(): Promise<string[]> {
         try {
             const { stdout } = await execAsync('rustup target list --installed', {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
+                timeout: 10000 // 10 second timeout
             });
 
             return stdout
@@ -754,7 +783,8 @@ export class CargoWorkspace {
     async getAvailablePlatformTargets(): Promise<string[]> {
         try {
             const { stdout } = await execAsync('rustup target list', {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
+                timeout: 10000 // 10 second timeout
             });
 
             return stdout
@@ -777,7 +807,8 @@ export class CargoWorkspace {
     async getAvailableUninstalledPlatformTargets(): Promise<string[]> {
         try {
             const { stdout } = await execAsync('rustup target list', {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
+                timeout: 10000 // 10 second timeout
             });
 
             return stdout
@@ -797,7 +828,8 @@ export class CargoWorkspace {
     async installPlatformTarget(targetTriple: string): Promise<boolean> {
         try {
             await execAsync(`rustup target add ${targetTriple}`, {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
+                timeout: 30000 // 30 second timeout for installation
             });
             return true;
         } catch (error) {
@@ -812,7 +844,8 @@ export class CargoWorkspace {
     async getDefaultPlatformTarget(): Promise<string> {
         try {
             const { stdout } = await execAsync('rustc -vV', {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
+                timeout: 10000 // 10 second timeout
             });
 
             const hostMatch = stdout.match(/host: (.+)/);
@@ -899,7 +932,8 @@ export class CargoWorkspace {
         try {
             const { stdout, stderr } = await execAsync(`${cargoPath} ${args.join(' ')}`, {
                 cwd: this._workspaceRoot,
-                env
+                env,
+                timeout: 60000 // 60 second timeout for cargo commands
             });
 
             return { stdout, stderr };
