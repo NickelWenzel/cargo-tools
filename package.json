@@ -4,6 +4,7 @@
   "description": "Rust development tools for VSCode with build profiles, targets, and workspace integration",
   "version": "0.0.1",
   "publisher": "cargo-tools",
+  "license": "MIT",
   "icon": "rustacean-flat-happy.png",
   "engines": {
     "vscode": "^1.102.0"
