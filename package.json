@@ -27,7 +27,7 @@
         "command": "cargo-tools.selectProfile",
         "title": "Select Build Profile",
         "category": "Cargo Tools",
-        "icon": "$(settings-gear)"
+        "icon": "$(gear)"
       },
       {
         "command": "cargo-tools.selectPackage",
@@ -57,7 +57,7 @@
         "command": "cargo-tools.selectPlatformTarget",
         "title": "Select Platform Target",
         "category": "Cargo Tools",
-        "icon": "$(device-desktop)"
+        "icon": "$(desktop-download)"
       },
       {
         "command": "cargo-tools.installPlatformTarget",
@@ -81,7 +81,7 @@
         "command": "cargo-tools.selectFeatures",
         "title": "Select Features",
         "category": "Cargo Tools",
-        "icon": "$(list-unordered)"
+        "icon": "$(extensions)"
       },
       {
         "command": "cargo-tools.refresh",

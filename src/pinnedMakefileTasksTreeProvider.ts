@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace, CargoMakeTask } from './cargoWorkspace';
 import { StateManager } from './stateManager';
+import { IconMapping } from './iconMapping';
 
 export class PinnedTaskNode extends vscode.TreeItem {
     constructor(
@@ -122,7 +123,7 @@ export class PinnedMakefileTasksTreeProvider implements vscode.TreeDataProvider<
                 );
 
                 // Add gear icon (consistent with Makefile view)
-                node.iconPath = new vscode.ThemeIcon('gear');
+                node.iconPath = IconMapping.MAKEFILE_TASK;
 
                 pinnedTaskNodes.push(node);
             } else {
@@ -139,7 +140,7 @@ export class PinnedMakefileTasksTreeProvider implements vscode.TreeDataProvider<
                 );
 
                 // Add warning icon
-                node.iconPath = new vscode.ThemeIcon('warning');
+                node.iconPath = IconMapping.WARNING_STATE;
 
                 pinnedTaskNodes.push(node);
             }

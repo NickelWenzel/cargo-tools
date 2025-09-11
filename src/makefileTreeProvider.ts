@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace, CargoMakeTask } from './cargoWorkspace';
 import { StateManager } from './stateManager';
+import { IconMapping } from './iconMapping';
 
 export class MakefileNode extends vscode.TreeItem {
     constructor(
@@ -213,7 +214,7 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
                 `Category: ${categoryName}`,
                 { category: categoryName, tasks: categoryTasks }
             );
-            categoryNode.iconPath = new vscode.ThemeIcon('folder');
+            categoryNode.iconPath = IconMapping.MAKEFILE_CATEGORY;
             categoryNodes.push(categoryNode);
         }
 
@@ -246,7 +247,7 @@ export class MakefileTreeProvider implements vscode.TreeDataProvider<MakefileNod
                 `Task: ${task.name}${task.description ? '\n' + task.description : ''}`,
                 { task }
             );
-            taskNode.iconPath = new vscode.ThemeIcon('gear');
+            taskNode.iconPath = IconMapping.MAKEFILE_TASK;
             return taskNode;
         });
     }
