@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTarget } from './cargoTarget';
 import { StateManager } from './stateManager';
+import { IconMapping } from './iconMapping';
 
 export class ProjectOutlineNode extends vscode.TreeItem {
     constructor(
@@ -181,7 +182,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             `Rust project: ${this.workspace.projectName}`,
             { projectName: this.workspace.projectName }
         );
-        projectNode.iconPath = new vscode.ThemeIcon('symbol-package');
+        projectNode.iconPath = IconMapping.PROJECT;
 
         return [projectNode];
     }
@@ -226,7 +227,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 'Features available for the entire project',
                 { packageName: undefined, features: ['all-features'] }
             );
-            rootFeaturesNode.iconPath = new vscode.ThemeIcon('symbol-misc');
+            rootFeaturesNode.iconPath = IconMapping.FEATURES_CONFIG;
             nodes.push(rootFeaturesNode);
         }
 
@@ -265,7 +266,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 );
 
                 // Always use the default package icon
-                memberNode.iconPath = new vscode.ThemeIcon('package');
+                memberNode.iconPath = IconMapping.PACKAGE;
 
                 nodes.push(memberNode);
             }
@@ -285,7 +286,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     `Target type: ${type}`,
                     { type, targets }
                 );
-                typeNode.iconPath = this.getIconForTargetType(type);
+                typeNode.iconPath = IconMapping.getIconForTargetType(type);
                 nodes.push(typeNode);
             }
         }
@@ -310,7 +311,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     `Features available for package ${data.memberName}`,
                     { packageName: data.memberName, features: packageFeatures }
                 );
-                featuresNode.iconPath = new vscode.ThemeIcon('symbol-misc');
+                featuresNode.iconPath = IconMapping.FEATURES_CONFIG;
                 nodes.push(featuresNode);
             }
         }
@@ -330,7 +331,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 `Target type: ${type}`,
                 { type, targets }
             );
-            typeNode.iconPath = this.getIconForTargetType(type);
+            typeNode.iconPath = IconMapping.getIconForTargetType(type);
             nodes.push(typeNode);
         }
 
@@ -399,7 +400,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             );
 
             // Always use the default target type icon for the main iconPath
-            targetNode.iconPath = this.getIconForTarget(target);
+            targetNode.iconPath = IconMapping.getIconForTargetType(target.kind[0]);
 
             return targetNode;
         });
@@ -438,7 +439,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             );
 
             // Use appropriate icon for selection state
-            featureNode.iconPath = new vscode.ThemeIcon(isSelected ? 'check' : 'circle-outline');
+            featureNode.iconPath = isSelected ? IconMapping.SELECTED_STATE : IconMapping.UNSELECTED_STATE;
 
             return featureNode;
         });
@@ -492,33 +493,6 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             default:
                 return type.charAt(0).toUpperCase() + type.slice(1);
         }
-    }
-
-    private getIconForTargetType(type: string): vscode.ThemeIcon {
-        switch (type) {
-            case 'bin':
-                return new vscode.ThemeIcon('file-code');
-            case 'lib':
-                return new vscode.ThemeIcon('library');
-            case 'example':
-                return new vscode.ThemeIcon('lightbulb');
-            case 'test':
-                return new vscode.ThemeIcon('beaker');
-            case 'bench':
-                return new vscode.ThemeIcon('dashboard');
-            default:
-                return new vscode.ThemeIcon('file');
-        }
-    }
-
-    private getIconForTarget(target: CargoTarget): vscode.ThemeIcon {
-        if (!target.kind || !Array.isArray(target.kind) || target.kind.length === 0) {
-            return new vscode.ThemeIcon('file');
-        }
-
-        // Use the first kind for icon selection
-        const primaryKind = target.kind[0];
-        return this.getIconForTargetType(primaryKind);
     }
 
     private getContextValue(target: CargoTarget): string {

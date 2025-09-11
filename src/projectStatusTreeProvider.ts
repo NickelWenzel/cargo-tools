@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoProfile } from './cargoProfile';
+import { IconMapping } from './iconMapping';
 import { CargoTarget } from './cargoTarget';
 
 export class ProjectStatusNode extends vscode.TreeItem {
@@ -98,7 +99,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             vscode.TreeItemCollapsibleState.Expanded,
             'platformSelection'
         );
-        platformNode.iconPath = new vscode.ThemeIcon('device-desktop');
+        platformNode.iconPath = IconMapping.PLATFORM_CONFIG;
         nodes.push(platformNode);
 
         // Build Configuration node
@@ -107,7 +108,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             vscode.TreeItemCollapsibleState.Expanded,
             'buildConfiguration'
         );
-        configNode.iconPath = new vscode.ThemeIcon('settings-gear');
+        configNode.iconPath = IconMapping.PROFILE_CONFIG;
         nodes.push(configNode);
 
         // Package Selection node
@@ -116,7 +117,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             vscode.TreeItemCollapsibleState.Expanded,
             'packageSelection'
         );
-        packageNode.iconPath = new vscode.ThemeIcon('package');
+        packageNode.iconPath = IconMapping.PACKAGE;
         nodes.push(packageNode);
 
         // Target Selection node (parent for all target types)
@@ -125,7 +126,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             vscode.TreeItemCollapsibleState.Expanded,
             'targetSelection'
         );
-        targetNode.iconPath = new vscode.ThemeIcon('target');
+        targetNode.iconPath = IconMapping.TARGET_CONFIG;
         nodes.push(targetNode);
 
         // Feature Selection node
@@ -134,7 +135,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             vscode.TreeItemCollapsibleState.Expanded,
             'featureSelection'
         );
-        featureNode.iconPath = new vscode.ThemeIcon('symbol-misc');
+        featureNode.iconPath = IconMapping.FEATURES_CONFIG;
         nodes.push(featureNode);
 
         return nodes;
@@ -256,7 +257,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 'Package Selection',
                 'Click to change package selection'
             );
-            packageNode.iconPath = new vscode.ThemeIcon('package');
+            packageNode.iconPath = IconMapping.PACKAGE;
             nodes.push(packageNode);
         } else {
             // Single package - read-only display
@@ -268,7 +269,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 'Single package',
                 'Single package project'
             );
-            defaultNode.iconPath = new vscode.ThemeIcon('package');
+            defaultNode.iconPath = IconMapping.PACKAGE;
             nodes.push(defaultNode);
         }
 
@@ -291,7 +292,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             'Build target selection',
             'Select which target to build'
         );
-        buildTargetNode.iconPath = new vscode.ThemeIcon('tools');
+        buildTargetNode.iconPath = IconMapping.BUILD_ACTION;
         nodes.push(buildTargetNode);
 
         // Run Target Selection
@@ -303,7 +304,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             'Run target selection',
             'Select which target to run'
         );
-        runTargetNode.iconPath = new vscode.ThemeIcon('play');
+        runTargetNode.iconPath = IconMapping.RUN_ACTION;
         nodes.push(runTargetNode);
 
         // Benchmark Target Selection
@@ -315,7 +316,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             'Benchmark target selection',
             'Select which benchmark to run'
         );
-        benchmarkTargetNode.iconPath = new vscode.ThemeIcon('dashboard');
+        benchmarkTargetNode.iconPath = IconMapping.BENCH_ACTION;
         nodes.push(benchmarkTargetNode);
 
         return nodes;
@@ -342,7 +343,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 `Selected build target: ${selectedBuildTarget}`,
                 `Click to change build target`
             );
-            node.iconPath = new vscode.ThemeIcon('check');
+            node.iconPath = IconMapping.BUILD_ACTION;
             return [node];
         } else {
             // No build target selected - always show "No selection"
@@ -357,7 +358,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 'No build target selected (build all targets)',
                 'Click to select specific build target'
             );
-            node.iconPath = new vscode.ThemeIcon('target');
+            node.iconPath = IconMapping.TARGET_CONFIG;
             return [node];
         }
     }
@@ -382,7 +383,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 `Selected run target: ${selectedRunTarget}`,
                 `Click to change run target`
             );
-            node.iconPath = new vscode.ThemeIcon('check');
+            node.iconPath = IconMapping.SELECTED_STATE;
             return [node];
         } else {
             // Show disabled or default state
@@ -397,7 +398,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                     'Select a specific package to run targets',
                     'Run targets require a specific package selection'
                 );
-                node.iconPath = new vscode.ThemeIcon('circle-slash');
+                node.iconPath = IconMapping.WARNING_STATE;
                 return [node];
             } else {
                 // Specific package selected - check if runnable targets exist
@@ -418,7 +419,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                         'Auto-detect run target (default)',
                         'Click to select specific run target'
                     );
-                    node.iconPath = new vscode.ThemeIcon('play');
+                    node.iconPath = IconMapping.RUN_ACTION;
                     return [node];
                 } else {
                     // No runnable targets in package
@@ -430,7 +431,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                         'No binaries or examples to run',
                         'This package has no runnable targets'
                     );
-                    node.iconPath = new vscode.ThemeIcon('circle-slash');
+                    node.iconPath = IconMapping.WARNING_STATE;
                     return [node];
                 }
             }
@@ -457,7 +458,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 `Selected benchmark target: ${selectedBenchmarkTarget}`,
                 `Click to change benchmark target`
             );
-            node.iconPath = new vscode.ThemeIcon('check');
+            node.iconPath = IconMapping.SELECTED_STATE;
             return [node];
         } else {
             // Show "No selection" when no specific benchmark target is selected
@@ -472,7 +473,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 'No benchmark target selected',
                 'Click to select benchmark target'
             );
-            node.iconPath = new vscode.ThemeIcon('dashboard');
+            node.iconPath = IconMapping.BENCH_ACTION;
             return [node];
         }
     }
@@ -505,7 +506,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
             );
 
             // Use checkbox icons to indicate selection state
-            node.iconPath = new vscode.ThemeIcon(isSelected ? 'check' : 'circle-outline');
+            node.iconPath = isSelected ? IconMapping.SELECTED_STATE : IconMapping.UNSELECTED_STATE;
             nodes.push(node);
         }
 
