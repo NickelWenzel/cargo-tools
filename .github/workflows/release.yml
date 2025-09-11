@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Compile extension
+      run: npm run compile
+    
+    - name: Run tests
+      run: npm test
+      env:
+        DISPLAY: :99.0
+    
+    - name: Setup headless display
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        export DISPLAY=:99.0
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        sleep 3
+    
+    - name: Install vsce
+      run: npm install -g @vscode/vsce
+    
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Validate version matches package.json
+      run: |
+        PACKAGE_VERSION=$(node -p "require('./package.json').version")
+        TAG_VERSION="${{ steps.version.outputs.version }}"
+        if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+          echo "Version mismatch: package.json has $PACKAGE_VERSION but tag is $TAG_VERSION"
+          exit 1
+        fi
+        echo "Version validation passed: $PACKAGE_VERSION"
+    
+    - name: Package extension
+      run: vsce package
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Extract changelog for current version if CHANGELOG.md exists
+        if [ -f "CHANGELOG.md" ]; then
+          # Try to extract changelog section for this version
+          CHANGELOG=$(awk "/^## \[?${{ steps.version.outputs.version }}\]?|^## \[?v${{ steps.version.outputs.version }}\]?/{flag=1; next} /^## /{flag=0} flag" CHANGELOG.md || echo "")
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="See CHANGELOG.md for details."
+          fi
+        else
+          CHANGELOG="Release ${{ steps.version.outputs.tag }}"
+        fi
+        # Escape newlines for GitHub output
+        CHANGELOG="${CHANGELOG//'%'/'%25'}"
+        CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
+        CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+        echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        name: Release ${{ steps.version.outputs.tag }}
+        body: |
+          ## Cargo Tools Extension ${{ steps.version.outputs.version }}
+          
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ### Installation
+          Download the `.vsix` file and install it in VS Code:
+          1. Open VS Code
+          2. Go to Extensions view (Ctrl+Shift+X)
+          3. Click on the "..." menu and select "Install from VSIX..."
+          4. Choose the downloaded file
+          
+          ### What's Changed
+          Full changelog: https://github.com/${{ github.repository }}/compare/v${{ steps.version.outputs.version }}...HEAD
+        files: |
+          *.vsix
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload to Visual Studio Marketplace (Optional)
+      if: env.VSCE_PAT != ''
+      run: |
+        echo "Publishing to VS Code Marketplace..."
+        vsce publish --pat $VSCE_PAT
+      env:
+        VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        
+    - name: Upload to Open VSX Registry (Optional)
+      if: env.OVSX_PAT != ''
+      run: |
+        npm install -g ovsx
+        ovsx publish *.vsix --pat $OVSX_PAT
+      env:
+        OVSX_PAT: ${{ secrets.OVSX_PAT }}
