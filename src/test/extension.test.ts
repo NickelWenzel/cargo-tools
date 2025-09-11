@@ -1,10 +1,19 @@
 import * as assert from 'assert';
+import * as path from 'path';
+import * as fs from 'fs';
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
 import { CargoExtensionManager } from '../cargoExtensionManager';
 // import * as myExtension from '../../extension';
+
+// Helper function to get the test project path relative to workspace root
+function getTestProjectPath(): string {
+	// Get the workspace root (the extension's root directory)
+	const workspaceRoot = path.resolve(__dirname, '..', '..');
+	return path.join(workspaceRoot, 'test-rust-project');
+}
 
 suite('Extension Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
@@ -250,7 +259,7 @@ suite('Extension Test Suite', () => {
 
 		test('should detect Makefile.toml when it exists', async () => {
 			// Use the test-rust-project which now has a Makefile.toml
-			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
 
 			await workspace.initialize();
@@ -306,7 +315,7 @@ suite('Extension Test Suite', () => {
 
 		test('should show task categories when Makefile.toml exists', async () => {
 			const provider = new MakefileTreeProvider();
-			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
 
 			await workspace.initialize();
@@ -341,7 +350,7 @@ suite('Extension Test Suite', () => {
 
 		test('should apply task filter correctly', async () => {
 			const provider = new MakefileTreeProvider();
-			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
 
 			await workspace.initialize();
@@ -370,7 +379,7 @@ suite('Extension Test Suite', () => {
 
 		test('should apply category filter correctly', async () => {
 			const provider = new MakefileTreeProvider();
-			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
 
 			await workspace.initialize();
@@ -437,7 +446,7 @@ suite('Extension Test Suite', () => {
 
 		test('should filter tasks by name only (not description or category)', async () => {
 			const provider = new MakefileTreeProvider();
-			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
 
 			await workspace.initialize();
@@ -486,7 +495,7 @@ suite('Extension Test Suite', () => {
 
 		test('should maintain category filter state correctly', async () => {
 			const provider = new MakefileTreeProvider();
-			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
 
 			await workspace.initialize();
@@ -536,7 +545,7 @@ suite('Extension Test Suite', () => {
 
 		test('should have task nodes without click commands (button-triggered execution)', async () => {
 			const provider = new MakefileTreeProvider();
-			const testProjectPath = '/home/nickel/Programming/repos/cargo-tools/test-rust-project';
+			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
 
 			await workspace.initialize();
