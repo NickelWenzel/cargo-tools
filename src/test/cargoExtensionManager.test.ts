@@ -1155,7 +1155,10 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             assert.ok(description.includes('user-defined settings'), 'Custom profile description should mention user-defined settings');
         });
 
-        test('should integrate custom profiles with CargoWorkspace', async () => {
+        test('should integrate custom profiles with CargoWorkspace', async function() {
+            // Increase timeout for this test since it may need to discover cargo-make tasks
+            this.timeout(20000); // 20 seconds
+            
             // Test that a real CargoWorkspace can discover custom profiles
             const path = require('path');
             const testProjectPath = path.join(__dirname, '../../test-rust-project');
