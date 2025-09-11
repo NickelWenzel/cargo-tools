@@ -23,8 +23,75 @@ jobs:
         node-version: '20.x'
         cache: 'npm'
     
+    # Enhanced npm cache
+    - name: Cache node_modules
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-20.x-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-20.x-
+          ${{ runner.os }}-node-
+    
+    # Setup Rust toolchain for cargo-make
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+    
+    # Cache Rust dependencies
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          test-rust-project/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('test-rust-project/**/Cargo.lock', 'test-rust-project/**/Cargo.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    # Install cargo-make (cross-platform approach with better detection)
+    - name: Check if cargo-make is installed
+      id: check_cargo_make
+      run: |
+        echo "Checking for cargo-make installation..."
+        if command -v cargo-make >/dev/null 2>&1; then
+          echo "cargo-make command found in PATH"
+          echo "installed=true" >> $GITHUB_OUTPUT
+        elif cargo install --list | grep -q "^cargo-make "; then
+          echo "cargo-make found in cargo install list"
+          echo "installed=true" >> $GITHUB_OUTPUT
+        else
+          echo "cargo-make not found, will install"
+          echo "installed=false" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+      continue-on-error: true
+    
+    - name: Install cargo-make
+      if: steps.check_cargo_make.outputs.installed != 'true'
+      run: |
+        echo "Installing cargo-make..."
+        cargo install cargo-make --force
+        echo "cargo-make installation completed"
+    
     - name: Install dependencies
       run: npm ci
+    
+    # Cache webpack build artifacts
+    - name: Cache webpack build
+      uses: actions/cache@v4
+      with:
+        path: |
+          out/
+          dist/
+          .webpack-cache/
+        key: ${{ runner.os }}-webpack-${{ hashFiles('webpack.config.js', 'tsconfig.json', 'src/**/*.ts') }}
+        restore-keys: |
+          ${{ runner.os }}-webpack-
     
     - name: Compile extension
       run: npm run compile
@@ -41,6 +108,15 @@ jobs:
         export DISPLAY=:99.0
         Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
         sleep 3
+    
+    # Cache global npm packages (vsce)
+    - name: Cache global npm packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm/_npx
+        key: ${{ runner.os }}-npx-vsce-${{ hashFiles('package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npx-vsce-
     
     - name: Install vsce
       run: npm install -g @vscode/vsce
