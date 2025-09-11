@@ -146,20 +146,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    # Cache global npm packages (vsce)
-    - name: Cache global npm packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.npm/_npx
-        key: ${{ runner.os }}-npx-vsce-${{ hashFiles('package.json') }}
-        restore-keys: |
-          ${{ runner.os }}-npx-vsce-
-    
-    - name: Install vsce
-      run: npm install -g @vscode/vsce
-    
     - name: Package extension
-      run: vsce package
+      run: npx @vscode/vsce package
     
     - name: Upload extension artifact
       uses: actions/upload-artifact@v4
