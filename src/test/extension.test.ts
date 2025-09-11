@@ -257,7 +257,10 @@ suite('Extension Test Suite', () => {
 	suite('Makefile.toml Detection Tests', () => {
 		const { CargoWorkspace } = require('../cargoWorkspace');
 
-		test('should detect Makefile.toml when it exists', async () => {
+		test('should detect Makefile.toml when it exists', async function() {
+			// Increase timeout for this test since it may need to discover cargo-make tasks
+			this.timeout(20000); // 20 seconds
+			
 			// Use the test-rust-project which now has a Makefile.toml
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -268,7 +271,10 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(workspace.hasMakefileToml, true, 'Should detect Makefile.toml in test project');
 		});
 
-		test('should return false when Makefile.toml does not exist', async () => {
+		test('should return false when Makefile.toml does not exist', async function() {
+			// Increase timeout for this test as well since it initializes a workspace
+			this.timeout(20000); // 20 seconds
+			
 			// Use a path that doesn't have Makefile.toml 
 			const testPath = '/tmp'; // temp directory should not have Makefile.toml
 			const workspace = new CargoWorkspace(testPath);
