@@ -6,10 +6,10 @@
 2. **Open a Rust Project**: The extension automatically activates when it detects a `Cargo.toml` filee
 
 ![Cargo Tools](https://img.shields.io/badge/cargo--tools-VS%20Code%20Extension-blue)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Build Status](https://github.com/NickelWenzel/cargo-tools/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A comprehensive Visual Studio Code extension that provides advanced Rust/Cargo development tools with modern tree-based UI, build profiles, target management, and workspace integration.
+This extension provides advanced Rust/Cargo development tools with modern tree-based UI, build profiles, target management, and workspace integration.
 
 ## Features
 
@@ -25,22 +25,6 @@ A comprehensive Visual Studio Code extension that provides advanced Rust/Cargo d
 - **Context Menus**: Right-click targets for build, run, test, debug actions
 - **Advanced Filtering**: Filter by workspace member and target type with real-time preview
 - **Customizable Grouping**: Toggle between workspace member and target type organization
-
-### 💾 State Persistence
-- **Session Memory**: Remembers your selections across VS Code sessions
-- **Workspace-Specific**: Each workspace maintains its own state independently  
-- **Multi-Project Support**: Different behavior for single vs multi-project workspaces
-- **Preserved Settings**:
-  - Selected package, build/run/benchmark targets, platform target
-  - Selected features and build profile
-  - Project outline filters and grouping preferences
-  - Target type filters and workspace member filters
-
-## Getting Started
-
-1. **Install the Extension**: Search for "Cargo Tools" in VS Code Extensions
-2. **Open a Rust Project**: The extension automatically activates when it detects a `Cargo.toml` file
-3. **Explore the Views**: Access the Cargo Tools views from the Activity Bar (package icon)
 
 ## UI Overview
 
@@ -58,40 +42,6 @@ Displays your project structure with two organization modes:
 - **By Target Type**: Groups all binaries, libraries, examples, etc. together
 
 Configure the grouping with: `cargoTools.groupTargetsByWorkspaceMember`
-
-## Configuration
-
-### Settings
-
-```json
-{
-  "cargoTools.defaultProfile": "dev",
-  "cargoTools.cargoPath": "cargo",
-  "cargoTools.buildArgs": [],
-  "cargoTools.runArgs": [],
-  "cargoTools.testArgs": [],
-  "cargoTools.environment": {},
-  "cargoTools.features": [],
-  "cargoTools.allFeatures": false,
-  "cargoTools.noDefaultFeatures": false,
-  "cargoTools.groupTargetsByWorkspaceMember": true,
-}
-```
-
-### Key Settings
-
-- **`defaultProfile`**: Choose between "dev" and "release" build profiles
-- **`features`**: Default features to enable for builds
-
-### State Persistence
-
-The extension automatically persists the following preferences across VS Code sessions:
-
-- **Project Status View**: Selected build profile and target
-- **Project Outline View**: Filter settings and workspace member grouping
-- **Per-Workspace**: State is unique to each workspace/project
-
-Persisted state is workspace-specific and automatically restored when reopening projects.
 
 ## Commands
 
@@ -120,20 +70,6 @@ Right-click targets in any view for context-sensitive actions:
 - **Test Target**: Run test targets  
 - **Debug Target**: Start debugging session
 - **Set as Default**: Make target the default for quick actions
-
-## Task Integration
-
-The extension automatically provides Cargo tasks for VS Code's task system. Configure tasks in `tasks.json`:
-
-```json
-{
-  "type": "cargo",
-  "command": "build",
-  "profile": "release",
-  "target": "my-binary",
-  "features": ["feature1", "feature2"]
-}
-```
 
 ## Workspace Support
 
@@ -199,7 +135,3 @@ This extension draws inspiration from [vscode-cmake-tools](https://github.com/mi
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for release notes and version history.
