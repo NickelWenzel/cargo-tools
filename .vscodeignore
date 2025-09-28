@@ -3,6 +3,8 @@
 out/**
 node_modules/**
 src/**
+test-rust-project/**
+test-rust-project-single-crate/**
 .gitignore
 .yarnrc
 webpack.config.js
