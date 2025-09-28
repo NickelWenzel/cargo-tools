@@ -461,8 +461,16 @@ export class CargoExtensionManager implements vscode.Disposable {
             console.log('Cargo.toml changed:', uri.fsPath);
             await this.handleCargoTomlChanged(uri);
         });
+        const cargoTomlCreated = fileWatcher.onDidCreate(async (uri) => {
+            console.log('Cargo.toml created:', uri.fsPath);
+            await this.handleCargoTomlChanged(uri);
+        });
+        const cargoTomlDeleted = fileWatcher.onDidDelete(async (uri) => {
+            console.log('Cargo.toml deleted:', uri.fsPath);
+            await this.handleCargoTomlChanged(uri);
+        });
 
-        this.subscriptions.push(workspaceFoldersChanged, fileWatcher, cargoTomlChanged);
+        this.subscriptions.push(workspaceFoldersChanged, fileWatcher, cargoTomlChanged, cargoTomlCreated, cargoTomlDeleted);
     }
 
     /**
@@ -1861,7 +1869,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         if (command !== 'clean' && target.kind && Array.isArray(target.kind)) {
             if (target.kind.includes('bin')) {
                 args.push('--bin', target.name);
-            } else if (target.kind.includes('lib')) {
+            } else if (target.isLibrary) {
                 args.push('--lib');
             } else if (target.kind.includes('example')) {
                 args.push('--example', target.name);
@@ -1954,7 +1962,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         // Set build target - for libraries, just store "lib"
-        if (target.kind.includes('lib')) {
+        if (target.isLibrary) {
             this.cargoWorkspace.setSelectedBuildTarget('lib');
         } else {
             this.cargoWorkspace.setSelectedBuildTarget(target.name);
@@ -2320,7 +2328,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             };
 
             // Add target-specific arguments based on target kind
-            if (target.kind.includes('lib')) {
+            if (target.isLibrary) {
                 taskDefinition.targetKind = 'lib';
             } else if (target.kind.includes('bin')) {
                 taskDefinition.targetName = target.name;

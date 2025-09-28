@@ -887,7 +887,7 @@ export class CargoWorkspace {
             if (this._currentTarget.kind && Array.isArray(this._currentTarget.kind)) {
                 if (this._currentTarget.kind.includes('bin')) {
                     args.push('--bin', this._currentTarget.name);
-                } else if (this._currentTarget.kind.includes('lib')) {
+                } else if (this._currentTarget.isLibrary) {
                     args.push('--lib');
                 }
             }

@@ -347,7 +347,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             if (command !== 'clean' && target.kind && Array.isArray(target.kind)) {
                 if (target.kind.includes('bin')) {
                     args.push('--bin', target.name);
-                } else if (target.kind.includes('lib')) {
+                } else if (target.isLibrary) {
                     args.push('--lib');
                 } else if (target.kind.includes('example')) {
                     args.push('--example', target.name);

@@ -382,7 +382,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 const selectedBuildTarget = this.workspace.selectedBuildTarget;
                 const selectedPackage = this.workspace.selectedPackage;
 
-                if (selectedBuildTarget === 'lib' && target.kind.includes('lib')) {
+                if (selectedBuildTarget === 'lib' && target.isLibrary) {
                     // Only show icon if this library target belongs to the selected package
                     // If no package is selected, don't show library indicators
                     isBuildTarget = selectedPackage !== undefined && target.packageName === selectedPackage;
@@ -551,7 +551,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             const selectedBenchmarkTarget = this.workspace.selectedBenchmarkTarget;
 
             // For build targets, handle library vs other targets differently
-            const isSelectedBuildTarget = target.kind.includes('lib')
+            const isSelectedBuildTarget = target.isLibrary
                 ? selectedBuildTarget === 'lib'
                 : selectedBuildTarget === target.name;
 
