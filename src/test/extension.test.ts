@@ -254,13 +254,108 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	suite('Project Outline Single-Crate Features Tests', () => {
+		const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+		const { CargoWorkspace } = require('../cargoWorkspace');
+
+		test('should show features node for single-crate projects', async function () {
+			// Increase timeout for this test since it may need to initialize workspace  
+			this.timeout(20000); // 20 seconds
+
+			// Use the single-crate test project which has features defined
+			const path = require('path');
+			const singleCrateProjectPath = path.join(__dirname, '../../test-rust-project-single-crate');
+
+			// Skip this test if the single-crate project doesn't exist
+			const fs = require('fs');
+			if (!fs.existsSync(singleCrateProjectPath)) {
+				console.log('Skipping single-crate features test - single-crate project not found');
+				return;
+			}
+
+			const workspace = new CargoWorkspace(singleCrateProjectPath);
+			await workspace.initialize();
+
+			const provider = new ProjectOutlineTreeProvider();
+			provider.updateWorkspace(workspace);
+
+			// Get the root children (should be the project node for single-crate projects)
+			const rootChildren = await provider.getChildren();
+
+			// For single-crate projects, we should have one project node
+			assert.strictEqual(rootChildren.length, 1, 'Should have exactly one root node for single-crate project');
+			assert.strictEqual(rootChildren[0].contextValue, 'project', 'Root node should be a project node');
+
+			// Get the children of the project node (this is where features should be)
+			const projectChildren = await provider.getChildren(rootChildren[0]);
+
+			// Find the Features node
+			const featuresNode = projectChildren.find((child: any) => child.label === 'Features');
+
+			assert.ok(featuresNode, 'Should have a Features node for single-crate project');
+			assert.strictEqual(featuresNode.contextValue, 'features', 'Features node should have correct context value');
+
+			// Check that the features node has the expected data
+			assert.ok(featuresNode.data, 'Features node should have data');
+			assert.strictEqual(featuresNode.data.packageName, 'single-crate-core', 'Features node should reference the correct package name');
+			assert.ok(Array.isArray(featuresNode.data.features), 'Features node should contain features array');
+			assert.ok(featuresNode.data.features.length > 0, 'Features array should not be empty');
+
+			// Check that 'all-features' is the first item
+			assert.strictEqual(featuresNode.data.features[0], 'all-features', 'First feature should be all-features');
+
+			// Check that expected package-specific features are present (from our test project)
+			const expectedFeatures = ['default', 'std-support', 'async-support'];
+			for (const expectedFeature of expectedFeatures) {
+				assert.ok(featuresNode.data.features.includes(expectedFeature),
+					`Should include expected feature: ${expectedFeature}`);
+			}
+		});
+
+		test('should not show features node when showFeatures is disabled', async function () {
+			// Increase timeout for this test since it may need to initialize workspace  
+			this.timeout(20000); // 20 seconds
+
+			// Use the single-crate test project 
+			const path = require('path');
+			const singleCrateProjectPath = path.join(__dirname, '../../test-rust-project-single-crate');
+
+			// Skip this test if the single-crate project doesn't exist
+			const fs = require('fs');
+			if (!fs.existsSync(singleCrateProjectPath)) {
+				console.log('Skipping single-crate features test - single-crate project not found');
+				return;
+			}
+
+			const workspace = new CargoWorkspace(singleCrateProjectPath);
+			await workspace.initialize();
+
+			const provider = new ProjectOutlineTreeProvider();
+			provider.updateWorkspace(workspace);
+
+			// Disable features display
+			(provider as any).showFeatures = false;
+
+			// Get the root children and then project children
+			const rootChildren = await provider.getChildren();
+			assert.strictEqual(rootChildren.length, 1, 'Should have exactly one root node');
+
+			const projectChildren = await provider.getChildren(rootChildren[0]);
+
+			// Should not find a Features node
+			const featuresNode = projectChildren.find((child: any) => child.label === 'Features');
+
+			assert.ok(!featuresNode, 'Should not have a Features node when showFeatures is disabled');
+		});
+	});
+
 	suite('Makefile.toml Detection Tests', () => {
 		const { CargoWorkspace } = require('../cargoWorkspace');
 
-		test('should detect Makefile.toml when it exists', async function() {
+		test('should detect Makefile.toml when it exists', async function () {
 			// Increase timeout for this test since it may need to discover cargo-make tasks
 			this.timeout(20000); // 20 seconds
-			
+
 			// Use the test-rust-project which now has a Makefile.toml
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -271,10 +366,10 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(workspace.hasMakefileToml, true, 'Should detect Makefile.toml in test project');
 		});
 
-		test('should return false when Makefile.toml does not exist', async function() {
+		test('should return false when Makefile.toml does not exist', async function () {
 			// Increase timeout for this test as well since it initializes a workspace
 			this.timeout(20000); // 20 seconds
-			
+
 			// Use a path that doesn't have Makefile.toml 
 			const testPath = '/tmp'; // temp directory should not have Makefile.toml
 			const workspace = new CargoWorkspace(testPath);
@@ -319,10 +414,10 @@ suite('Extension Test Suite', () => {
 		const { MakefileTreeProvider } = require('../makefileTreeProvider');
 		const { CargoWorkspace } = require('../cargoWorkspace');
 
-		test('should show task categories when Makefile.toml exists', async function() {
+		test('should show task categories when Makefile.toml exists', async function () {
 			// Increase timeout for this test since it may need to discover cargo-make tasks
 			this.timeout(20000); // 20 seconds
-			
+
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -343,10 +438,10 @@ suite('Extension Test Suite', () => {
 			}
 		});
 
-		test('should return false when Makefile.toml does not exist', async function() {
+		test('should return false when Makefile.toml does not exist', async function () {
 			// Increase timeout for this test as well since it initializes a workspace
 			this.timeout(20000); // 20 seconds
-			
+
 			const provider = new MakefileTreeProvider();
 			const testPath = '/tmp';
 			const workspace = new CargoWorkspace(testPath);
@@ -360,10 +455,10 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(children[0].label, 'No Makefile.toml found', 'Should show appropriate message');
 		});
 
-		test('should apply task filter correctly', async function() {
+		test('should apply task filter correctly', async function () {
 			// Increase timeout for this test since it may need to discover cargo-make tasks
 			this.timeout(20000); // 20 seconds
-			
+
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -392,10 +487,10 @@ suite('Extension Test Suite', () => {
 			// Note: Filter now only applies to task names, not descriptions or categories
 		});
 
-		test('should apply category filter correctly', async function() {
+		test('should apply category filter correctly', async function () {
 			// Increase timeout for this test since it may need to discover cargo-make tasks
 			this.timeout(20000); // 20 seconds
-			
+
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -462,10 +557,10 @@ suite('Extension Test Suite', () => {
 				'Should have at least 2 menu entries for Makefile view (filter and clear filter buttons)');
 		});
 
-		test('should filter tasks by name only (not description or category)', async function() {
+		test('should filter tasks by name only (not description or category)', async function () {
 			// Increase timeout for this test since it may need to discover cargo-make tasks
 			this.timeout(20000); // 20 seconds
-			
+
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -514,10 +609,10 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(provider.currentTaskFilter, '', 'Filter should be cleared correctly');
 		});
 
-		test('should maintain category filter state correctly', async function() {
+		test('should maintain category filter state correctly', async function () {
 			// Increase timeout for this test since it may need to discover cargo-make tasks
 			this.timeout(20000); // 20 seconds
-			
+
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
@@ -567,10 +662,10 @@ suite('Extension Test Suite', () => {
 				'Test project should have Makefile.toml for testing filter functionality');
 		});
 
-		test('should have task nodes without click commands (button-triggered execution)', async function() {
+		test('should have task nodes without click commands (button-triggered execution)', async function () {
 			// Increase timeout for this test since it may need to discover cargo-make tasks
 			this.timeout(20000); // 20 seconds
-			
+
 			const provider = new MakefileTreeProvider();
 			const testProjectPath = getTestProjectPath();
 			const workspace = new CargoWorkspace(testProjectPath);
