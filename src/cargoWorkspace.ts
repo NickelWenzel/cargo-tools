@@ -190,6 +190,10 @@ export class CargoWorkspace {
         return members;
     }
 
+    findTargetById(id: string): CargoTarget | null {
+        return this._targets.find(target => target.id === id) || null;
+    }
+
     async initialize(): Promise<void> {
         await this.loadManifest();
         await this.discoverTargets();

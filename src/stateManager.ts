@@ -43,36 +43,39 @@ export class StateManager {
     }
 
     /**
-     * The currently selected build target
+     * The currently selected build target ID
      */
-    getSelectedBuildTarget(folderName: string, isMultiProject: boolean): CargoTarget | null {
-        return this._get<CargoTarget>('selectedBuildTarget', folderName, isMultiProject) || null;
+    getSelectedBuildTargetId(folderName: string, isMultiProject: boolean): string | null {
+        return this._get<string>('selectedBuildTarget', folderName, isMultiProject) || null;
     }
 
-    async setSelectedBuildTarget(folderName: string, targetName: CargoTarget | null, isMultiProject: boolean) {
-        await this._update('selectedBuildTarget', targetName, folderName, isMultiProject);
+    async setSelectedBuildTarget(folderName: string, target: CargoTarget | null, isMultiProject: boolean) {
+        const targetId = target ? target.id : null;
+        await this._update('selectedBuildTarget', targetId, folderName, isMultiProject);
     }
 
     /**
-     * The currently selected run target
+     * The currently selected run target ID
      */
-    getSelectedRunTarget(folderName: string, isMultiProject: boolean): CargoTarget | null {
-        return this._get<CargoTarget>('selectedRunTarget', folderName, isMultiProject) || null;
+    getSelectedRunTargetId(folderName: string, isMultiProject: boolean): string | null {
+        return this._get<string>('selectedRunTarget', folderName, isMultiProject) || null;
     }
 
-    async setSelectedRunTarget(folderName: string, targetName: CargoTarget | null, isMultiProject: boolean) {
-        await this._update('selectedRunTarget', targetName, folderName, isMultiProject);
+    async setSelectedRunTarget(folderName: string, target: CargoTarget | null, isMultiProject: boolean) {
+        const targetId = target ? target.id : null;
+        await this._update('selectedRunTarget', targetId, folderName, isMultiProject);
     }
 
     /**
-     * The currently selected benchmark target
+     * The currently selected benchmark target ID
      */
-    getSelectedBenchmarkTarget(folderName: string, isMultiProject: boolean): CargoTarget | null {
-        return this._get<CargoTarget>('selectedBenchmarkTarget', folderName, isMultiProject) || null;
+    getSelectedBenchmarkTargetId(folderName: string, isMultiProject: boolean): string | null {
+        return this._get<string>('selectedBenchmarkTarget', folderName, isMultiProject) || null;
     }
 
-    async setSelectedBenchmarkTarget(folderName: string, targetName: CargoTarget | null, isMultiProject: boolean) {
-        await this._update('selectedBenchmarkTarget', targetName, folderName, isMultiProject);
+    async setSelectedBenchmarkTarget(folderName: string, target: CargoTarget | null, isMultiProject: boolean) {
+        const targetId = target ? target.id : null;
+        await this._update('selectedBenchmarkTarget', targetId, folderName, isMultiProject);
     }
 
     /**

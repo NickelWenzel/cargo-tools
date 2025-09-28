@@ -45,6 +45,27 @@ export class CargoTarget {
         return `${this.name} (${this.kind})`;
     }
 
+    /**
+     * Create a unique identifier for this target that can be used for persistence
+     */
+    get id(): string {
+        return `${this.kind}:${this.name}:${this.packageName || ''}`;
+    }
+
+    /**
+     * Create a CargoTarget from a plain object (used for state restoration)
+     */
+    static fromObject(obj: any): CargoTarget {
+        return new CargoTarget(
+            obj.name,
+            obj.kind,
+            obj.srcPath,
+            obj.edition || '2021',
+            obj.packageName,
+            obj.packagePath
+        );
+    }
+
     get isExecutable(): boolean {
         return this.kind === CargoTargetKind.Bin;
     }

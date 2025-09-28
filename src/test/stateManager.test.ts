@@ -92,9 +92,8 @@ suite('State Persistence Tests', () => {
 
             await stateManager.setSelectedBuildTarget(folderName, target, isMultiProject);
 
-            const retrievedTarget = stateManager.getSelectedBuildTarget(folderName, isMultiProject);
-            assert.strictEqual(retrievedTarget?.name, target.name);
-            assert.strictEqual(retrievedTarget?.kind, target.kind);
+            const retrievedTargetId = stateManager.getSelectedBuildTargetId(folderName, isMultiProject);
+            assert.strictEqual(retrievedTargetId, target.id);
         });
 
         test('should persist and retrieve selected run target', async () => {
@@ -105,9 +104,8 @@ suite('State Persistence Tests', () => {
 
             await stateManager.setSelectedRunTarget(folderName, target, isMultiProject);
 
-            const retrievedTarget = stateManager.getSelectedRunTarget(folderName, isMultiProject);
-            assert.strictEqual(retrievedTarget?.name, target.name);
-            assert.strictEqual(retrievedTarget?.kind, target.kind);
+            const retrievedTargetId = stateManager.getSelectedRunTargetId(folderName, isMultiProject);
+            assert.strictEqual(retrievedTargetId, target.id);
         });
 
         test('should persist and retrieve selected benchmark target', async () => {
@@ -118,9 +116,8 @@ suite('State Persistence Tests', () => {
 
             await stateManager.setSelectedBenchmarkTarget(folderName, target, isMultiProject);
 
-            const retrievedTarget = stateManager.getSelectedBenchmarkTarget(folderName, isMultiProject);
-            assert.strictEqual(retrievedTarget?.name, target.name);
-            assert.strictEqual(retrievedTarget?.kind, target.kind);
+            const retrievedTargetId = stateManager.getSelectedBenchmarkTargetId(folderName, isMultiProject);
+            assert.strictEqual(retrievedTargetId, target.id);
         });
 
         test('should persist and retrieve selected platform target', async () => {
@@ -259,9 +256,9 @@ suite('State Persistence Tests', () => {
 
             // Test default values for Project Status View
             assert.strictEqual(stateManager.getSelectedPackage(folderName, isMultiProject), undefined);
-            assert.strictEqual(stateManager.getSelectedBuildTarget(folderName, isMultiProject), null);
-            assert.strictEqual(stateManager.getSelectedRunTarget(folderName, isMultiProject), null);
-            assert.strictEqual(stateManager.getSelectedBenchmarkTarget(folderName, isMultiProject), null);
+            assert.strictEqual(stateManager.getSelectedBuildTargetId(folderName, isMultiProject), null);
+            assert.strictEqual(stateManager.getSelectedRunTargetId(folderName, isMultiProject), null);
+            assert.strictEqual(stateManager.getSelectedBenchmarkTargetId(folderName, isMultiProject), null);
             assert.strictEqual(stateManager.getSelectedPlatformTarget(folderName, isMultiProject), null);
             assert.deepStrictEqual(stateManager.getSelectedFeatures(folderName, isMultiProject), []);
             assert.strictEqual(stateManager.getSelectedProfile(folderName, isMultiProject), null);
@@ -295,7 +292,7 @@ suite('State Persistence Tests', () => {
 
             // Verify all state is reset to defaults
             assert.strictEqual(stateManager.getSelectedPackage(folderName, isMultiProject), undefined);
-            assert.strictEqual(stateManager.getSelectedBuildTarget(folderName, isMultiProject), null);
+            assert.strictEqual(stateManager.getSelectedBuildTargetId(folderName, isMultiProject), null);
             assert.strictEqual(stateManager.getGroupByWorkspaceMember(folderName, isMultiProject), true);
             assert.strictEqual(stateManager.getWorkspaceMemberFilter(folderName, isMultiProject), '');
             assert.strictEqual(stateManager.getShowFeatures(folderName, isMultiProject), true);
