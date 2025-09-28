@@ -6,6 +6,8 @@ members = [
     "utils",
     "test-cdylib",
     "test-staticlib",
+    "test-proc-macro",
+    "test-proc-macro-alt",
 ]
 resolver = "2"
 default-members = [
@@ -15,6 +17,8 @@ default-members = [
     "utils",
     "test-cdylib",
     "test-staticlib",
+    "test-proc-macro",
+    "test-proc-macro-alt",
 ]
 
 [workspace.dependencies]

@@ -480,7 +480,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             const normalizedTypes = new Set<string>();
             for (const type of types) {
                 // Normalize all library types to 'lib' for grouping
-                if (type === 'dylib' || type === 'staticlib' || type === 'cdylib' || type === 'rlib') {
+                if (type === 'dylib' || type === 'staticlib' || type === 'cdylib' || type === 'rlib' || type === 'proc-macro') {
                     normalizedTypes.add('lib');
                 } else {
                     normalizedTypes.add(type);
@@ -524,6 +524,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             case 'staticlib':
             case 'cdylib':
             case 'rlib':
+            case 'proc-macro':
                 return 'Libraries';
             case 'example':
                 return 'Examples';
@@ -550,6 +551,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                 case 'staticlib':
                 case 'cdylib':
                 case 'rlib':
+                case 'proc-macro':
                     contextParts.push('isLibrary', 'supportsBuild');
                     break;
                 case 'example':
