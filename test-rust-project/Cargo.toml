@@ -1,7 +1,21 @@
 [workspace]
-members = ["core", "cli", "web-server", "utils"]
+members = [
+    "core",
+    "cli",
+    "web-server",
+    "utils",
+    "test-cdylib",
+    "test-staticlib",
+]
 resolver = "2"
-default-members = ["core", "cli", "web-server", "utils"]
+default-members = [
+    "core",
+    "cli",
+    "web-server",
+    "utils",
+    "test-cdylib",
+    "test-staticlib",
+]
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }

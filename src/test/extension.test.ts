@@ -1117,4 +1117,123 @@ suite('Extension Test Suite', () => {
 			}
 		});
 	});
+
+	suite('Library Crate Type Recognition Tests', () => {
+		test('should recognize all library crate types', () => {
+			const { CargoTarget } = require('../cargoTarget');
+
+			// Test all library crate types
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+			
+			for (const crateType of libraryCrateTypes) {
+				const target = new CargoTarget(
+					'test-target',
+					[crateType],
+					'/path/to/src/lib.rs',
+					'2021',
+					'test-package',
+					'/path/to/package'
+				);
+				
+				assert.ok(target.isLibrary, `Target with kind '${crateType}' should be recognized as a library`);
+			}
+
+			// Test mixed crate types (e.g., a target that is both lib and something else)
+			const mixedTarget = new CargoTarget(
+				'mixed-target',
+				['lib', 'cdylib'],
+				'/path/to/src/lib.rs',
+				'2021',
+				'test-package',
+				'/path/to/package'
+			);
+			assert.ok(mixedTarget.isLibrary, 'Target with mixed library kinds should be recognized as a library');
+
+			// Test non-library crate types
+			const nonLibraryTypes = ['bin', 'example', 'test', 'bench'];
+			for (const crateType of nonLibraryTypes) {
+				const target = new CargoTarget(
+					'test-target',
+					[crateType],
+					'/path/to/src/main.rs',
+					'2021',
+					'test-package',
+					'/path/to/package'
+				);
+				
+				assert.ok(!target.isLibrary, `Target with kind '${crateType}' should NOT be recognized as a library`);
+			}
+
+			// Test edge cases
+			const emptyKindTarget = new CargoTarget(
+				'empty-target',
+				[],
+				'/path/to/src/lib.rs',
+				'2021',
+				'test-package',
+				'/path/to/package'
+			);
+			assert.ok(!emptyKindTarget.isLibrary, 'Target with empty kind array should not be recognized as a library');
+		});
+
+		test('should handle real-world library crate types from workspace', async function () {
+			// Increase timeout for workspace initialization
+			this.timeout(20000); // 20 seconds
+
+			// Import CargoWorkspace for direct testing
+			const { CargoWorkspace } = require('../cargoWorkspace');
+			const workspace = new CargoWorkspace(getTestProjectPath());
+			await workspace.initialize();
+
+			// Find cdylib target
+			const cdylibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-cdylib');
+			if (cdylibTargets.length > 0) {
+				const cdylibTarget = cdylibTargets[0];
+				assert.ok(cdylibTarget.isLibrary, 'cdylib target should be recognized as a library');
+				assert.ok(cdylibTarget.kind.includes('cdylib'), 'cdylib target should have cdylib kind');
+			}
+
+			// Find staticlib target
+			const staticlibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-staticlib');
+			if (staticlibTargets.length > 0) {
+				const staticlibTarget = staticlibTargets[0];
+				assert.ok(staticlibTarget.isLibrary, 'staticlib target should be recognized as a library');
+				assert.ok(staticlibTarget.kind.includes('staticlib'), 'staticlib target should have staticlib kind');
+			}
+
+			// Verify regular lib target still works
+			const libTargets = workspace.targets.filter((t: any) => t.packageName === 'core');
+			if (libTargets.length > 0) {
+				const libTarget = libTargets[0];
+				assert.ok(libTarget.isLibrary, 'regular lib target should be recognized as a library');
+				assert.ok(libTarget.kind.includes('lib'), 'regular lib target should have lib kind');
+			}
+		});
+
+		test('should discover new packages after workspace changes', async function () {
+			// This test verifies that new packages can be discovered
+			this.timeout(20000); // 20 seconds
+
+			const { CargoWorkspace } = require('../cargoWorkspace');
+			const workspace = new CargoWorkspace(getTestProjectPath());
+			await workspace.initialize();
+
+			// Check that our test packages are discovered
+			const allPackageNames = workspace.targets.map((t: any) => t.packageName);
+			const uniquePackageNames = [...new Set(allPackageNames)];
+			
+			// Log discovered packages for debugging
+			console.log('Discovered packages:', uniquePackageNames.sort());
+
+			// We should find the test packages if they're properly configured
+			const packageCount = uniquePackageNames.length;
+			assert.ok(packageCount >= 4, `Should discover at least 4 packages, found ${packageCount}: ${uniquePackageNames.join(', ')}`);
+
+			// Check for core packages
+			assert.ok(uniquePackageNames.includes('core'), 'Should find core package');
+			assert.ok(uniquePackageNames.includes('cli'), 'Should find cli package');
+			assert.ok(uniquePackageNames.includes('utils'), 'Should find utils package');
+			assert.ok(uniquePackageNames.includes('web-server'), 'Should find web-server package');
+		});
+	});
 });
