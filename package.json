@@ -1,7 +1,7 @@
 {
   "name": "cargo-tools",
   "displayName": "Cargo Tools",
-  "description": "Rust development tools for VSCode with build profiles, targets, and workspace integration",
+  "description": "Cargo/Rust development tools for Visual Studio Code",
   "version": "0.0.1",
   "publisher": "cargo-tools",
   "license": "MIT",
@@ -1029,10 +1029,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
+    "vscode:prepublish": "npm run build-base -- --minify",
+    "package": "vsce package -o cargo-tools.vsix",
+    "build-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --platform=node --target=node20",
     "compile": "webpack",
     "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -1048,6 +1049,7 @@
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.10",
     "eslint": "^9.25.1",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
