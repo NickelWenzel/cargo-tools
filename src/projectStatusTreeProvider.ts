@@ -343,7 +343,22 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 `Selected build target: ${selectedBuildTarget}`,
                 `Click to change build target`
             );
-            node.iconPath = IconMapping.BUILD_ACTION;
+
+            // Set icon based on target type
+            if (selectedBuildTarget === 'lib') {
+                // For library targets, use the library icon
+                node.iconPath = IconMapping.getIconForTargetType('lib');
+            } else {
+                // For named targets, find the actual target and use its type
+                const target = this.findTargetByName(selectedBuildTarget);
+                if (target && target.kind && target.kind.length > 0) {
+                    node.iconPath = IconMapping.getIconForTargetType(target.kind[0]);
+                } else {
+                    // Fallback to build action icon if target not found
+                    node.iconPath = IconMapping.BUILD_ACTION;
+                }
+            }
+
             return [node];
         } else {
             // No build target selected - always show "No selection"
@@ -383,7 +398,16 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 `Selected run target: ${selectedRunTarget}`,
                 `Click to change run target`
             );
-            node.iconPath = IconMapping.SELECTED_STATE;
+
+            // Set icon based on target type
+            const target = this.findTargetByName(selectedRunTarget);
+            if (target && target.kind && target.kind.length > 0) {
+                node.iconPath = IconMapping.getIconForTargetType(target.kind[0]);
+            } else {
+                // Fallback to selected state icon if target not found
+                node.iconPath = IconMapping.SELECTED_STATE;
+            }
+
             return [node];
         } else {
             // Show disabled or default state
@@ -519,6 +543,14 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         }
 
         return this.workspace.targets.filter(target => target.packageName === packageName);
+    }
+
+    private findTargetByName(targetName: string): CargoTarget | undefined {
+        if (!this.workspace) {
+            return undefined;
+        }
+
+        return this.workspace.targets.find(target => target.name === targetName);
     }
 
     private groupTargetsByType(targets: CargoTarget[]): Map<string, CargoTarget[]> {
