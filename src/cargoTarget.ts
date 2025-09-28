@@ -29,7 +29,7 @@ export class CargoTarget {
         if (!this.kind || !Array.isArray(this.kind)) {
             return false;
         }
-        
+
         // All library crate types that should be treated as library targets
         const libraryKinds = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
         return this.kind.some(kind => libraryKinds.includes(kind));

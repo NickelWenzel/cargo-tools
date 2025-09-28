@@ -476,11 +476,23 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         for (const target of targets) {
             const types = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
 
+            // Normalize library types to 'lib' and get unique types for this target
+            const normalizedTypes = new Set<string>();
             for (const type of types) {
-                if (!groups.has(type)) {
-                    groups.set(type, []);
+                // Normalize all library types to 'lib' for grouping
+                if (type === 'dylib' || type === 'staticlib' || type === 'cdylib' || type === 'rlib') {
+                    normalizedTypes.add('lib');
+                } else {
+                    normalizedTypes.add(type);
                 }
-                groups.get(type)!.push(target);
+            }
+
+            // Add target to each normalized group (avoiding duplicates)
+            for (const normalizedType of normalizedTypes) {
+                if (!groups.has(normalizedType)) {
+                    groups.set(normalizedType, []);
+                }
+                groups.get(normalizedType)!.push(target);
             }
         }
 
@@ -508,6 +520,10 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             case 'bin':
                 return 'Binaries';
             case 'lib':
+            case 'dylib':
+            case 'staticlib':
+            case 'cdylib':
+            case 'rlib':
                 return 'Libraries';
             case 'example':
                 return 'Examples';
@@ -530,6 +546,10 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
                     contextParts.push('isExecutable', 'supportsBuild', 'supportsRun', 'supportsDebug');
                     break;
                 case 'lib':
+                case 'dylib':
+                case 'staticlib':
+                case 'cdylib':
+                case 'rlib':
                     contextParts.push('isLibrary', 'supportsBuild');
                     break;
                 case 'example':
@@ -834,7 +854,17 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             // Apply target type filter
             const filteredTargets = targets.filter(target => {
                 const targetKinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-                return targetKinds.some(kind => this.targetTypeFilter.has(kind));
+                return targetKinds.some(kind => {
+                    // Check for exact match first
+                    if (this.targetTypeFilter.has(kind)) {
+                        return true;
+                    }
+                    // For library targets, also check if 'lib' filter is enabled
+                    if (target.isLibrary && this.targetTypeFilter.has('lib')) {
+                        return true;
+                    }
+                    return false;
+                });
             });
 
             if (filteredTargets.length > 0) {
@@ -862,7 +892,17 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
             // Apply target type filter
             const targetKinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-            return targetKinds.some(kind => this.targetTypeFilter.has(kind));
+            return targetKinds.some(kind => {
+                // Check for exact match first
+                if (this.targetTypeFilter.has(kind)) {
+                    return true;
+                }
+                // For library targets, also check if 'lib' filter is enabled
+                if (target.isLibrary && this.targetTypeFilter.has('lib')) {
+                    return true;
+                }
+                return false;
+            });
         });
     }
 

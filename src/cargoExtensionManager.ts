@@ -881,8 +881,9 @@ export class CargoExtensionManager implements vscode.Disposable {
             const packageTargets = this.getTargetsForPackage(selectedPackage);
             const targetsByType = this.groupTargetsByType(packageTargets);
 
-            // Add library if exists
-            if (targetsByType.has('lib')) {
+            // Add library if exists (check for any library type)
+            const libraryTargets = packageTargets.filter(target => target.isLibrary);
+            if (libraryTargets.length > 0) {
                 items.push({
                     label: 'lib',
                     description: 'Build library (--lib)',

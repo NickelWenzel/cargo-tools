@@ -428,7 +428,7 @@ export class CargoWorkspace {
     private async readDirectoryWithTimeout(dirPath: string, timeoutMs: number): Promise<string[]> {
         return Promise.race([
             fs.promises.readdir(dirPath),
-            new Promise<string[]>((_, reject) => 
+            new Promise<string[]>((_, reject) =>
                 setTimeout(() => reject(new Error(`Timeout reading directory: ${dirPath}`)), timeoutMs)
             )
         ]);

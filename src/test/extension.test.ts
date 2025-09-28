@@ -1124,7 +1124,7 @@ suite('Extension Test Suite', () => {
 
 			// Test all library crate types
 			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
-			
+
 			for (const crateType of libraryCrateTypes) {
 				const target = new CargoTarget(
 					'test-target',
@@ -1134,7 +1134,7 @@ suite('Extension Test Suite', () => {
 					'test-package',
 					'/path/to/package'
 				);
-				
+
 				assert.ok(target.isLibrary, `Target with kind '${crateType}' should be recognized as a library`);
 			}
 
@@ -1160,7 +1160,7 @@ suite('Extension Test Suite', () => {
 					'test-package',
 					'/path/to/package'
 				);
-				
+
 				assert.ok(!target.isLibrary, `Target with kind '${crateType}' should NOT be recognized as a library`);
 			}
 
@@ -1221,7 +1221,7 @@ suite('Extension Test Suite', () => {
 			// Check that our test packages are discovered
 			const allPackageNames = workspace.targets.map((t: any) => t.packageName);
 			const uniquePackageNames = [...new Set(allPackageNames)];
-			
+
 			// Log discovered packages for debugging
 			console.log('Discovered packages:', uniquePackageNames.sort());
 
@@ -1234,6 +1234,134 @@ suite('Extension Test Suite', () => {
 			assert.ok(uniquePackageNames.includes('cli'), 'Should find cli package');
 			assert.ok(uniquePackageNames.includes('utils'), 'Should find utils package');
 			assert.ok(uniquePackageNames.includes('web-server'), 'Should find web-server package');
+		});
+
+		test('should filter library crate types correctly in project outline', async function () {
+			// This test verifies that cdylib and staticlib targets are included when 'lib' filter is active
+			this.timeout(20000); // 20 seconds
+
+			const { CargoWorkspace } = require('../cargoWorkspace');
+			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+
+			const workspace = new CargoWorkspace(getTestProjectPath());
+			await workspace.initialize();
+
+			const provider = new ProjectOutlineTreeProvider();
+			provider.updateWorkspace(workspace);
+
+			// Get all targets and verify library types are found
+			const cdylibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-cdylib' && t.kind.includes('cdylib'));
+			const staticlibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-staticlib' && t.kind.includes('staticlib'));
+
+			assert.ok(cdylibTargets.length > 0, 'Should find cdylib targets');
+			assert.ok(staticlibTargets.length > 0, 'Should find staticlib targets');
+
+			// Verify they are recognized as library targets
+			if (cdylibTargets.length > 0) {
+				assert.ok(cdylibTargets[0].isLibrary, 'cdylib target should be recognized as library');
+			}
+			if (staticlibTargets.length > 0) {
+				assert.ok(staticlibTargets[0].isLibrary, 'staticlib target should be recognized as library');
+			}
+		});
+
+		test('should assign consistent icons for all library crate types', () => {
+			const { IconMapping } = require('../iconMapping');
+
+			// Test all library crate types
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+
+			for (const crateType of libraryCrateTypes) {
+				// Test icon mapping
+				const icon = IconMapping.getIconForTargetType(crateType);
+				assert.strictEqual(icon, IconMapping.LIB_TARGET,
+					`Icon for ${crateType} should be the same as for 'lib'`);
+			}
+		});
+
+		test('should show consistent display names for all library crate types', () => {
+			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+
+			// Test all library crate types
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+
+			const provider = new ProjectOutlineTreeProvider();
+
+			for (const crateType of libraryCrateTypes) {
+				// Access private method using bracket notation for testing
+				const displayName = (provider as any)['getDisplayNameForTargetType'](crateType);
+				assert.strictEqual(displayName, 'Libraries',
+					`Display name for ${crateType} should be 'Libraries'`);
+			}
+		});
+
+		test('should assign consistent context values for all library crate types', () => {
+			const { CargoTarget } = require('../cargoTarget');
+			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+
+			// Test all library crate types
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+
+			for (const crateType of libraryCrateTypes) {
+				// Test context value by creating a target and checking context
+				const target = new CargoTarget(
+					'test-target',
+					[crateType],
+					'/path/to/src/lib.rs',
+					'2021',
+					'test-package',
+					'/path/to/package'
+				);
+
+				// Create provider instance to test getContextValue method
+				const provider = new ProjectOutlineTreeProvider();
+				// Access private method using bracket notation for testing
+				const contextValue = (provider as any)['getContextValue'](target);
+
+				// All library types should have 'isLibrary' and 'supportsBuild' context
+				assert.ok(contextValue.includes('isLibrary'),
+					`Context value for ${crateType} should include 'isLibrary'`);
+				assert.ok(contextValue.includes('supportsBuild'),
+					`Context value for ${crateType} should include 'supportsBuild'`);
+				assert.ok(contextValue.includes('cargoTarget'),
+					`Context value for ${crateType} should include 'cargoTarget'`);
+			}
+		});
+
+		test('should group targets with multiple library crate types under single Libraries node', () => {
+			const { CargoTarget } = require('../cargoTarget');
+			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+
+			// Create targets with different combinations of library types
+			const targets = [
+				new CargoTarget('lib-only', ['lib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('cdylib-only', ['cdylib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('mixed-lib', ['lib', 'cdylib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('multi-lib', ['staticlib', 'cdylib', 'dylib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('bin-target', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package')
+			];
+
+			const provider = new ProjectOutlineTreeProvider();
+			// Access private method using bracket notation for testing
+			const groups = (provider as any)['groupTargetsByType'](targets);
+
+			// Should have exactly one 'lib' group (all library types normalized to 'lib')
+			assert.ok(groups.has('lib'), 'Should have a lib group');
+			assert.ok(groups.has('bin'), 'Should have a bin group');
+
+			// Should NOT have separate groups for other library types
+			assert.ok(!groups.has('cdylib'), 'Should NOT have separate cdylib group');
+			assert.ok(!groups.has('staticlib'), 'Should NOT have separate staticlib group');
+			assert.ok(!groups.has('dylib'), 'Should NOT have separate dylib group');
+			assert.ok(!groups.has('rlib'), 'Should NOT have separate rlib group');
+
+			// Verify the lib group contains all library targets
+			const libGroup = groups.get('lib');
+			assert.strictEqual(libGroup.length, 4, 'Lib group should contain all 4 library targets');
+
+			// Verify the bin group contains only the binary target
+			const binGroup = groups.get('bin');
+			assert.strictEqual(binGroup.length, 1, 'Bin group should contain only 1 binary target');
 		});
 	});
 });
