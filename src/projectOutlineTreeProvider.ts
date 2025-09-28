@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
-import { CargoTarget } from './cargoTarget';
+import { CargoTarget, CargoTargetKind, toTargetKind } from './cargoTarget';
 import { StateManager } from './stateManager';
 import { IconMapping } from './iconMapping';
 
@@ -378,20 +378,9 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             let isBenchTarget = false;
 
             if (this.workspace) {
-                // For build targets, handle special case where "lib" is selected and target is a library
-                const selectedBuildTarget = this.workspace.selectedBuildTarget;
-                const selectedPackage = this.workspace.selectedPackage;
-
-                if (selectedBuildTarget === 'lib' && target.isLibrary) {
-                    // Only show icon if this library target belongs to the selected package
-                    // If no package is selected, don't show library indicators
-                    isBuildTarget = selectedPackage !== undefined && target.packageName === selectedPackage;
-                } else {
-                    isBuildTarget = selectedBuildTarget === target.name;
-                }
-
-                isRunTarget = this.workspace.selectedRunTarget === target.name;
-                isBenchTarget = this.workspace.selectedBenchmarkTarget === target.name;
+                isBuildTarget = this.workspace.selectedBuildTarget === target;
+                isRunTarget = this.workspace.selectedRunTarget === target;
+                isBenchTarget = this.workspace.selectedBenchmarkTarget === target;
             }
 
             if (isDefault) {
@@ -425,7 +414,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             );
 
             // Always use the default target type icon for the main iconPath
-            targetNode.iconPath = IconMapping.getIconForTargetType(target.kind[0]);
+            targetNode.iconPath = IconMapping.getIconForTargetType(target.kind);
 
             return targetNode;
         });
@@ -470,35 +459,19 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         });
     }
 
-    private groupTargetsByType(targets: CargoTarget[]): Map<string, CargoTarget[]> {
-        const groups = new Map<string, CargoTarget[]>();
+    private groupTargetsByType(targets: CargoTarget[]): Map<CargoTargetKind, CargoTarget[]> {
+        const groups = new Map<CargoTargetKind, CargoTarget[]>();
 
         for (const target of targets) {
-            const types = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-
-            // Normalize library types to 'lib' and get unique types for this target
-            const normalizedTypes = new Set<string>();
-            for (const type of types) {
-                // Normalize all library types to 'lib' for grouping
-                if (type === 'dylib' || type === 'staticlib' || type === 'cdylib' || type === 'rlib' || type === 'proc-macro') {
-                    normalizedTypes.add('lib');
-                } else {
-                    normalizedTypes.add(type);
-                }
+            if (!groups.has(target.kind)) {
+                groups.set(target.kind, []);
             }
-
-            // Add target to each normalized group (avoiding duplicates)
-            for (const normalizedType of normalizedTypes) {
-                if (!groups.has(normalizedType)) {
-                    groups.set(normalizedType, []);
-                }
-                groups.get(normalizedType)!.push(target);
-            }
+            groups.get(target.kind)!.push(target);
         }
 
         // Sort groups by priority: bin, lib, example, test, bench, others
-        const sortedGroups = new Map<string, CargoTarget[]>();
-        const priority = ['bin', 'lib', 'example', 'test', 'bench'];
+        const sortedGroups = new Map<CargoTargetKind, CargoTarget[]>();
+        const priority = [CargoTargetKind.Bin, CargoTargetKind.Lib, CargoTargetKind.Example, CargoTargetKind.Test, CargoTargetKind.Bench];
 
         for (const type of priority) {
             if (groups.has(type)) {
@@ -515,55 +488,41 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
         return sortedGroups;
     }
 
-    private getDisplayNameForTargetType(type: string): string {
+    private getDisplayNameForTargetType(type: CargoTargetKind): string {
         switch (type) {
-            case 'bin':
+            case CargoTargetKind.Bin:
                 return 'Binaries';
-            case 'lib':
-            case 'dylib':
-            case 'staticlib':
-            case 'cdylib':
-            case 'rlib':
-            case 'proc-macro':
+            case CargoTargetKind.Lib:
                 return 'Libraries';
-            case 'example':
+            case CargoTargetKind.Example:
                 return 'Examples';
-            case 'test':
+            case CargoTargetKind.Test:
                 return 'Tests';
-            case 'bench':
+            case CargoTargetKind.Bench:
                 return 'Benchmarks';
-            default:
-                return type.charAt(0).toUpperCase() + type.slice(1);
+            case CargoTargetKind.Unknown:
+                return 'Unknown';
         }
     }
 
     private getContextValue(target: CargoTarget): string {
-        const kinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
         const contextParts = ['cargoTarget'];
-
-        for (const kind of kinds) {
-            switch (kind) {
-                case 'bin':
-                    contextParts.push('isExecutable', 'supportsBuild', 'supportsRun', 'supportsDebug');
-                    break;
-                case 'lib':
-                case 'dylib':
-                case 'staticlib':
-                case 'cdylib':
-                case 'rlib':
-                case 'proc-macro':
-                    contextParts.push('isLibrary', 'supportsBuild');
-                    break;
-                case 'example':
-                    contextParts.push('isExample', 'isExecutable', 'supportsBuild', 'supportsRun', 'supportsDebug');
-                    break;
-                case 'test':
-                    contextParts.push('isTest', 'supportsBuild', 'supportsTest');
-                    break;
-                case 'bench':
-                    contextParts.push('isBench', 'supportsBuild', 'supportsBench');
-                    break;
-            }
+        switch (target.kind) {
+            case CargoTargetKind.Bin:
+                contextParts.push('isExecutable', 'supportsBuild', 'supportsRun', 'supportsDebug');
+                break;
+            case CargoTargetKind.Lib:
+                contextParts.push('isLibrary', 'supportsBuild');
+                break;
+            case CargoTargetKind.Example:
+                contextParts.push('isExample', 'isExecutable', 'supportsBuild', 'supportsRun', 'supportsDebug');
+                break;
+            case CargoTargetKind.Test:
+                contextParts.push('isTest', 'supportsBuild', 'supportsTest');
+                break;
+            case CargoTargetKind.Bench:
+                contextParts.push('isBench', 'supportsBuild', 'supportsBench');
+                break;
         }
 
         // Add selection state information
@@ -572,24 +531,19 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             const selectedRunTarget = this.workspace.selectedRunTarget;
             const selectedBenchmarkTarget = this.workspace.selectedBenchmarkTarget;
 
-            // For build targets, handle library vs other targets differently
-            const isSelectedBuildTarget = target.isLibrary
-                ? selectedBuildTarget === 'lib'
-                : selectedBuildTarget === target.name;
-
-            if (isSelectedBuildTarget) {
+            if (selectedBuildTarget === target) {
                 contextParts.push('isSelectedBuildTarget');
             } else if (contextParts.includes('supportsBuild')) {
                 contextParts.push('canBeSelectedBuildTarget');
             }
 
-            if (selectedRunTarget === target.name) {
+            if (selectedRunTarget === target) {
                 contextParts.push('isSelectedRunTarget');
             } else if (contextParts.includes('supportsRun')) {
                 contextParts.push('canBeSelectedRunTarget');
             }
 
-            if (selectedBenchmarkTarget === target.name) {
+            if (selectedBenchmarkTarget === target) {
                 contextParts.push('isSelectedBenchmarkTarget');
             } else if (contextParts.includes('supportsBench')) {
                 contextParts.push('canBeSelectedBenchmarkTarget');
@@ -600,9 +554,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
     }
 
     private getTooltip(target: CargoTarget): string {
-        const kinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-        const kindStr = kinds.join(', ');
-        return `${target.name} (${kindStr})\nPackage: ${target.packageName}\nPath: ${target.srcPath}`;
+        return `${target.name} (${target.kind})\nPackage: ${target.packageName}\nPath: ${target.srcPath}`;
     }
 
     // Filter methods
@@ -739,7 +691,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
         const allFilterOptions: FilterQuickPickItem[] = [
             ...allTargetTypes.map(type => ({
-                label: this.getDisplayNameForTargetType(type),
+                label: this.getDisplayNameForTargetType(toTargetKind([type])),
                 picked: this.targetTypeFilter.has(type),
                 targetType: type,
                 isFeature: false
@@ -855,18 +807,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
             // Apply target type filter
             const filteredTargets = targets.filter(target => {
-                const targetKinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-                return targetKinds.some(kind => {
-                    // Check for exact match first
-                    if (this.targetTypeFilter.has(kind)) {
-                        return true;
-                    }
-                    // For library targets, also check if 'lib' filter is enabled
-                    if (target.isLibrary && this.targetTypeFilter.has('lib')) {
-                        return true;
-                    }
-                    return false;
-                });
+                return this.targetTypeFilter.has(target.kind);
             });
 
             if (filteredTargets.length > 0) {
@@ -893,18 +834,7 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
             }
 
             // Apply target type filter
-            const targetKinds = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-            return targetKinds.some(kind => {
-                // Check for exact match first
-                if (this.targetTypeFilter.has(kind)) {
-                    return true;
-                }
-                // For library targets, also check if 'lib' filter is enabled
-                if (target.isLibrary && this.targetTypeFilter.has('lib')) {
-                    return true;
-                }
-                return false;
-            });
+            return this.targetTypeFilter.has(target.kind);
         });
     }
 

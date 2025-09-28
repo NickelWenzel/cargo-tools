@@ -3,7 +3,7 @@ import * as path from 'path';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoTaskProvider } from './cargoTaskProvider';
 import { CargoProfile } from './cargoProfile';
-import { CargoTarget, TargetActionType } from './cargoTarget';
+import { CargoTarget, CargoTargetKind, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
 import { StatusBarProvider } from './statusBarProvider';
 import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
@@ -544,20 +544,20 @@ export class CargoExtensionManager implements vscode.Disposable {
             this.saveCurrentState(); // Persist state changes
         });
 
-        const buildTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBuildTarget((targetName: string | null) => {
-            console.log('Build target changed:', targetName || 'none');
+        const buildTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBuildTarget((target: CargoTarget | null) => {
+            console.log('Build target changed:', target?.name || 'none');
             this.updateStatusBar();
             this.saveCurrentState(); // Persist state changes
         });
 
-        const runTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedRunTarget((targetName: string | null) => {
-            console.log('Run target changed:', targetName || 'none');
+        const runTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedRunTarget((target: CargoTarget | null) => {
+            console.log('Run target changed:', target?.name || 'none');
             this.updateStatusBar();
             this.saveCurrentState(); // Persist state changes
         });
 
-        const benchmarkTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBenchmarkTarget((targetName: string | null) => {
-            console.log('Benchmark target changed:', targetName || 'none');
+        const benchmarkTargetChangedSub = this.cargoWorkspace.onDidChangeSelectedBenchmarkTarget((target: CargoTarget | null) => {
+            console.log('Benchmark target changed:', target?.name || 'none');
             this.updateStatusBar();
             this.saveCurrentState(); // Persist state changes
         });
@@ -628,11 +628,12 @@ export class CargoExtensionManager implements vscode.Disposable {
         this.statusBarProvider.setPackageName(this.cargoWorkspace.selectedPackage);
 
         // Update targets
-        const buildTargetName = this.cargoWorkspace.selectedBuildTarget;
-        const displayBuildTarget = buildTargetName === 'lib' ? 'lib' : buildTargetName;
-        this.statusBarProvider.setBuildTargetName(displayBuildTarget);
-        this.statusBarProvider.setRunTargetName(this.cargoWorkspace.selectedRunTarget);
-        this.statusBarProvider.setBenchmarkTargetName(this.cargoWorkspace.selectedBenchmarkTarget);
+        const buildTarget = this.cargoWorkspace.selectedBuildTarget;
+        this.statusBarProvider.setBuildTargetName(buildTarget?.name || null);
+
+        const runTarget = this.cargoWorkspace.selectedRunTarget;
+        this.statusBarProvider.setRunTargetName(runTarget?.name || null);
+        this.statusBarProvider.setBenchmarkTargetName(this.cargoWorkspace.selectedBenchmarkTarget?.name || null);
         this.statusBarProvider.setPlatformTargetName(this.cargoWorkspace.selectedPlatformTarget);
 
         // Update features
@@ -882,49 +883,47 @@ export class CargoExtensionManager implements vscode.Disposable {
             const targetsByType = this.groupTargetsByType(packageTargets);
 
             // Add library if exists (check for any library type)
-            const libraryTargets = packageTargets.filter(target => target.isLibrary);
-            if (libraryTargets.length > 0) {
+            const libraryTargets = targetsByType.get(CargoTargetKind.Lib) || [];
+            for (const target of libraryTargets.filter(target => target.isLibrary)) {
                 items.push({
-                    label: 'lib',
-                    description: 'Build library (--lib)',
-                    detail: 'Library target'
+                    label: `${target.name} (library)`,
+                    description: `Build library: ${target.name} (--lib)`,
+                    detail: 'Library target',
+                    ...(({ target: target } as any))
                 });
             }
 
             // Add binaries
-            if (targetsByType.has('bin')) {
-                const binTargets = targetsByType.get('bin')!;
-                for (const target of binTargets) {
-                    items.push({
-                        label: target.name,
-                        description: `Build binary: ${target.name} (--bin ${target.name})`,
-                        detail: 'Binary target'
-                    });
-                }
+            const binTargets = targetsByType.get(CargoTargetKind.Bin) || [];
+            for (const target of binTargets) {
+                items.push({
+                    label: `${target.name} (binary)`,
+                    description: `Build binary: ${target.name} (--bin ${target.name})`,
+                    detail: 'Binary target',
+                    ...(({ target: target } as any))
+                });
             }
 
             // Add examples
-            if (targetsByType.has('example')) {
-                const exampleTargets = targetsByType.get('example')!;
-                for (const target of exampleTargets) {
-                    items.push({
-                        label: target.name,
-                        description: `Build example: ${target.name} (--example ${target.name})`,
-                        detail: 'Example target'
-                    });
-                }
+            const exampleTargets = targetsByType.get(CargoTargetKind.Example) || [];
+            for (const target of exampleTargets) {
+                items.push({
+                    label: `${target.name} (example)`,
+                    description: `Build example: ${target.name} (--example ${target.name})`,
+                    detail: 'Example target',
+                    ...(({ target: target } as any))
+                });
             }
 
             // Add benchmarks
-            if (targetsByType.has('bench')) {
-                const benchTargets = targetsByType.get('bench')!;
-                for (const target of benchTargets) {
-                    items.push({
-                        label: target.name,
-                        description: `Build benchmark: ${target.name} (--bench ${target.name})`,
-                        detail: 'Benchmark target'
-                    });
-                }
+            const benchTargets = targetsByType.get(CargoTargetKind.Bench) || [];
+            for (const target of benchTargets) {
+                items.push({
+                    label: `${target.name} (benchmark)`,
+                    description: `Build benchmark: ${target.name} (--bench ${target.name})`,
+                    detail: 'Benchmark target',
+                    ...(({ target: target } as any))
+                });
             }
         }
 
@@ -934,8 +933,11 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         if (selected) {
             // Store build target selection - handle "No selection" case
-            const targetToSet = selected.label === 'No selection' ? null : selected.label;
-            this.cargoWorkspace.setSelectedBuildTarget(targetToSet);
+            if (selected.label === 'No selection') {
+                this.cargoWorkspace.setSelectedBuildTarget(null);
+            } else {
+                this.cargoWorkspace.setSelectedBuildTarget((selected as any).target);
+            }
         }
     }
 
@@ -957,27 +959,25 @@ export class CargoExtensionManager implements vscode.Disposable {
             const targetsByType = this.groupTargetsByType(packageTargets);
 
             // Add binaries
-            if (targetsByType.has('bin')) {
-                const binTargets = targetsByType.get('bin')!;
-                for (const target of binTargets) {
-                    items.push({
-                        label: target.name,
-                        description: `Run binary: ${target.name} (--bin ${target.name})`,
-                        detail: 'Binary target'
-                    });
-                }
+            const binTargets = targetsByType.get(CargoTargetKind.Bin) || [];
+            for (const target of binTargets) {
+                items.push({
+                    label: `${target.name} (binary)`,
+                    description: `Run binary: ${target.name} (--bin ${target.name})`,
+                    detail: 'Binary target',
+                    ...(({ target: target } as any))
+                });
             }
 
             // Add examples
-            if (targetsByType.has('example')) {
-                const exampleTargets = targetsByType.get('example')!;
-                for (const target of exampleTargets) {
-                    items.push({
-                        label: target.name,
-                        description: `Run example: ${target.name} (--example ${target.name})`,
-                        detail: 'Example target'
-                    });
-                }
+            const exampleTargets = targetsByType.get(CargoTargetKind.Example) || [];
+            for (const target of exampleTargets) {
+                items.push({
+                    label: `${target.name} (example)`,
+                    description: `Run example: ${target.name} (--example ${target.name})`,
+                    detail: 'Example target',
+                    ...(({ target: target } as any))
+                });
             }
 
             if (items.length === 0) {
@@ -991,8 +991,8 @@ export class CargoExtensionManager implements vscode.Disposable {
         });
 
         if (selected) {
-            // Store run target selection
-            this.cargoWorkspace.setSelectedRunTarget(selected.label);
+            // Store run target
+            this.cargoWorkspace.setSelectedRunTarget((selected as any).target);
         }
     }
 
@@ -1020,13 +1020,14 @@ export class CargoExtensionManager implements vscode.Disposable {
             const targetsByType = this.groupTargetsByType(packageTargets);
 
             // Add benchmarks
-            if (targetsByType.has('bench')) {
-                const benchTargets = targetsByType.get('bench')!;
+            if (targetsByType.has(CargoTargetKind.Bench)) {
+                const benchTargets = targetsByType.get(CargoTargetKind.Bench)!;
                 for (const target of benchTargets) {
                     items.push({
                         label: target.name,
                         description: `Run benchmark: ${target.name} (--bench ${target.name})`,
-                        detail: 'Benchmark target'
+                        detail: 'Benchmark target',
+                        ...(({ target: target } as any))
                     });
                 }
             } else {
@@ -1041,7 +1042,7 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         if (selected) {
             // Store benchmark target selection - handle "No selection" case
-            const targetToSet = selected.label === 'No selection' ? null : selected.label;
+            const targetToSet = selected.label === 'No selection' ? null : (selected as any).target;
             this.cargoWorkspace.setSelectedBenchmarkTarget(targetToSet);
         }
     }
@@ -1638,7 +1639,7 @@ export class CargoExtensionManager implements vscode.Disposable {
 
         const items = supportedTargets.map(target => ({
             label: target.name,
-            description: `${target.kind.join(', ')} in ${target.packageName || 'main'}`,
+            description: `${target.kind} in ${target.packageName || 'main'}`,
             detail: `Supports: ${target.supportedActionTypes.join(', ')}`,
             target: target
         }));
@@ -1867,16 +1868,16 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         // Add target-specific flags
-        if (command !== 'clean' && target.kind && Array.isArray(target.kind)) {
-            if (target.kind.includes('bin')) {
+        if (command !== 'clean' && target.kind !== CargoTargetKind.Unknown) {
+            if (target.isExecutable) {
                 args.push('--bin', target.name);
             } else if (target.isLibrary) {
                 args.push('--lib');
-            } else if (target.kind.includes('example')) {
+            } else if (target.isExample) {
                 args.push('--example', target.name);
-            } else if (target.kind.includes('test')) {
+            } else if (target.isTest) {
                 args.push('--test', target.name);
-            } else if (target.kind.includes('bench')) {
+            } else if (target.isBench) {
                 args.push('--bench', target.name);
             }
         }
@@ -1963,11 +1964,7 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         // Set build target - for libraries, just store "lib"
-        if (target.isLibrary) {
-            this.cargoWorkspace.setSelectedBuildTarget('lib');
-        } else {
-            this.cargoWorkspace.setSelectedBuildTarget(target.name);
-        }
+        this.cargoWorkspace.setSelectedBuildTarget(target);
 
         console.log(`Set build target: ${target.name} in package: ${target.packageName}`);
     }
@@ -1999,7 +1996,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             await this.cargoWorkspace.setSelectedPackage(target.packageName);
         }
 
-        this.cargoWorkspace.setSelectedRunTarget(target.name);
+        this.cargoWorkspace.setSelectedRunTarget(target);
         console.log(`Set run target: ${target.name} in package: ${target.packageName}`);
     }
 
@@ -2030,7 +2027,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             await this.cargoWorkspace.setSelectedPackage(target.packageName);
         }
 
-        this.cargoWorkspace.setSelectedBenchmarkTarget(target.name);
+        this.cargoWorkspace.setSelectedBenchmarkTarget(target);
         console.log(`Set benchmark target: ${target.name} in package: ${target.packageName}`);
     }
 
@@ -2594,23 +2591,14 @@ export class CargoExtensionManager implements vscode.Disposable {
 
             // Handle different target types
             if (selectedBuildTarget) {
-                if (selectedBuildTarget === 'lib') {
-                    // Library target - just set the kind, don't override package selection
-                    taskDefinition.targetKind = 'lib';
-                } else {
-                    // Find the actual target to get its kind
-                    const target = this.cargoWorkspace.targets.find(t => t.name === selectedBuildTarget);
-                    if (target) {
-                        taskDefinition.targetName = target.name;
-                        taskDefinition.targetKind = Array.isArray(target.kind) ? target.kind[0] : target.kind;
-                        // Only override package if no package was explicitly selected
-                        if (!selectedPackage || !this.cargoWorkspace.isWorkspace) {
-                            taskDefinition.packageName = target.packageName;
-                        }
-                    } else {
-                        throw new Error(`Target ${selectedBuildTarget} not found`);
-                    }
+                taskDefinition.targetName = selectedBuildTarget.name;
+                taskDefinition.targetKind = selectedBuildTarget.kind;
+                // Only override package if no package was explicitly selected
+                if (!selectedPackage || !this.cargoWorkspace.isWorkspace) {
+                    taskDefinition.packageName = selectedBuildTarget.packageName;
                 }
+            } else {
+                throw new Error(`Target ${selectedBuildTarget} not found`);
             }
             // If selectedBuildTarget is null, we build all targets (no target-specific args)
 
@@ -2680,20 +2668,12 @@ export class CargoExtensionManager implements vscode.Disposable {
             }
 
             if (selectedRunTarget) {
-                // Specific target selected - find and execute it
-                const target = this.cargoWorkspace.targets.find(t => t.name === selectedRunTarget);
-                if (target) {
-                    await this.executeTargetAction(target, TargetActionType.Run);
-                } else {
-                    throw new Error(`Target ${selectedRunTarget} not found`);
-                }
+                await this.executeTargetAction(selectedRunTarget, TargetActionType.Run);
             } else {
                 // Auto-detect runnable target for the selected package
                 const packageTargets = this.cargoWorkspace.targets.filter(t => t.packageName === selectedPackage);
                 const runnableTarget = packageTargets.find(t =>
-                    Array.isArray(t.kind) ?
-                        t.kind.includes('bin') || t.kind.includes('example') :
-                        t.kind === 'bin' || t.kind === 'example'
+                    t.kind === CargoTargetKind.Bin || t.kind === CargoTargetKind.Example
                 );
 
                 if (runnableTarget) {
@@ -2725,20 +2705,12 @@ export class CargoExtensionManager implements vscode.Disposable {
             }
 
             if (selectedRunTarget) {
-                // Specific target selected - find and debug it
-                const target = this.cargoWorkspace.targets.find(t => t.name === selectedRunTarget);
-                if (target) {
-                    await this.executeTargetAction(target, TargetActionType.Debug);
-                } else {
-                    throw new Error(`Target ${selectedRunTarget} not found`);
-                }
+                await this.executeTargetAction(selectedRunTarget, TargetActionType.Debug);
             } else {
                 // Auto-detect debuggable target for the selected package
                 const packageTargets = this.cargoWorkspace.targets.filter(t => t.packageName === selectedPackage);
                 const debuggableTarget = packageTargets.find(t =>
-                    Array.isArray(t.kind) ?
-                        t.kind.includes('bin') || t.kind.includes('example') :
-                        t.kind === 'bin' || t.kind === 'example'
+                    t.kind === CargoTargetKind.Bin || t.kind === CargoTargetKind.Example
                 );
 
                 if (debuggableTarget) {
@@ -2839,7 +2811,7 @@ export class CargoExtensionManager implements vscode.Disposable {
             // Handle specific benchmark target
             if (selectedBenchmarkTarget) {
                 // Find the actual target to get its details
-                const target = this.cargoWorkspace.targets.find(t => t.name === selectedBenchmarkTarget);
+                const target = this.cargoWorkspace.targets.find(t => t === selectedBenchmarkTarget);
                 if (target) {
                     taskDefinition.targetName = target.name;
                     taskDefinition.targetKind = 'bench';
@@ -2966,18 +2938,14 @@ export class CargoExtensionManager implements vscode.Disposable {
         return this.cargoWorkspace.targets.filter(target => target.packageName === packageName);
     }
 
-    private groupTargetsByType(targets: CargoTarget[]): Map<string, CargoTarget[]> {
-        const groups = new Map<string, CargoTarget[]>();
+    private groupTargetsByType(targets: CargoTarget[]): Map<CargoTargetKind, CargoTarget[]> {
+        const groups = new Map<CargoTargetKind, CargoTarget[]>();
 
         for (const target of targets) {
-            const types = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-
-            for (const type of types) {
-                if (!groups.has(type)) {
-                    groups.set(type, []);
-                }
-                groups.get(type)!.push(target);
+            if (!groups.has(target.kind)) {
+                groups.set(target.kind, []);
             }
+            groups.get(target.kind)!.push(target);
         }
 
         return groups;

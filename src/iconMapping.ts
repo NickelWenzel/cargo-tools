@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { CargoConfiguration } from './cargoConfigurationReader';
+import { CargoTargetKind } from './cargoTarget';
 
 /**
  * Centralized icon mapping for consistent, colorful icons throughout the extension
@@ -58,24 +60,19 @@ export class IconMapping {
     /**
      * Get icon for target type
      */
-    static getIconForTargetType(type: string): vscode.ThemeIcon {
+    static getIconForTargetType(type: CargoTargetKind): vscode.ThemeIcon {
         switch (type) {
-            case 'bin':
+            case CargoTargetKind.Bin:
                 return this.BIN_TARGET;
-            case 'lib':
-            case 'dylib':
-            case 'staticlib':
-            case 'cdylib':
-            case 'rlib':
-            case 'proc-macro':
+            case CargoTargetKind.Lib:
                 return this.LIB_TARGET;
-            case 'example':
+            case CargoTargetKind.Example:
                 return this.EXAMPLE_TARGET;
-            case 'test':
+            case CargoTargetKind.Test:
                 return this.TEST_TARGET;
-            case 'bench':
+            case CargoTargetKind.Bench:
                 return this.BENCH_TARGET;
-            default:
+            case CargoTargetKind.Unknown:
                 return this.UNKNOWN_TARGET;
         }
     }

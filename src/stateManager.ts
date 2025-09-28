@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { CargoTarget } from './cargoTarget';
 
 /**
  * This class keeps track of all state that needs to persist between sessions
@@ -44,33 +45,33 @@ export class StateManager {
     /**
      * The currently selected build target
      */
-    getSelectedBuildTarget(folderName: string, isMultiProject: boolean): string | null {
-        return this._get<string>('selectedBuildTarget', folderName, isMultiProject) || null;
+    getSelectedBuildTarget(folderName: string, isMultiProject: boolean): CargoTarget | null {
+        return this._get<CargoTarget>('selectedBuildTarget', folderName, isMultiProject) || null;
     }
 
-    async setSelectedBuildTarget(folderName: string, targetName: string | null, isMultiProject: boolean) {
+    async setSelectedBuildTarget(folderName: string, targetName: CargoTarget | null, isMultiProject: boolean) {
         await this._update('selectedBuildTarget', targetName, folderName, isMultiProject);
     }
 
     /**
      * The currently selected run target
      */
-    getSelectedRunTarget(folderName: string, isMultiProject: boolean): string | null {
-        return this._get<string>('selectedRunTarget', folderName, isMultiProject) || null;
+    getSelectedRunTarget(folderName: string, isMultiProject: boolean): CargoTarget | null {
+        return this._get<CargoTarget>('selectedRunTarget', folderName, isMultiProject) || null;
     }
 
-    async setSelectedRunTarget(folderName: string, targetName: string | null, isMultiProject: boolean) {
+    async setSelectedRunTarget(folderName: string, targetName: CargoTarget | null, isMultiProject: boolean) {
         await this._update('selectedRunTarget', targetName, folderName, isMultiProject);
     }
 
     /**
      * The currently selected benchmark target
      */
-    getSelectedBenchmarkTarget(folderName: string, isMultiProject: boolean): string | null {
-        return this._get<string>('selectedBenchmarkTarget', folderName, isMultiProject) || null;
+    getSelectedBenchmarkTarget(folderName: string, isMultiProject: boolean): CargoTarget | null {
+        return this._get<CargoTarget>('selectedBenchmarkTarget', folderName, isMultiProject) || null;
     }
 
-    async setSelectedBenchmarkTarget(folderName: string, targetName: string | null, isMultiProject: boolean) {
+    async setSelectedBenchmarkTarget(folderName: string, targetName: CargoTarget | null, isMultiProject: boolean) {
         await this._update('selectedBenchmarkTarget', targetName, folderName, isMultiProject);
     }
 

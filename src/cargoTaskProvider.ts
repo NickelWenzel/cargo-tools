@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
-import { CargoTarget, TargetActionType } from './cargoTarget';
+import { CargoTarget, CargoTargetKind, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
 
 export interface CargoTaskDefinition extends vscode.TaskDefinition {
     command: string;
     profile?: string;
     target?: string;
-    targetKind?: 'bin' | 'lib' | 'example' | 'test' | 'bench';
+    targetKind?: CargoTargetKind;
     features?: string[];
     allFeatures?: boolean;
     noDefaultFeatures?: boolean;
@@ -104,23 +104,23 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     }
 
     private addTargetSpecificTasks(tasks: vscode.Task[], target: CargoTarget): void {
-        const targetKind = target.kind[0]; // Primary kind
+        const targetKind = target.kind; // Primary kind
 
         switch (targetKind) {
-            case 'bin':
+            case CargoTargetKind.Bin:
                 // Binary targets: build and run
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'build',
                     target: target.name,
-                    targetKind: 'bin'
+                    targetKind: CargoTargetKind.Bin
                 }));
 
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'run',
                     target: target.name,
-                    targetKind: 'bin'
+                    targetKind: CargoTargetKind.Bin
                 }));
 
                 // Release variants
@@ -128,7 +128,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
                     type: CargoTaskProvider.CargoType,
                     command: 'build',
                     target: target.name,
-                    targetKind: 'bin',
+                    targetKind: CargoTargetKind.Bin,
                     profile: 'release'
                 }));
 
@@ -136,25 +136,25 @@ export class CargoTaskProvider implements vscode.TaskProvider {
                     type: CargoTaskProvider.CargoType,
                     command: 'run',
                     target: target.name,
-                    targetKind: 'bin',
+                    targetKind: CargoTargetKind.Bin,
                     profile: 'release'
                 }));
                 break;
 
-            case 'example':
+            case CargoTargetKind.Example:
                 // Example targets: build and run
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'build',
                     target: target.name,
-                    targetKind: 'example'
+                    targetKind: CargoTargetKind.Example
                 }));
 
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'run',
                     target: target.name,
-                    targetKind: 'example'
+                    targetKind: CargoTargetKind.Example
                 }));
 
                 // Release variants
@@ -162,59 +162,59 @@ export class CargoTaskProvider implements vscode.TaskProvider {
                     type: CargoTaskProvider.CargoType,
                     command: 'run',
                     target: target.name,
-                    targetKind: 'example',
+                    targetKind: CargoTargetKind.Example,
                     profile: 'release'
                 }));
                 break;
 
-            case 'test':
+            case CargoTargetKind.Test:
                 // Test targets: build and run
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'build',
                     target: target.name,
-                    targetKind: 'test'
+                    targetKind: CargoTargetKind.Test
                 }));
 
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'test',
                     target: target.name,
-                    targetKind: 'test'
+                    targetKind: CargoTargetKind.Test
                 }));
                 break;
 
-            case 'bench':
+            case CargoTargetKind.Bench:
                 // Benchmark targets: build and run
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'build',
                     target: target.name,
-                    targetKind: 'bench'
+                    targetKind: CargoTargetKind.Bench
                 }));
 
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'bench',
                     target: target.name,
-                    targetKind: 'bench'
+                    targetKind: CargoTargetKind.Bench
                 }));
                 break;
 
-            case 'lib':
+            case CargoTargetKind.Lib:
                 // Library targets: build and test
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'build',
                     target: target.name,
-                    targetKind: 'lib'
+                    targetKind: CargoTargetKind.Lib
                 }));
 
                 tasks.push(this.createCargoTask({
                     type: CargoTaskProvider.CargoType,
                     command: 'test',
                     target: target.name,
-                    targetKind: 'lib'
+                    targetKind: CargoTargetKind.Lib
                 }));
 
                 // Release variant
@@ -222,7 +222,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
                     type: CargoTaskProvider.CargoType,
                     command: 'build',
                     target: target.name,
-                    targetKind: 'lib',
+                    targetKind: CargoTargetKind.Lib,
                     profile: 'release'
                 }));
                 break;
@@ -462,8 +462,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         let name = `cargo ${definition.command}`;
 
         if (definition.target && definition.targetKind) {
-            const kindLabel = this.getTargetKindLabel(definition.targetKind);
-            name += ` ${kindLabel} (${definition.target})`;
+            name += ` ${definition.targetKind} (${definition.target})`;
         } else if (definition.target) {
             name += ` (${definition.target})`;
         }
@@ -473,23 +472,6 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         }
 
         return name;
-    }
-
-    private getTargetKindLabel(kind: string): string {
-        switch (kind) {
-            case 'bin':
-                return 'binary';
-            case 'lib':
-                return 'library';
-            case 'example':
-                return 'example';
-            case 'test':
-                return 'test';
-            case 'bench':
-                return 'benchmark';
-            default:
-                return kind;
-        }
     }
 
     private getTaskGroup(command: string): vscode.TaskGroup | undefined {
@@ -529,9 +511,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         }
 
         const command = target.getCargoCommand(actionType);
-        const targetKind = Array.isArray(target.kind) ? target.kind[0] : target.kind;
-        const validKind = targetKind === 'bin' || targetKind === 'lib' || targetKind === 'example' ||
-            targetKind === 'test' || targetKind === 'bench' ? targetKind : 'bin';
+        const targetKind = target.kind;
 
         // Handle features properly
         const selectedFeatures = this.workspace?.selectedFeatures ? Array.from(this.workspace.selectedFeatures) : [];
@@ -547,7 +527,7 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             type: 'cargo',
             command: command,
             targetName: target.name,
-            targetKind: validKind,
+            targetKind: targetKind,
             packageName: packageName,
             features: regularFeatures.length > 0 ? regularFeatures : undefined,
             allFeatures: hasAllFeatures

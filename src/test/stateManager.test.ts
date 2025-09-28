@@ -87,34 +87,40 @@ suite('State Persistence Tests', () => {
         test('should persist and retrieve selected build target', async () => {
             const folderName = 'test-workspace';
             const isMultiProject = false;
-            const targetName = 'my-binary';
+            const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package');
 
-            await stateManager.setSelectedBuildTarget(folderName, targetName, isMultiProject);
+            await stateManager.setSelectedBuildTarget(folderName, target, isMultiProject);
 
             const retrievedTarget = stateManager.getSelectedBuildTarget(folderName, isMultiProject);
-            assert.strictEqual(retrievedTarget, targetName);
+            assert.strictEqual(retrievedTarget?.name, target.name);
+            assert.strictEqual(retrievedTarget?.kind, target.kind);
         });
 
         test('should persist and retrieve selected run target', async () => {
             const folderName = 'test-workspace';
             const isMultiProject = false;
-            const targetName = 'my-example';
+            const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
+            const target = new CargoTarget('my-example', CargoTargetKind.Example, '/path/to/examples/example.rs', '2021', 'test-package', '/path/to/package');
 
-            await stateManager.setSelectedRunTarget(folderName, targetName, isMultiProject);
+            await stateManager.setSelectedRunTarget(folderName, target, isMultiProject);
 
             const retrievedTarget = stateManager.getSelectedRunTarget(folderName, isMultiProject);
-            assert.strictEqual(retrievedTarget, targetName);
+            assert.strictEqual(retrievedTarget?.name, target.name);
+            assert.strictEqual(retrievedTarget?.kind, target.kind);
         });
 
         test('should persist and retrieve selected benchmark target', async () => {
             const folderName = 'test-workspace';
             const isMultiProject = false;
-            const targetName = 'my-benchmark';
+            const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
+            const target = new CargoTarget('my-benchmark', CargoTargetKind.Bench, '/path/to/benches/bench.rs', '2021', 'test-package', '/path/to/package');
 
-            await stateManager.setSelectedBenchmarkTarget(folderName, targetName, isMultiProject);
+            await stateManager.setSelectedBenchmarkTarget(folderName, target, isMultiProject);
 
             const retrievedTarget = stateManager.getSelectedBenchmarkTarget(folderName, isMultiProject);
-            assert.strictEqual(retrievedTarget, targetName);
+            assert.strictEqual(retrievedTarget?.name, target.name);
+            assert.strictEqual(retrievedTarget?.kind, target.kind);
         });
 
         test('should persist and retrieve selected platform target', async () => {
@@ -275,8 +281,11 @@ suite('State Persistence Tests', () => {
             const isMultiProject = false;
 
             // Set some non-default state
+            const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
+            const target = new CargoTarget('test-target', CargoTargetKind.Bin, '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package');
+
             await stateManager.setSelectedPackage(folderName, 'test-package', isMultiProject);
-            await stateManager.setSelectedBuildTarget(folderName, 'test-target', isMultiProject);
+            await stateManager.setSelectedBuildTarget(folderName, target, isMultiProject);
             await stateManager.setGroupByWorkspaceMember(folderName, false, isMultiProject);
             await stateManager.setWorkspaceMemberFilter(folderName, 'filter', isMultiProject);
             await stateManager.setShowFeatures(folderName, false, isMultiProject);

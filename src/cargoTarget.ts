@@ -6,10 +6,35 @@ export enum TargetActionType {
     Bench = 'bench'
 }
 
+export enum CargoTargetKind {
+    Bin = 'bin',
+    Lib = 'lib',
+    Bench = 'bench',
+    Example = 'example',
+    Test = 'test',
+    Unknown = 'unknown',
+}
+
+export function toTargetKind(kinds: string[]): CargoTargetKind {
+    if (kinds.includes('bin')) {
+        return CargoTargetKind.Bin;
+    } else if (kinds.includes('lib') || kinds.includes('rlib') || kinds.includes('dylib') || kinds.includes('cdylib') || kinds.includes('staticlib') || kinds.includes('proc-macro')) {
+        return CargoTargetKind.Lib;
+    } else if (kinds.includes('example')) {
+        return CargoTargetKind.Example;
+    } else if (kinds.includes('test')) {
+        return CargoTargetKind.Test;
+    } else if (kinds.includes('bench')) {
+        return CargoTargetKind.Bench;
+    } else {
+        return CargoTargetKind.Unknown; // Default fallback
+    }
+}
+
 export class CargoTarget {
     constructor(
         public readonly name: string,
-        public readonly kind: string[],
+        public readonly kind: CargoTargetKind,
         public readonly srcPath: string,
         public readonly edition: string = '2021',
         public readonly packageName?: string,
@@ -17,34 +42,27 @@ export class CargoTarget {
     ) { }
 
     get displayName(): string {
-        const kindStr = this.kind.join(', ');
-        return `${this.name} (${kindStr})`;
+        return `${this.name} (${this.kind})`;
     }
 
     get isExecutable(): boolean {
-        return Boolean(this.kind && Array.isArray(this.kind) && this.kind.includes('bin'));
+        return this.kind === CargoTargetKind.Bin;
     }
 
     get isLibrary(): boolean {
-        if (!this.kind || !Array.isArray(this.kind)) {
-            return false;
-        }
-
-        // All library crate types that should be treated as library targets
-        const libraryKinds = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
-        return this.kind.some(kind => libraryKinds.includes(kind));
+        return this.kind === CargoTargetKind.Lib;
     }
 
     get isTest(): boolean {
-        return Boolean(this.kind && Array.isArray(this.kind) && this.kind.includes('test'));
+        return this.kind === CargoTargetKind.Test;
     }
 
     get isBench(): boolean {
-        return Boolean(this.kind && Array.isArray(this.kind) && this.kind.includes('bench'));
+        return this.kind === CargoTargetKind.Bench;
     }
 
     get isExample(): boolean {
-        return Boolean(this.kind && Array.isArray(this.kind) && this.kind.includes('example'));
+        return this.kind === CargoTargetKind.Example;
     }
 
     /**

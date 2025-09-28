@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { CargoTarget } from './cargoTarget';
+import { CargoTarget, CargoTargetKind, toTargetKind } from './cargoTarget';
 import { CargoProfile } from './cargoProfile';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -68,9 +68,9 @@ export class CargoWorkspace {
     private _selectedPackage: string | undefined = undefined; // undefined means "No selection"
     private _workspacePackageNames: string[] = []; // Package names from cargo metadata
     private _packageFeatures: Map<string, string[]> = new Map(); // Features available for each package
-    private _selectedBuildTarget: string | null = null; // null means "No selection"
-    private _selectedRunTarget: string | null = null; // Selected run target
-    private _selectedBenchmarkTarget: string | null = null; // Selected benchmark target
+    private _selectedBuildTarget: CargoTarget | null = null; // null means "No selection"
+    private _selectedRunTarget: CargoTarget | null = null; // Selected run target
+    private _selectedBenchmarkTarget: CargoTarget | null = null; // Selected benchmark target
     private _selectedPlatformTarget: string | null = null; // Selected platform target (e.g., x86_64-unknown-linux-gnu)
     private _selectedFeatures: Set<string> = new Set(); // Selected features, default to none (no features selected)
     private _hasMakefileToml: boolean = false; // Whether Makefile.toml exists in workspace root
@@ -79,9 +79,9 @@ export class CargoWorkspace {
     private _onDidChangeTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeTargets = new vscode.EventEmitter<CargoTarget[]>();
     private _onDidChangeSelectedPackage = new vscode.EventEmitter<string | undefined>();
-    private _onDidChangeSelectedBuildTarget = new vscode.EventEmitter<string | null>();
-    private _onDidChangeSelectedRunTarget = new vscode.EventEmitter<string | null>();
-    private _onDidChangeSelectedBenchmarkTarget = new vscode.EventEmitter<string | null>();
+    private _onDidChangeSelectedBuildTarget = new vscode.EventEmitter<CargoTarget | null>();
+    private _onDidChangeSelectedRunTarget = new vscode.EventEmitter<CargoTarget | null>();
+    private _onDidChangeSelectedBenchmarkTarget = new vscode.EventEmitter<CargoTarget | null>();
     private _onDidChangeSelectedPlatformTarget = new vscode.EventEmitter<string | null>();
     private _onDidChangeSelectedFeatures = new vscode.EventEmitter<Set<string>>();
 
@@ -123,15 +123,15 @@ export class CargoWorkspace {
         return this._selectedPackage;
     }
 
-    get selectedBuildTarget(): string | null {
+    get selectedBuildTarget(): CargoTarget | null {
         return this._selectedBuildTarget;
     }
 
-    get selectedRunTarget(): string | null {
+    get selectedRunTarget(): CargoTarget | null {
         return this._selectedRunTarget;
     }
 
-    get selectedBenchmarkTarget(): string | null {
+    get selectedBenchmarkTarget(): CargoTarget | null {
         return this._selectedBenchmarkTarget;
     }
 
@@ -313,7 +313,7 @@ export class CargoWorkspace {
 
                     const cargoTarget = new CargoTarget(
                         target.name,
-                        Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'],
+                        toTargetKind(target.kind),
                         target.src_path,
                         target.edition || pkg.edition || '2021',
                         pkg.name,
@@ -342,14 +342,14 @@ export class CargoWorkspace {
                 // Check for main.rs (binary target)
                 const mainPath = path.join(srcDir, 'main.rs');
                 if (fs.existsSync(mainPath)) {
-                    this._targets.push(new CargoTarget(packageName, ['bin'], mainPath, '2021', packageName, packagePath));
+                    this._targets.push(new CargoTarget(packageName, CargoTargetKind.Bin, mainPath, '2021', packageName, packagePath));
                 }
 
                 // Check for lib.rs (library target)
                 const libPath = path.join(srcDir, 'lib.rs');
                 if (fs.existsSync(libPath)) {
                     const libName = this._manifest?.lib?.name || packageName;
-                    this._targets.push(new CargoTarget(libName, ['lib'], libPath, '2021', packageName, packagePath));
+                    this._targets.push(new CargoTarget(libName, CargoTargetKind.Lib, libPath, '2021', packageName, packagePath));
                 }
 
                 // Check for bin directory (additional binary targets)
@@ -360,7 +360,7 @@ export class CargoWorkspace {
                         for (const file of binFiles) {
                             if (file.endsWith('.rs')) {
                                 const name = path.basename(file, '.rs');
-                                this._targets.push(new CargoTarget(name, ['bin'], path.join(binDir, file), '2021', packageName, packagePath));
+                                this._targets.push(new CargoTarget(name, CargoTargetKind.Bin, path.join(binDir, file), '2021', packageName, packagePath));
                             }
                         }
                     } catch (error) {
@@ -377,7 +377,7 @@ export class CargoWorkspace {
                     for (const file of exampleFiles) {
                         if (file.endsWith('.rs')) {
                             const name = path.basename(file, '.rs');
-                            this._targets.push(new CargoTarget(name, ['example'], path.join(examplesDir, file), '2021', packageName, packagePath));
+                            this._targets.push(new CargoTarget(name, CargoTargetKind.Example, path.join(examplesDir, file), '2021', packageName, packagePath));
                         }
                     }
                 } catch (error) {
@@ -393,7 +393,7 @@ export class CargoWorkspace {
                     for (const file of testFiles) {
                         if (file.endsWith('.rs')) {
                             const name = path.basename(file, '.rs');
-                            this._targets.push(new CargoTarget(name, ['test'], path.join(testsDir, file), '2021', packageName, packagePath));
+                            this._targets.push(new CargoTarget(name, CargoTargetKind.Test, path.join(testsDir, file), '2021', packageName, packagePath));
                         }
                     }
                 } catch (error) {
@@ -409,7 +409,7 @@ export class CargoWorkspace {
                     for (const file of benchFiles) {
                         if (file.endsWith('.rs')) {
                             const name = path.basename(file, '.rs');
-                            this._targets.push(new CargoTarget(name, ['bench'], path.join(benchesDir, file), '2021', packageName, packagePath));
+                            this._targets.push(new CargoTarget(name, CargoTargetKind.Bench, path.join(benchesDir, file), '2021', packageName, packagePath));
                         }
                     }
                 } catch (error) {
@@ -586,7 +586,7 @@ export class CargoWorkspace {
     private setDefaultTarget(): void {
         if (this._targets.length > 0) {
             // Prefer binary targets over library targets
-            const binTarget = this._targets.find(t => t.kind && Array.isArray(t.kind) && t.kind.includes('bin'));
+            const binTarget = this._targets.find(t => t.kind === CargoTargetKind.Bin);
             this._currentTarget = binTarget || this._targets[0];
             this._onDidChangeTarget.fire(this._currentTarget);
         }
@@ -618,23 +618,23 @@ export class CargoWorkspace {
         }
     }
 
-    setSelectedBuildTarget(targetName: string | null): void {
-        if (this._selectedBuildTarget !== targetName) {
-            this._selectedBuildTarget = targetName;
+    setSelectedBuildTarget(target: CargoTarget | null): void {
+        if (this._selectedBuildTarget !== target) {
+            this._selectedBuildTarget = target;
             this._onDidChangeSelectedBuildTarget.fire(this._selectedBuildTarget);
         }
     }
 
-    setSelectedRunTarget(targetName: string | null): void {
-        if (this._selectedRunTarget !== targetName) {
-            this._selectedRunTarget = targetName;
+    setSelectedRunTarget(target: CargoTarget | null): void {
+        if (this._selectedRunTarget !== target) {
+            this._selectedRunTarget = target;
             this._onDidChangeSelectedRunTarget.fire(this._selectedRunTarget);
         }
     }
 
-    setSelectedBenchmarkTarget(targetName: string | null): void {
-        if (this._selectedBenchmarkTarget !== targetName) {
-            this._selectedBenchmarkTarget = targetName;
+    setSelectedBenchmarkTarget(target: CargoTarget | null): void {
+        if (this._selectedBenchmarkTarget !== target) {
+            this._selectedBenchmarkTarget = target;
             this._onDidChangeSelectedBenchmarkTarget.fire(this._selectedBenchmarkTarget);
         }
     }
@@ -884,12 +884,10 @@ export class CargoWorkspace {
 
         // Add target
         if (this._currentTarget && command !== 'clean') {
-            if (this._currentTarget.kind && Array.isArray(this._currentTarget.kind)) {
-                if (this._currentTarget.kind.includes('bin')) {
-                    args.push('--bin', this._currentTarget.name);
-                } else if (this._currentTarget.isLibrary) {
-                    args.push('--lib');
-                }
+            if (this._currentTarget.isExecutable) {
+                args.push('--bin', this._currentTarget.name);
+            } else if (this._currentTarget.isLibrary) {
+                args.push('--lib');
             }
         }
 
