@@ -1123,7 +1123,7 @@ suite('Extension Test Suite', () => {
 			const { CargoTarget } = require('../cargoTarget');
 
 			// Test all library crate types
-			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
 
 			for (const crateType of libraryCrateTypes) {
 				const target = new CargoTarget(
@@ -1269,7 +1269,7 @@ suite('Extension Test Suite', () => {
 			const { IconMapping } = require('../iconMapping');
 
 			// Test all library crate types
-			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
 
 			for (const crateType of libraryCrateTypes) {
 				// Test icon mapping
@@ -1283,7 +1283,7 @@ suite('Extension Test Suite', () => {
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
 
 			// Test all library crate types
-			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
 
 			const provider = new ProjectOutlineTreeProvider();
 
@@ -1300,7 +1300,7 @@ suite('Extension Test Suite', () => {
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
 
 			// Test all library crate types
-			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
 
 			for (const crateType of libraryCrateTypes) {
 				// Test context value by creating a target and checking context
@@ -1362,6 +1362,112 @@ suite('Extension Test Suite', () => {
 			// Verify the bin group contains only the binary target
 			const binGroup = groups.get('bin');
 			assert.strictEqual(binGroup.length, 1, 'Bin group should contain only 1 binary target');
+		});
+
+		test('should recognize proc-macro crates as library targets', () => {
+			const { CargoTarget } = require('../cargoTarget');
+
+			// Test proc-macro crate type
+			const procMacroTarget = new CargoTarget(
+				'test-proc-macro',
+				['proc-macro'],
+				'/path/to/src/lib.rs',
+				'2021',
+				'test-package',
+				'/path/to/package'
+			);
+
+			assert.ok(procMacroTarget.isLibrary, 'proc-macro target should be recognized as a library');
+			assert.ok(!procMacroTarget.isExecutable, 'proc-macro target should not be executable');
+			assert.ok(!procMacroTarget.isTest, 'proc-macro target should not be a test');
+			assert.ok(!procMacroTarget.isBench, 'proc-macro target should not be a benchmark');
+			assert.ok(!procMacroTarget.isExample, 'proc-macro target should not be an example');
+		});
+
+		test('should assign consistent icons and context for proc-macro crates', () => {
+			const { CargoTarget } = require('../cargoTarget');
+			const { IconMapping } = require('../iconMapping');
+			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+
+			// Test icon mapping for proc-macro
+			const icon = IconMapping.getIconForTargetType('proc-macro');
+			assert.strictEqual(icon, IconMapping.LIB_TARGET,
+				'Icon for proc-macro should be the same as for lib');
+
+			// Test display name
+			const provider = new ProjectOutlineTreeProvider();
+			const displayName = (provider as any)['getDisplayNameForTargetType']('proc-macro');
+			assert.strictEqual(displayName, 'Libraries',
+				'Display name for proc-macro should be Libraries');
+
+			// Test context value
+			const target = new CargoTarget(
+				'test-proc-macro',
+				['proc-macro'],
+				'/path/to/src/lib.rs',
+				'2021',
+				'test-package',
+				'/path/to/package'
+			);
+
+			const contextValue = (provider as any)['getContextValue'](target);
+			assert.ok(contextValue.includes('isLibrary'),
+				'Context value for proc-macro should include isLibrary');
+			assert.ok(contextValue.includes('supportsBuild'),
+				'Context value for proc-macro should include supportsBuild');
+			assert.ok(contextValue.includes('cargoTarget'),
+				'Context value for proc-macro should include cargoTarget');
+		});
+
+		test('should group proc-macro targets under Libraries node', () => {
+			const { CargoTarget } = require('../cargoTarget');
+			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+
+			// Create targets including proc-macro
+			const targets = [
+				new CargoTarget('lib-target', ['lib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('proc-macro-target', ['proc-macro'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('bin-target', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package')
+			];
+
+			const provider = new ProjectOutlineTreeProvider();
+			// Access private method using bracket notation for testing
+			const groups = (provider as any)['groupTargetsByType'](targets);
+
+			// Should have exactly one 'lib' group (proc-macro normalized to 'lib')
+			assert.ok(groups.has('lib'), 'Should have a lib group');
+			assert.ok(groups.has('bin'), 'Should have a bin group');
+
+			// Should NOT have separate proc-macro group
+			assert.ok(!groups.has('proc-macro'), 'Should NOT have separate proc-macro group');
+
+			// Verify the lib group contains both lib and proc-macro targets
+			const libGroup = groups.get('lib');
+			assert.strictEqual(libGroup.length, 2, 'Lib group should contain both lib and proc-macro targets');
+
+			// Verify the bin group contains only the binary target
+			const binGroup = groups.get('bin');
+			assert.strictEqual(binGroup.length, 1, 'Bin group should contain only 1 binary target');
+		});
+
+		test('should handle real-world proc-macro crates from workspace', async function () {
+			// Increase timeout for workspace initialization
+			this.timeout(20000); // 20 seconds
+
+			const { CargoWorkspace } = require('../cargoWorkspace');
+			const workspace = new CargoWorkspace(getTestProjectPath());
+			await workspace.initialize();
+
+			// Find proc-macro targets
+			const procMacroTargets = workspace.targets.filter((t: any) =>
+				t.packageName && (t.packageName === 'test-proc-macro' || t.packageName === 'test-proc-macro-alt'));
+
+			assert.ok(procMacroTargets.length >= 2, 'Should find at least 2 proc-macro targets');
+
+			for (const procMacroTarget of procMacroTargets) {
+				assert.ok(procMacroTarget.isLibrary, `${procMacroTarget.packageName} should be recognized as a library`);
+				assert.ok(procMacroTarget.kind.includes('proc-macro'), `${procMacroTarget.packageName} should have proc-macro kind`);
+			}
 		});
 	});
 });

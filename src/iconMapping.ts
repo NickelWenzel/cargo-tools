@@ -67,6 +67,7 @@ export class IconMapping {
             case 'staticlib':
             case 'cdylib':
             case 'rlib':
+            case 'proc-macro':
                 return this.LIB_TARGET;
             case 'example':
                 return this.EXAMPLE_TARGET;

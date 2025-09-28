@@ -31,7 +31,7 @@ export class CargoTarget {
         }
 
         // All library crate types that should be treated as library targets
-        const libraryKinds = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib'];
+        const libraryKinds = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
         return this.kind.some(kind => libraryKinds.includes(kind));
     }
 
