@@ -718,9 +718,9 @@ export class CargoExtensionManager implements vscode.Disposable {
 
             // Load Project Status View state
             const selectedPackage = this.stateManager.getSelectedPackage(folderName, isMultiProject);
-            const selectedBuildTarget = this.stateManager.getSelectedBuildTarget(folderName, isMultiProject);
-            const selectedRunTarget = this.stateManager.getSelectedRunTarget(folderName, isMultiProject);
-            const selectedBenchmarkTarget = this.stateManager.getSelectedBenchmarkTarget(folderName, isMultiProject);
+            const selectedBuildTargetId = this.stateManager.getSelectedBuildTargetId(folderName, isMultiProject);
+            const selectedRunTargetId = this.stateManager.getSelectedRunTargetId(folderName, isMultiProject);
+            const selectedBenchmarkTargetId = this.stateManager.getSelectedBenchmarkTargetId(folderName, isMultiProject);
             const selectedPlatformTarget = this.stateManager.getSelectedPlatformTarget(folderName, isMultiProject);
             const selectedFeatures = this.stateManager.getSelectedFeatures(folderName, isMultiProject);
             const selectedProfile = this.stateManager.getSelectedProfile(folderName, isMultiProject);
@@ -729,14 +729,23 @@ export class CargoExtensionManager implements vscode.Disposable {
             if (selectedPackage !== undefined) {
                 this.cargoWorkspace.setSelectedPackage(selectedPackage);
             }
-            if (selectedBuildTarget !== null) {
-                this.cargoWorkspace.setSelectedBuildTarget(selectedBuildTarget);
+            if (selectedBuildTargetId !== null) {
+                const buildTarget = this.cargoWorkspace.findTargetById(selectedBuildTargetId);
+                if (buildTarget) {
+                    this.cargoWorkspace.setSelectedBuildTarget(buildTarget);
+                }
             }
-            if (selectedRunTarget !== null) {
-                this.cargoWorkspace.setSelectedRunTarget(selectedRunTarget);
+            if (selectedRunTargetId !== null) {
+                const runTarget = this.cargoWorkspace.findTargetById(selectedRunTargetId);
+                if (runTarget) {
+                    this.cargoWorkspace.setSelectedRunTarget(runTarget);
+                }
             }
-            if (selectedBenchmarkTarget !== null) {
-                this.cargoWorkspace.setSelectedBenchmarkTarget(selectedBenchmarkTarget);
+            if (selectedBenchmarkTargetId !== null) {
+                const benchmarkTarget = this.cargoWorkspace.findTargetById(selectedBenchmarkTargetId);
+                if (benchmarkTarget) {
+                    this.cargoWorkspace.setSelectedBenchmarkTarget(benchmarkTarget);
+                }
             }
             if (selectedPlatformTarget !== null) {
                 this.cargoWorkspace.setSelectedPlatformTarget(selectedPlatformTarget);
@@ -1328,6 +1337,13 @@ export class CargoExtensionManager implements vscode.Disposable {
     async refresh(): Promise<void> {
         if (this.cargoWorkspace) {
             await this.cargoWorkspace.initialize();
+
+            // Restore selected targets from persisted state after workspace refresh
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (workspaceFolder) {
+                await this.loadPersistedState(workspaceFolder);
+            }
+
             // Update makefile context after workspace refresh
             await this.updateMakefileContext();
             vscode.window.showInformationMessage('Cargo workspace refreshed');
@@ -2597,8 +2613,6 @@ export class CargoExtensionManager implements vscode.Disposable {
                 if (!selectedPackage || !this.cargoWorkspace.isWorkspace) {
                     taskDefinition.packageName = selectedBuildTarget.packageName;
                 }
-            } else {
-                throw new Error(`Target ${selectedBuildTarget} not found`);
             }
             // If selectedBuildTarget is null, we build all targets (no target-specific args)
 
