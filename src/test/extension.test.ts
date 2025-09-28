@@ -1118,6 +1118,113 @@ suite('Extension Test Suite', () => {
 		});
 	});
 
+	suite('Project Status Tree Provider Tests', () => {
+		test('should assign correct icons for build target selection', () => {
+			const { ProjectStatusTreeProvider } = require('../projectStatusTreeProvider');
+			const { CargoTarget } = require('../cargoTarget');
+			const { IconMapping } = require('../iconMapping');
+
+			// Create mock targets
+			const targets = [
+				new CargoTarget('test-lib', ['lib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-bin', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-example', ['example'], '/path/to/examples/example.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-proc-macro', ['proc-macro'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+			];
+
+			const provider = new ProjectStatusTreeProvider();
+
+			// Manually set workspace properties that are needed for the tests
+			(provider as any).workspace = {
+				targets: targets,
+				selectedBuildTarget: undefined as string | undefined,
+				selectedPackage: 'test-package'
+			};
+
+			// Test lib target selection
+			(provider as any).workspace.selectedBuildTarget = 'lib';
+			const libNodes = (provider as any)['createBuildTargetSelectionChildren']();
+			assert.strictEqual(libNodes.length, 1, 'Should have one build target node for lib');
+			assert.strictEqual(libNodes[0].iconPath, IconMapping.getIconForTargetType('lib'), 'Lib target should have library icon');
+
+			// Test binary target selection
+			(provider as any).workspace.selectedBuildTarget = 'test-bin';
+			const binNodes = (provider as any)['createBuildTargetSelectionChildren']();
+			assert.strictEqual(binNodes.length, 1, 'Should have one build target node for bin');
+			assert.strictEqual(binNodes[0].iconPath, IconMapping.getIconForTargetType('bin'), 'Binary target should have binary icon');
+
+			// Test example target selection
+			(provider as any).workspace.selectedBuildTarget = 'test-example';
+			const exampleNodes = (provider as any)['createBuildTargetSelectionChildren']();
+			assert.strictEqual(exampleNodes.length, 1, 'Should have one build target node for example');
+			assert.strictEqual(exampleNodes[0].iconPath, IconMapping.getIconForTargetType('example'), 'Example target should have example icon');
+
+			// Test proc-macro target selection
+			(provider as any).workspace.selectedBuildTarget = 'test-proc-macro';
+			const procMacroNodes = (provider as any)['createBuildTargetSelectionChildren']();
+			assert.strictEqual(procMacroNodes.length, 1, 'Should have one build target node for proc-macro');
+			assert.strictEqual(procMacroNodes[0].iconPath, IconMapping.getIconForTargetType('proc-macro'), 'Proc-macro target should have library icon');
+		});
+
+		test('should assign correct icons for run target selection', () => {
+			const { ProjectStatusTreeProvider } = require('../projectStatusTreeProvider');
+			const { CargoTarget } = require('../cargoTarget');
+			const { IconMapping } = require('../iconMapping');
+
+			// Create mock targets
+			const targets = [
+				new CargoTarget('test-bin', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-example', ['example'], '/path/to/examples/example.rs', '2021', 'test-package', '/path/to/package'),
+			];
+
+			const provider = new ProjectStatusTreeProvider();
+
+			// Manually set workspace properties that are needed for the tests
+			(provider as any).workspace = {
+				targets: targets,
+				selectedRunTarget: undefined as string | undefined,
+				selectedPackage: 'test-package'
+			};
+
+			// Test binary target selection
+			(provider as any).workspace.selectedRunTarget = 'test-bin';
+			const binNodes = (provider as any)['createRunTargetSelectionChildren']();
+			assert.strictEqual(binNodes.length, 1, 'Should have one run target node for bin');
+			assert.strictEqual(binNodes[0].iconPath, IconMapping.getIconForTargetType('bin'), 'Binary run target should have binary icon');
+
+			// Test example target selection
+			(provider as any).workspace.selectedRunTarget = 'test-example';
+			const exampleNodes = (provider as any)['createRunTargetSelectionChildren']();
+			assert.strictEqual(exampleNodes.length, 1, 'Should have one run target node for example');
+			assert.strictEqual(exampleNodes[0].iconPath, IconMapping.getIconForTargetType('example'), 'Example run target should have example icon');
+		});
+
+		test('should fallback to default icons when target not found', () => {
+			const { ProjectStatusTreeProvider } = require('../projectStatusTreeProvider');
+			const { IconMapping } = require('../iconMapping');
+
+			const provider = new ProjectStatusTreeProvider();
+
+			// Manually set workspace properties with no targets
+			(provider as any).workspace = {
+				targets: [],
+				selectedBuildTarget: 'non-existent-target',
+				selectedRunTarget: 'non-existent-target',
+				selectedPackage: 'test-package'
+			};
+
+			// Test build target fallback
+			const buildNodes = (provider as any)['createBuildTargetSelectionChildren']();
+			assert.strictEqual(buildNodes.length, 1, 'Should have one build target node');
+			assert.strictEqual(buildNodes[0].iconPath, IconMapping.BUILD_ACTION, 'Should fallback to build action icon when target not found');
+
+			// Test run target fallback
+			const runNodes = (provider as any)['createRunTargetSelectionChildren']();
+			assert.strictEqual(runNodes.length, 1, 'Should have one run target node');
+			assert.strictEqual(runNodes[0].iconPath, IconMapping.SELECTED_STATE, 'Should fallback to selected state icon when target not found');
+		});
+	});
+
 	suite('Library Crate Type Recognition Tests', () => {
 		test('should recognize all library crate types', () => {
 			const { CargoTarget } = require('../cargoTarget');
