@@ -152,28 +152,14 @@ suite('Extension Test Suite', () => {
 		const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
 
 		test('should apply workspace member filter when grouping is disabled', () => {
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const provider = new ProjectOutlineTreeProvider();
 
 			// Create mock targets from different packages
 			const targets = [
-				{
-					name: 'app1',
-					packageName: 'my-app',
-					kind: ['bin'],
-					srcPath: '/path/to/app1.rs'
-				},
-				{
-					name: 'lib1',
-					packageName: 'my-library',
-					kind: ['lib'],
-					srcPath: '/path/to/lib1.rs'
-				},
-				{
-					name: 'app2',
-					packageName: 'my-app',
-					kind: ['bin'],
-					srcPath: '/path/to/app2.rs'
-				}
+				new CargoTarget('app1', CargoTargetKind.Bin, '/path/to/app1.rs', '2021', 'my-app', '/path/to/my-app'),
+				new CargoTarget('lib1', CargoTargetKind.Lib, '/path/to/lib1.rs', '2021', 'my-library', '/path/to/my-library'),
+				new CargoTarget('app2', CargoTargetKind.Bin, '/path/to/app2.rs', '2021', 'my-app', '/path/to/my-app'),
 			];
 
 			// Set workspace member filter to 'app' - should only show targets from packages containing 'app'
@@ -194,22 +180,13 @@ suite('Extension Test Suite', () => {
 		});
 
 		test('should handle targets with undefined packageName gracefully', () => {
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const provider = new ProjectOutlineTreeProvider();
 
 			// Create mock targets with some having undefined packageName
 			const targets = [
-				{
-					name: 'app1',
-					packageName: 'my-app',
-					kind: ['bin'],
-					srcPath: '/path/to/app1.rs'
-				},
-				{
-					name: 'lib1',
-					packageName: undefined,
-					kind: ['lib'],
-					srcPath: '/path/to/lib1.rs'
-				}
+				new CargoTarget('app1', CargoTargetKind.Bin, '/path/to/app1.rs', '2021', 'my-app', '/path/to/my-app'),
+				new CargoTarget('lib1', CargoTargetKind.Lib, '/path/to/lib1.rs', '2021', undefined, undefined),
 			];
 
 			// Set workspace member filter
@@ -225,22 +202,13 @@ suite('Extension Test Suite', () => {
 		});
 
 		test('should not filter when workspace member filter is empty', () => {
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const provider = new ProjectOutlineTreeProvider();
 
 			// Create mock targets from different packages
 			const targets = [
-				{
-					name: 'app1',
-					packageName: 'my-app',
-					kind: ['bin'],
-					srcPath: '/path/to/app1.rs'
-				},
-				{
-					name: 'lib1',
-					packageName: 'my-library',
-					kind: ['lib'],
-					srcPath: '/path/to/lib1.rs'
-				}
+				new CargoTarget('app1', CargoTargetKind.Bin, '/path/to/app1.rs', '2021', 'my-app', '/path/to/my-app'),
+				new CargoTarget('lib1', CargoTargetKind.Lib, '/path/to/lib1.rs', '2021', 'my-library', '/path/to/my-library'),
 			];
 
 			// Leave workspace member filter empty (default)
@@ -1121,15 +1089,15 @@ suite('Extension Test Suite', () => {
 	suite('Project Status Tree Provider Tests', () => {
 		test('should assign correct icons for build target selection', () => {
 			const { ProjectStatusTreeProvider } = require('../projectStatusTreeProvider');
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const { IconMapping } = require('../iconMapping');
 
 			// Create mock targets
 			const targets = [
-				new CargoTarget('test-lib', ['lib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('test-bin', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('test-example', ['example'], '/path/to/examples/example.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('test-proc-macro', ['proc-macro'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-lib', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-bin', CargoTargetKind.Bin, '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-example', CargoTargetKind.Example, '/path/to/examples/example.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-proc-macro', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
 			];
 
 			const provider = new ProjectStatusTreeProvider();
@@ -1142,39 +1110,39 @@ suite('Extension Test Suite', () => {
 			};
 
 			// Test lib target selection
-			(provider as any).workspace.selectedBuildTarget = 'lib';
+			(provider as any).workspace.selectedBuildTarget = targets[0];
 			const libNodes = (provider as any)['createBuildTargetSelectionChildren']();
 			assert.strictEqual(libNodes.length, 1, 'Should have one build target node for lib');
-			assert.strictEqual(libNodes[0].iconPath, IconMapping.getIconForTargetType('lib'), 'Lib target should have library icon');
+			assert.strictEqual(libNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Lib), 'Lib target should have library icon');
 
 			// Test binary target selection
-			(provider as any).workspace.selectedBuildTarget = 'test-bin';
+			(provider as any).workspace.selectedBuildTarget = targets[1];
 			const binNodes = (provider as any)['createBuildTargetSelectionChildren']();
 			assert.strictEqual(binNodes.length, 1, 'Should have one build target node for bin');
-			assert.strictEqual(binNodes[0].iconPath, IconMapping.getIconForTargetType('bin'), 'Binary target should have binary icon');
+			assert.strictEqual(binNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Bin), 'Binary target should have binary icon');
 
 			// Test example target selection
-			(provider as any).workspace.selectedBuildTarget = 'test-example';
+			(provider as any).workspace.selectedBuildTarget = targets[2];
 			const exampleNodes = (provider as any)['createBuildTargetSelectionChildren']();
 			assert.strictEqual(exampleNodes.length, 1, 'Should have one build target node for example');
-			assert.strictEqual(exampleNodes[0].iconPath, IconMapping.getIconForTargetType('example'), 'Example target should have example icon');
+			assert.strictEqual(exampleNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Example), 'Example target should have example icon');
 
 			// Test proc-macro target selection
-			(provider as any).workspace.selectedBuildTarget = 'test-proc-macro';
+			(provider as any).workspace.selectedBuildTarget = targets[3];
 			const procMacroNodes = (provider as any)['createBuildTargetSelectionChildren']();
 			assert.strictEqual(procMacroNodes.length, 1, 'Should have one build target node for proc-macro');
-			assert.strictEqual(procMacroNodes[0].iconPath, IconMapping.getIconForTargetType('proc-macro'), 'Proc-macro target should have library icon');
+			assert.strictEqual(procMacroNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Lib), 'Proc-macro target should have library icon');
 		});
 
 		test('should assign correct icons for run target selection', () => {
 			const { ProjectStatusTreeProvider } = require('../projectStatusTreeProvider');
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const { IconMapping } = require('../iconMapping');
 
 			// Create mock targets
 			const targets = [
-				new CargoTarget('test-bin', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('test-example', ['example'], '/path/to/examples/example.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-bin', CargoTargetKind.Bin, '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('test-example', CargoTargetKind.Example, '/path/to/examples/example.rs', '2021', 'test-package', '/path/to/package'),
 			];
 
 			const provider = new ProjectStatusTreeProvider();
@@ -1182,21 +1150,21 @@ suite('Extension Test Suite', () => {
 			// Manually set workspace properties that are needed for the tests
 			(provider as any).workspace = {
 				targets: targets,
-				selectedRunTarget: undefined as string | undefined,
+				selectedRunTarget: undefined,
 				selectedPackage: 'test-package'
 			};
 
 			// Test binary target selection
-			(provider as any).workspace.selectedRunTarget = 'test-bin';
+			(provider as any).workspace.selectedRunTarget = targets[0];
 			const binNodes = (provider as any)['createRunTargetSelectionChildren']();
 			assert.strictEqual(binNodes.length, 1, 'Should have one run target node for bin');
-			assert.strictEqual(binNodes[0].iconPath, IconMapping.getIconForTargetType('bin'), 'Binary run target should have binary icon');
+			assert.strictEqual(binNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Bin), 'Binary run target should have binary icon');
 
 			// Test example target selection
-			(provider as any).workspace.selectedRunTarget = 'test-example';
+			(provider as any).workspace.selectedRunTarget = targets[1];
 			const exampleNodes = (provider as any)['createRunTargetSelectionChildren']();
 			assert.strictEqual(exampleNodes.length, 1, 'Should have one run target node for example');
-			assert.strictEqual(exampleNodes[0].iconPath, IconMapping.getIconForTargetType('example'), 'Example run target should have example icon');
+			assert.strictEqual(exampleNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Example), 'Example run target should have example icon');
 		});
 
 		test('should fallback to default icons when target not found', () => {
@@ -1205,37 +1173,79 @@ suite('Extension Test Suite', () => {
 
 			const provider = new ProjectStatusTreeProvider();
 
-			// Manually set workspace properties with no targets
+			// Manually set workspace properties with no selected targets (null/undefined)
 			(provider as any).workspace = {
 				targets: [],
-				selectedBuildTarget: 'non-existent-target',
-				selectedRunTarget: 'non-existent-target',
+				selectedBuildTarget: null,
+				selectedRunTarget: null,
 				selectedPackage: 'test-package'
 			};
 
-			// Test build target fallback
+			// Test build target fallback - should show "No selection" with TARGET_CONFIG icon
 			const buildNodes = (provider as any)['createBuildTargetSelectionChildren']();
 			assert.strictEqual(buildNodes.length, 1, 'Should have one build target node');
-			assert.strictEqual(buildNodes[0].iconPath, IconMapping.BUILD_ACTION, 'Should fallback to build action icon when target not found');
+			assert.strictEqual(buildNodes[0].iconPath, IconMapping.TARGET_CONFIG, 'Should fallback to target config icon when no target selected');
 
-			// Test run target fallback
+			// Test run target fallback - when there are no runnable targets, shows warning
 			const runNodes = (provider as any)['createRunTargetSelectionChildren']();
 			assert.strictEqual(runNodes.length, 1, 'Should have one run target node');
-			assert.strictEqual(runNodes[0].iconPath, IconMapping.SELECTED_STATE, 'Should fallback to selected state icon when target not found');
+			assert.strictEqual(runNodes[0].iconPath, IconMapping.WARNING_STATE, 'Should show warning icon when no runnable targets available');
+		});
+
+		test('should handle ambiguous target names correctly', () => {
+			const { ProjectStatusTreeProvider } = require('../projectStatusTreeProvider');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
+			const { IconMapping } = require('../iconMapping');
+
+			// Create targets where a binary and library have the same name
+			const targets = [
+				new CargoTarget('myproject', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('myproject', CargoTargetKind.Bin, '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('example1', CargoTargetKind.Example, '/path/to/examples/example1.rs', '2021', 'test-package', '/path/to/package'),
+			];
+
+			const provider = new ProjectStatusTreeProvider();
+
+			// Manually set workspace properties that are needed for the tests
+			(provider as any).workspace = {
+				targets: targets,
+				selectedBuildTarget: undefined,
+				selectedRunTarget: undefined,
+				selectedPackage: 'test-package'
+			};
+
+			// Test binary target selection directly
+			(provider as any).workspace.selectedBuildTarget = targets[1]; // binary target
+			const binNodes = (provider as any)['createBuildTargetSelectionChildren']();
+			assert.strictEqual(binNodes.length, 1, 'Should have one build target node for bin target');
+			assert.strictEqual(binNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Bin), 'Compound bin identifier should resolve to binary icon');
+
+			// Test library target selection directly
+			(provider as any).workspace.selectedBuildTarget = targets[0]; // library target
+			const libNodes = (provider as any)['createBuildTargetSelectionChildren']();
+			assert.strictEqual(libNodes.length, 1, 'Should have one build target node for lib target');
+			assert.strictEqual(libNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Lib), 'Compound lib identifier should resolve to library icon');
+
+			// Test run target selection directly
+			(provider as any).workspace.selectedRunTarget = targets[1]; // binary target (runnable)
+			const runNodes = (provider as any)['createRunTargetSelectionChildren']();
+			assert.strictEqual(runNodes.length, 1, 'Should have one run target node for bin target');
+			assert.strictEqual(runNodes[0].iconPath, IconMapping.getIconForTargetType(CargoTargetKind.Bin), 'Compound bin run target should resolve to binary icon');
 		});
 	});
 
 	suite('Library Crate Type Recognition Tests', () => {
 		test('should recognize all library crate types', () => {
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind, toTargetKind } = require('../cargoTarget');
 
 			// Test all library crate types
 			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
 
 			for (const crateType of libraryCrateTypes) {
+				const targetKind = toTargetKind([crateType]);
 				const target = new CargoTarget(
 					'test-target',
-					[crateType],
+					targetKind,
 					'/path/to/src/lib.rs',
 					'2021',
 					'test-package',
@@ -1246,9 +1256,10 @@ suite('Extension Test Suite', () => {
 			}
 
 			// Test mixed crate types (e.g., a target that is both lib and something else)
+			const mixedTargetKind = toTargetKind(['lib', 'cdylib']);
 			const mixedTarget = new CargoTarget(
 				'mixed-target',
-				['lib', 'cdylib'],
+				mixedTargetKind,
 				'/path/to/src/lib.rs',
 				'2021',
 				'test-package',
@@ -1259,9 +1270,10 @@ suite('Extension Test Suite', () => {
 			// Test non-library crate types
 			const nonLibraryTypes = ['bin', 'example', 'test', 'bench'];
 			for (const crateType of nonLibraryTypes) {
+				const targetKind = toTargetKind([crateType]);
 				const target = new CargoTarget(
 					'test-target',
-					[crateType],
+					targetKind,
 					'/path/to/src/main.rs',
 					'2021',
 					'test-package',
@@ -1274,13 +1286,13 @@ suite('Extension Test Suite', () => {
 			// Test edge cases
 			const emptyKindTarget = new CargoTarget(
 				'empty-target',
-				[],
+				CargoTargetKind.Unknown,
 				'/path/to/src/lib.rs',
 				'2021',
 				'test-package',
 				'/path/to/package'
 			);
-			assert.ok(!emptyKindTarget.isLibrary, 'Target with empty kind array should not be recognized as a library');
+			assert.ok(!emptyKindTarget.isLibrary, 'Target with unknown kind should not be recognized as a library');
 		});
 
 		test('should handle real-world library crate types from workspace', async function () {
@@ -1289,6 +1301,7 @@ suite('Extension Test Suite', () => {
 
 			// Import CargoWorkspace for direct testing
 			const { CargoWorkspace } = require('../cargoWorkspace');
+			const { CargoTargetKind } = require('../cargoTarget');
 			const workspace = new CargoWorkspace(getTestProjectPath());
 			await workspace.initialize();
 
@@ -1297,7 +1310,7 @@ suite('Extension Test Suite', () => {
 			if (cdylibTargets.length > 0) {
 				const cdylibTarget = cdylibTargets[0];
 				assert.ok(cdylibTarget.isLibrary, 'cdylib target should be recognized as a library');
-				assert.ok(cdylibTarget.kind.includes('cdylib'), 'cdylib target should have cdylib kind');
+				assert.strictEqual(cdylibTarget.kind, CargoTargetKind.Lib, 'cdylib target should have Lib kind');
 			}
 
 			// Find staticlib target
@@ -1305,7 +1318,7 @@ suite('Extension Test Suite', () => {
 			if (staticlibTargets.length > 0) {
 				const staticlibTarget = staticlibTargets[0];
 				assert.ok(staticlibTarget.isLibrary, 'staticlib target should be recognized as a library');
-				assert.ok(staticlibTarget.kind.includes('staticlib'), 'staticlib target should have staticlib kind');
+				assert.strictEqual(staticlibTarget.kind, CargoTargetKind.Lib, 'staticlib target should have Lib kind');
 			}
 
 			// Verify regular lib target still works
@@ -1313,7 +1326,7 @@ suite('Extension Test Suite', () => {
 			if (libTargets.length > 0) {
 				const libTarget = libTargets[0];
 				assert.ok(libTarget.isLibrary, 'regular lib target should be recognized as a library');
-				assert.ok(libTarget.kind.includes('lib'), 'regular lib target should have lib kind');
+				assert.strictEqual(libTarget.kind, CargoTargetKind.Lib, 'regular lib target should have Lib kind');
 			}
 		});
 
@@ -1349,6 +1362,7 @@ suite('Extension Test Suite', () => {
 
 			const { CargoWorkspace } = require('../cargoWorkspace');
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
+			const { CargoTargetKind } = require('../cargoTarget');
 
 			const workspace = new CargoWorkspace(getTestProjectPath());
 			await workspace.initialize();
@@ -1357,8 +1371,8 @@ suite('Extension Test Suite', () => {
 			provider.updateWorkspace(workspace);
 
 			// Get all targets and verify library types are found
-			const cdylibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-cdylib' && t.kind.includes('cdylib'));
-			const staticlibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-staticlib' && t.kind.includes('staticlib'));
+			const cdylibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-cdylib' && t.isLibrary);
+			const staticlibTargets = workspace.targets.filter((t: any) => t.packageName === 'test-staticlib' && t.isLibrary);
 
 			assert.ok(cdylibTargets.length > 0, 'Should find cdylib targets');
 			assert.ok(staticlibTargets.length > 0, 'Should find staticlib targets');
@@ -1374,87 +1388,74 @@ suite('Extension Test Suite', () => {
 
 		test('should assign consistent icons for all library crate types', () => {
 			const { IconMapping } = require('../iconMapping');
+			const { CargoTargetKind } = require('../cargoTarget');
 
-			// Test all library crate types
-			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
-
-			for (const crateType of libraryCrateTypes) {
-				// Test icon mapping
-				const icon = IconMapping.getIconForTargetType(crateType);
-				assert.strictEqual(icon, IconMapping.LIB_TARGET,
-					`Icon for ${crateType} should be the same as for 'lib'`);
-			}
+			// All library crate types should map to the same icon
+			const icon = IconMapping.getIconForTargetType(CargoTargetKind.Lib);
+			assert.strictEqual(icon, IconMapping.LIB_TARGET,
+				`Icon for library targets should be the same as LIB_TARGET`);
 		});
 
 		test('should show consistent display names for all library crate types', () => {
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
-
-			// Test all library crate types
-			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
+			const { CargoTargetKind } = require('../cargoTarget');
 
 			const provider = new ProjectOutlineTreeProvider();
 
-			for (const crateType of libraryCrateTypes) {
-				// Access private method using bracket notation for testing
-				const displayName = (provider as any)['getDisplayNameForTargetType'](crateType);
-				assert.strictEqual(displayName, 'Libraries',
-					`Display name for ${crateType} should be 'Libraries'`);
-			}
+			// All library crate types should map to CargoTargetKind.Lib and show 'Libraries'
+			const displayName = (provider as any)['getDisplayNameForTargetType'](CargoTargetKind.Lib);
+			assert.strictEqual(displayName, 'Libraries',
+				`Display name for library targets should be 'Libraries'`);
 		});
 
 		test('should assign consistent context values for all library crate types', () => {
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
 
-			// Test all library crate types
-			const libraryCrateTypes = ['lib', 'dylib', 'staticlib', 'cdylib', 'rlib', 'proc-macro'];
+			// Test library target with the Lib kind
+			const target = new CargoTarget(
+				'test-target',
+				CargoTargetKind.Lib,
+				'/path/to/src/lib.rs',
+				'2021',
+				'test-package',
+				'/path/to/package'
+			);
 
-			for (const crateType of libraryCrateTypes) {
-				// Test context value by creating a target and checking context
-				const target = new CargoTarget(
-					'test-target',
-					[crateType],
-					'/path/to/src/lib.rs',
-					'2021',
-					'test-package',
-					'/path/to/package'
-				);
+			// Create provider instance to test getContextValue method
+			const provider = new ProjectOutlineTreeProvider();
+			// Access private method using bracket notation for testing
+			const contextValue = (provider as any)['getContextValue'](target);
 
-				// Create provider instance to test getContextValue method
-				const provider = new ProjectOutlineTreeProvider();
-				// Access private method using bracket notation for testing
-				const contextValue = (provider as any)['getContextValue'](target);
-
-				// All library types should have 'isLibrary' and 'supportsBuild' context
-				assert.ok(contextValue.includes('isLibrary'),
-					`Context value for ${crateType} should include 'isLibrary'`);
-				assert.ok(contextValue.includes('supportsBuild'),
-					`Context value for ${crateType} should include 'supportsBuild'`);
-				assert.ok(contextValue.includes('cargoTarget'),
-					`Context value for ${crateType} should include 'cargoTarget'`);
-			}
+			// Library types should have 'isLibrary' and 'supportsBuild' context
+			assert.ok(contextValue.includes('isLibrary'),
+				`Context value for lib should include 'isLibrary'`);
+			assert.ok(contextValue.includes('supportsBuild'),
+				`Context value for lib should include 'supportsBuild'`);
+			assert.ok(contextValue.includes('cargoTarget'),
+				`Context value for lib should include 'cargoTarget'`);
 		});
 
 		test('should group targets with multiple library crate types under single Libraries node', () => {
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
 
-			// Create targets with different combinations of library types
+			// Create targets with different library types (all map to CargoTargetKind.Lib)
 			const targets = [
-				new CargoTarget('lib-only', ['lib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('cdylib-only', ['cdylib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('mixed-lib', ['lib', 'cdylib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('multi-lib', ['staticlib', 'cdylib', 'dylib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('bin-target', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package')
+				new CargoTarget('lib-only', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('cdylib-only', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('mixed-lib', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('multi-lib', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('bin-target', CargoTargetKind.Bin, '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package')
 			];
 
 			const provider = new ProjectOutlineTreeProvider();
 			// Access private method using bracket notation for testing
 			const groups = (provider as any)['groupTargetsByType'](targets);
 
-			// Should have exactly one 'lib' group (all library types normalized to 'lib')
-			assert.ok(groups.has('lib'), 'Should have a lib group');
-			assert.ok(groups.has('bin'), 'Should have a bin group');
+			// Should have exactly one 'lib' group (all library types normalized to CargoTargetKind.Lib)
+			assert.ok(groups.has(CargoTargetKind.Lib), 'Should have a lib group');
+			assert.ok(groups.has(CargoTargetKind.Bin), 'Should have a bin group');
 
 			// Should NOT have separate groups for other library types
 			assert.ok(!groups.has('cdylib'), 'Should NOT have separate cdylib group');
@@ -1472,12 +1473,12 @@ suite('Extension Test Suite', () => {
 		});
 
 		test('should recognize proc-macro crates as library targets', () => {
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 
-			// Test proc-macro crate type
+			// Test proc-macro crate type (maps to CargoTargetKind.Lib)
 			const procMacroTarget = new CargoTarget(
 				'test-proc-macro',
-				['proc-macro'],
+				CargoTargetKind.Lib,
 				'/path/to/src/lib.rs',
 				'2021',
 				'test-package',
@@ -1492,25 +1493,25 @@ suite('Extension Test Suite', () => {
 		});
 
 		test('should assign consistent icons and context for proc-macro crates', () => {
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const { IconMapping } = require('../iconMapping');
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
 
-			// Test icon mapping for proc-macro
-			const icon = IconMapping.getIconForTargetType('proc-macro');
+			// Test icon mapping for proc-macro (which maps to library)
+			const icon = IconMapping.getIconForTargetType(CargoTargetKind.Lib);
 			assert.strictEqual(icon, IconMapping.LIB_TARGET,
 				'Icon for proc-macro should be the same as for lib');
 
 			// Test display name
 			const provider = new ProjectOutlineTreeProvider();
-			const displayName = (provider as any)['getDisplayNameForTargetType']('proc-macro');
+			const displayName = (provider as any)['getDisplayNameForTargetType'](CargoTargetKind.Lib);
 			assert.strictEqual(displayName, 'Libraries',
 				'Display name for proc-macro should be Libraries');
 
 			// Test context value
 			const target = new CargoTarget(
 				'test-proc-macro',
-				['proc-macro'],
+				CargoTargetKind.Lib,
 				'/path/to/src/lib.rs',
 				'2021',
 				'test-package',
@@ -1527,33 +1528,30 @@ suite('Extension Test Suite', () => {
 		});
 
 		test('should group proc-macro targets under Libraries node', () => {
-			const { CargoTarget } = require('../cargoTarget');
+			const { CargoTarget, CargoTargetKind } = require('../cargoTarget');
 			const { ProjectOutlineTreeProvider } = require('../projectOutlineTreeProvider');
 
-			// Create targets including proc-macro
+			// Create targets including proc-macro (both map to CargoTargetKind.Lib)
 			const targets = [
-				new CargoTarget('lib-target', ['lib'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('proc-macro-target', ['proc-macro'], '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
-				new CargoTarget('bin-target', ['bin'], '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package')
+				new CargoTarget('lib-target', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('proc-macro-target', CargoTargetKind.Lib, '/path/to/src/lib.rs', '2021', 'test-package', '/path/to/package'),
+				new CargoTarget('bin-target', CargoTargetKind.Bin, '/path/to/src/main.rs', '2021', 'test-package', '/path/to/package')
 			];
 
 			const provider = new ProjectOutlineTreeProvider();
 			// Access private method using bracket notation for testing
 			const groups = (provider as any)['groupTargetsByType'](targets);
 
-			// Should have exactly one 'lib' group (proc-macro normalized to 'lib')
-			assert.ok(groups.has('lib'), 'Should have a lib group');
-			assert.ok(groups.has('bin'), 'Should have a bin group');
-
-			// Should NOT have separate proc-macro group
-			assert.ok(!groups.has('proc-macro'), 'Should NOT have separate proc-macro group');
+			// Should have exactly one CargoTargetKind.Lib group (proc-macro normalized to Lib)
+			assert.ok(groups.has(CargoTargetKind.Lib), 'Should have a lib group');
+			assert.ok(groups.has(CargoTargetKind.Bin), 'Should have a bin group');
 
 			// Verify the lib group contains both lib and proc-macro targets
-			const libGroup = groups.get('lib');
+			const libGroup = groups.get(CargoTargetKind.Lib);
 			assert.strictEqual(libGroup.length, 2, 'Lib group should contain both lib and proc-macro targets');
 
 			// Verify the bin group contains only the binary target
-			const binGroup = groups.get('bin');
+			const binGroup = groups.get(CargoTargetKind.Bin);
 			assert.strictEqual(binGroup.length, 1, 'Bin group should contain only 1 binary target');
 		});
 
@@ -1562,6 +1560,7 @@ suite('Extension Test Suite', () => {
 			this.timeout(20000); // 20 seconds
 
 			const { CargoWorkspace } = require('../cargoWorkspace');
+			const { CargoTargetKind } = require('../cargoTarget');
 			const workspace = new CargoWorkspace(getTestProjectPath());
 			await workspace.initialize();
 
@@ -1573,8 +1572,11 @@ suite('Extension Test Suite', () => {
 
 			for (const procMacroTarget of procMacroTargets) {
 				assert.ok(procMacroTarget.isLibrary, `${procMacroTarget.packageName} should be recognized as a library`);
-				assert.ok(procMacroTarget.kind.includes('proc-macro'), `${procMacroTarget.packageName} should have proc-macro kind`);
+				assert.strictEqual(procMacroTarget.kind, CargoTargetKind.Lib, `${procMacroTarget.packageName} should have Lib kind`);
 			}
 		});
 	});
+
+	// Removed Name Conflict Detection Tests suite since hasNameConflicts method no longer exists
+	// Name conflict detection is now handled at the UI level through CargoTarget object comparison
 });

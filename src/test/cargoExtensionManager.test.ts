@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { CargoTarget, TargetActionType } from '../cargoTarget';
+import { CargoTarget, CargoTargetKind, TargetActionType } from '../cargoTarget';
 import { CargoProfile } from '../cargoProfile';
 import { CargoWorkspace } from '../cargoWorkspace';
 import { CargoExtensionManager } from '../cargoExtensionManager';
@@ -106,7 +106,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should correctly identify binary targets', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -123,7 +123,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should correctly identify library targets', () => {
             const target = new CargoTarget(
                 'mylib',
-                ['lib'],
+                CargoTargetKind.Lib,
                 '/path/to/src/lib.rs',
                 '2021',
                 'my-package',
@@ -140,7 +140,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should correctly identify test targets', () => {
             const target = new CargoTarget(
                 'integration-test',
-                ['test'],
+                CargoTargetKind.Test,
                 '/path/to/tests/integration-test.rs',
                 '2021',
                 'my-package',
@@ -157,7 +157,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should correctly identify example targets', () => {
             const target = new CargoTarget(
                 'my-example',
-                ['example'],
+                CargoTargetKind.Example,
                 '/path/to/examples/my-example.rs',
                 '2021',
                 'my-package',
@@ -174,7 +174,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should correctly identify bench targets', () => {
             const target = new CargoTarget(
                 'my-bench',
-                ['bench'],
+                CargoTargetKind.Bench,
                 '/path/to/benches/my-bench.rs',
                 '2021',
                 'my-package',
@@ -208,7 +208,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should handle empty kind array gracefully', () => {
             const target = new CargoTarget(
                 'empty-target',
-                [],
+                CargoTargetKind.Unknown,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -225,7 +225,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
     suite('Target Action Type Support Tests', () => {
         test('should return correct supported action types for binary target', () => {
-            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
             const supportedActions = target.supportedActionTypes;
 
             assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
@@ -235,7 +235,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should return correct supported action types for library target', () => {
-            const target = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-lib', CargoTargetKind.Lib, '/test/src/lib.rs', '2021', 'my-package', '/test');
             const supportedActions = target.supportedActionTypes;
 
             assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
@@ -245,7 +245,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should return correct supported action types for test target', () => {
-            const target = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-test', CargoTargetKind.Test, '/test/tests/my-test.rs', '2021', 'my-package', '/test');
             const supportedActions = target.supportedActionTypes;
 
             assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
@@ -255,7 +255,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should return correct supported action types for bench target', () => {
-            const target = new CargoTarget('my-bench', ['bench'], '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-bench', CargoTargetKind.Bench, '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
             const supportedActions = target.supportedActionTypes;
 
             assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
@@ -265,7 +265,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should return correct supported action types for example target', () => {
-            const target = new CargoTarget('my-example', ['example'], '/test/examples/my-example.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-example', CargoTargetKind.Example, '/test/examples/my-example.rs', '2021', 'my-package', '/test');
             const supportedActions = target.supportedActionTypes;
 
             assert.ok(supportedActions.includes(TargetActionType.Build), 'Should support build action');
@@ -275,7 +275,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should correctly check if target supports specific action type', () => {
-            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const binaryTarget = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
 
             assert.ok(binaryTarget.supportsActionType(TargetActionType.Build), 'Binary should support build');
             assert.ok(binaryTarget.supportsActionType(TargetActionType.Run), 'Binary should support run');
@@ -284,7 +284,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should return correct cargo command for action types', () => {
-            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
 
             assert.strictEqual(target.getCargoCommand(TargetActionType.Build), 'build');
             assert.strictEqual(target.getCargoCommand(TargetActionType.Run), 'run');
@@ -293,10 +293,10 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should return correct target arguments for different action types', () => {
-            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
-            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
-            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
-            const exampleTarget = new CargoTarget('my-example', ['example'], '/test/examples/my-example.rs', '2021', 'my-package', '/test');
+            const binaryTarget = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', CargoTargetKind.Lib, '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', CargoTargetKind.Test, '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const exampleTarget = new CargoTarget('my-example', CargoTargetKind.Example, '/test/examples/my-example.rs', '2021', 'my-package', '/test');
 
             // Binary target args
             assert.deepStrictEqual(binaryTarget.getTargetArgs(TargetActionType.Build), ['--bin', 'my-app']);
@@ -344,7 +344,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             }
 
             // Add target-specific flags
-            if (command !== 'clean' && target.kind && Array.isArray(target.kind)) {
+            if (command !== 'clean' && target.kind !== CargoTargetKind.Unknown) {
                 if (target.kind.includes('bin')) {
                     args.push('--bin', target.name);
                 } else if (target.isLibrary) {
@@ -384,7 +384,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should generate correct args for binary target build', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -402,7 +402,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should generate correct args for binary target build with release profile', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -420,7 +420,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should generate correct args for workspace member with package flag', () => {
             const target = new CargoTarget(
                 'worker',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/workspace/worker/src/main.rs',
                 '2021',
                 'worker-package',
@@ -440,7 +440,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should generate correct args for library target', () => {
             const target = new CargoTarget(
                 'mylib',
-                ['lib'],
+                CargoTargetKind.Lib,
                 '/path/to/src/lib.rs',
                 '2021',
                 'my-package',
@@ -458,7 +458,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should generate correct args for example target', () => {
             const target = new CargoTarget(
                 'my-example',
-                ['example'],
+                CargoTargetKind.Example,
                 '/path/to/examples/my-example.rs',
                 '2021',
                 'my-package',
@@ -476,7 +476,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should generate correct args for test target', () => {
             const target = new CargoTarget(
                 'integration-test',
-                ['test'],
+                CargoTargetKind.Test,
                 '/path/to/tests/integration-test.rs',
                 '2021',
                 'my-package',
@@ -494,7 +494,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should generate correct args for bench target', () => {
             const target = new CargoTarget(
                 'my-bench',
-                ['bench'],
+                CargoTargetKind.Bench,
                 '/path/to/benches/my-bench.rs',
                 '2021',
                 'my-package',
@@ -512,7 +512,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should include features in args', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -531,7 +531,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should include all-features flag', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -550,7 +550,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should include no-default-features flag', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -569,7 +569,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should include additional build args', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -588,7 +588,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should handle run command for binary targets', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -606,7 +606,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should handle clean command without target flags', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -624,7 +624,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should skip package flag when not in workspace mode', () => {
             const target = new CargoTarget(
                 'worker',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/workspace/worker/src/main.rs',
                 '2021',
                 'worker-package',
@@ -667,7 +667,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should return workspace root for single-package project', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package',
@@ -685,7 +685,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should return package path for workspace member', () => {
             const target = new CargoTarget(
                 'worker',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/workspace/worker/src/main.rs',
                 '2021',
                 'worker-package',
@@ -703,7 +703,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should return workspace root when package path is not available', () => {
             const target = new CargoTarget(
                 'my-app',
-                ['bin'],
+                CargoTargetKind.Bin,
                 '/path/to/src/main.rs',
                 '2021',
                 'my-package'
@@ -727,10 +727,10 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
         test('should support action type checking for targets', () => {
             // Test that target action type logic works correctly
-            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
-            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
-            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
-            const benchTarget = new CargoTarget('my-bench', ['bench'], '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
+            const binaryTarget = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', CargoTargetKind.Test, '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', CargoTargetKind.Lib, '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const benchTarget = new CargoTarget('my-bench', CargoTargetKind.Bench, '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
 
             // Binary targets should support build and run
             assert.ok(binaryTarget.supportsActionType(TargetActionType.Build));
@@ -758,7 +758,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should generate correct cargo commands for action types', () => {
-            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
 
             assert.strictEqual(target.getCargoCommand(TargetActionType.Build), 'build');
             assert.strictEqual(target.getCargoCommand(TargetActionType.Run), 'run');
@@ -767,11 +767,11 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should generate correct target arguments for action types', () => {
-            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
-            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
-            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
-            const exampleTarget = new CargoTarget('my-example', ['example'], '/test/examples/my-example.rs', '2021', 'my-package', '/test');
-            const benchTarget = new CargoTarget('my-bench', ['bench'], '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
+            const binaryTarget = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', CargoTargetKind.Lib, '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', CargoTargetKind.Test, '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const exampleTarget = new CargoTarget('my-example', CargoTargetKind.Example, '/test/examples/my-example.rs', '2021', 'my-package', '/test');
+            const benchTarget = new CargoTarget('my-bench', CargoTargetKind.Bench, '/test/benches/my-bench.rs', '2021', 'my-package', '/test');
 
             // Binary target args
             assert.deepStrictEqual(binaryTarget.getTargetArgs(TargetActionType.Build), ['--bin', 'my-app']);
@@ -792,7 +792,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should validate package context is included in target arguments', () => {
-            const target = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
+            const target = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
 
             // The package context should be accessible for command building
             assert.strictEqual(target.packageName, 'my-package');
@@ -804,9 +804,9 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         });
 
         test('should distinguish between different target types for context menus', () => {
-            const binaryTarget = new CargoTarget('my-app', ['bin'], '/test/src/main.rs', '2021', 'my-package', '/test');
-            const libTarget = new CargoTarget('my-lib', ['lib'], '/test/src/lib.rs', '2021', 'my-package', '/test');
-            const testTarget = new CargoTarget('my-test', ['test'], '/test/tests/my-test.rs', '2021', 'my-package', '/test');
+            const binaryTarget = new CargoTarget('my-app', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package', '/test');
+            const libTarget = new CargoTarget('my-lib', CargoTargetKind.Lib, '/test/src/lib.rs', '2021', 'my-package', '/test');
+            const testTarget = new CargoTarget('my-test', CargoTargetKind.Test, '/test/tests/my-test.rs', '2021', 'my-package', '/test');
 
             // Each target type should have different supported actions
             const binaryActions = binaryTarget.supportedActionTypes;
@@ -834,10 +834,10 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should build all targets when no target is specified (package "core")', () => {
             const mockWorkspace = {
                 targets: [
-                    new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
-                    new CargoTarget('helper', ['bin'], '/path/src/bin/helper.rs', '2021', 'core', '/path')
+                    new CargoTarget('cli-main', CargoTargetKind.Bin, '/path/src/main.rs', '2021', 'core', '/path'),
+                    new CargoTarget('helper', CargoTargetKind.Bin, '/path/src/bin/helper.rs', '2021', 'core', '/path')
                 ],
-                currentTarget: new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                currentTarget: new CargoTarget('cli-main', CargoTargetKind.Bin, '/path/src/main.rs', '2021', 'core', '/path'),
                 currentProfile: { toString: () => 'dev' },
                 isWorkspace: true
             };
@@ -859,10 +859,10 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should build specific target when target is specified', () => {
             const mockWorkspace = {
                 targets: [
-                    new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
-                    new CargoTarget('helper', ['bin'], '/path/src/bin/helper.rs', '2021', 'core', '/path')
+                    new CargoTarget('cli-main', CargoTargetKind.Bin, '/path/src/main.rs', '2021', 'core', '/path'),
+                    new CargoTarget('helper', CargoTargetKind.Bin, '/path/src/bin/helper.rs', '2021', 'core', '/path')
                 ],
-                currentTarget: new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                currentTarget: new CargoTarget('cli-main', CargoTargetKind.Bin, '/path/src/main.rs', '2021', 'core', '/path'),
                 currentProfile: { toString: () => 'dev' },
                 isWorkspace: true
             };
@@ -885,9 +885,9 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should build library target correctly', () => {
             const mockWorkspace = {
                 targets: [
-                    new CargoTarget('mylib', ['lib'], '/path/src/lib.rs', '2021', 'core', '/path')
+                    new CargoTarget('mylib', CargoTargetKind.Lib, '/path/src/lib.rs', '2021', 'core', '/path')
                 ],
-                currentTarget: new CargoTarget('mylib', ['lib'], '/path/src/lib.rs', '2021', 'core', '/path'),
+                currentTarget: new CargoTarget('mylib', CargoTargetKind.Lib, '/path/src/lib.rs', '2021', 'core', '/path'),
                 currentProfile: { toString: () => 'dev' },
                 isWorkspace: true
             };
@@ -909,9 +909,9 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should not fallback to currentTarget when no target specified (All targets fix)', () => {
             const mockWorkspace = {
                 targets: [
-                    new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path')
+                    new CargoTarget('cli-main', CargoTargetKind.Bin, '/path/src/main.rs', '2021', 'core', '/path')
                 ],
-                currentTarget: new CargoTarget('cli-main', ['bin'], '/path/src/main.rs', '2021', 'core', '/path'),
+                currentTarget: new CargoTarget('cli-main', CargoTargetKind.Bin, '/path/src/main.rs', '2021', 'core', '/path'),
                 currentProfile: { toString: () => 'dev' },
                 isWorkspace: true
             };
@@ -937,9 +937,9 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
         test('should handle non-workspace builds correctly', () => {
             const mockWorkspace = {
                 targets: [
-                    new CargoTarget('my-app', ['bin'], '/path/src/main.rs', '2021', undefined, '/path')
+                    new CargoTarget('my-app', CargoTargetKind.Bin, '/path/src/main.rs', '2021', undefined, '/path')
                 ],
-                currentTarget: new CargoTarget('my-app', ['bin'], '/path/src/main.rs', '2021', undefined, '/path'),
+                currentTarget: new CargoTarget('my-app', CargoTargetKind.Bin, '/path/src/main.rs', '2021', undefined, '/path'),
                 currentProfile: { toString: () => 'dev' },
                 isWorkspace: false
             };
@@ -968,8 +968,8 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockWorkspace = {
                 workspaceRoot: '/test',
                 targets: [
-                    new CargoTarget('test-bin', ['bin'], '/test/src/main.rs', '2021', 'test-package', '/test'),
-                    new CargoTarget('test-lib', ['lib'], '/test/src/lib.rs', '2021', 'test-package', '/test')
+                    new CargoTarget('test-bin', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'test-package', '/test'),
+                    new CargoTarget('test-lib', CargoTargetKind.Lib, '/test/src/lib.rs', '2021', 'test-package', '/test')
                 ],
                 currentProfile: { toString: () => 'dev' },
                 selectedFeatures: new Set(),
@@ -996,7 +996,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockWorkspace = {
                 workspaceRoot: '/test',
                 targets: [
-                    new CargoTarget('test-lib', ['lib'], '/test/src/lib.rs', '2021', 'test-package', '/test')
+                    new CargoTarget('test-lib', CargoTargetKind.Lib, '/test/src/lib.rs', '2021', 'test-package', '/test')
                 ],
                 currentProfile: { toString: () => 'dev' },
                 selectedFeatures: new Set(),
@@ -1019,7 +1019,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockWorkspace = {
                 workspaceRoot: '/test',
                 targets: [
-                    new CargoTarget('test-bin', ['bin'], '/test/src/main.rs', '2021', 'test-package', '/test')
+                    new CargoTarget('test-bin', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'test-package', '/test')
                 ],
                 currentProfile: { toString: () => 'dev' },
                 selectedFeatures: new Set(),
@@ -1043,7 +1043,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockWorkspace = {
                 workspaceRoot: '/test',
                 targets: [
-                    new CargoTarget('test-bin', ['bin'], '/test/src/main.rs', '2021', 'test-package', '/test')
+                    new CargoTarget('test-bin', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'test-package', '/test')
                 ],
                 currentProfile: { toString: () => 'dev' },
                 selectedFeatures: new Set(),
@@ -1238,7 +1238,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockConfig = new MockCargoConfigurationReader('', ''); // No overrides
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
 
             assert.ok(task, 'Should create a task');
@@ -1251,7 +1251,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockConfig = new MockCargoConfigurationReader('', ''); // No overrides
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-test', ['test'], '/test/src/test.rs');
+            const target = new CargoTarget('my-test', CargoTargetKind.Test, '/test/src/test.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Test);
 
             assert.ok(task, 'Should create a task');
@@ -1267,7 +1267,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
         test('should work with binary targets and run override', () => {
             const { CargoTaskProvider } = require('../cargoTaskProvider');
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const mockWorkspace = createMockWorkspace([target]);
             const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', '');
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
@@ -1282,7 +1282,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
         test('should work with test targets and test override', () => {
             const { CargoTaskProvider } = require('../cargoTaskProvider');
-            const target = new CargoTarget('integration_tests', ['test'], '/test/tests/integration.rs');
+            const target = new CargoTarget('integration_tests', CargoTargetKind.Test, '/test/tests/integration.rs');
             const mockWorkspace = createMockWorkspace([target]);
             const mockConfig = new MockCargoConfigurationReader('', 'cargo nextest run');
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
@@ -1297,7 +1297,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
         test('should work with example targets and run override', () => {
             const { CargoTaskProvider } = require('../cargoTaskProvider');
-            const target = new CargoTarget('simple-server', ['example'], '/test/examples/simple.rs');
+            const target = new CargoTarget('simple-server', CargoTargetKind.Example, '/test/examples/simple.rs');
             const mockWorkspace = createMockWorkspace([target]);
             const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', '');
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
@@ -1312,7 +1312,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
         test('should not affect build commands', () => {
             const { CargoTaskProvider } = require('../cargoTaskProvider');
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const mockWorkspace = createMockWorkspace([target]);
             const mockConfig = new MockCargoConfigurationReader('cargo watch -x run', 'cargo nextest run');
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
@@ -1325,7 +1325,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
         test('should preserve workspace and package settings with overrides', () => {
             const { CargoTaskProvider } = require('../cargoTaskProvider');
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs', '2021', 'my-package');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs', '2021', 'my-package');
             const mockWorkspace = createMockWorkspace([target]);
             mockWorkspace.selectedPackage = 'my-package';
             mockWorkspace.isWorkspace = true;
@@ -1342,7 +1342,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
         test('should preserve features settings with overrides', () => {
             const { CargoTaskProvider } = require('../cargoTaskProvider');
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const mockWorkspace = createMockWorkspace([target]);
             mockWorkspace.selectedFeatures = new Set(['feature1', 'feature2']);
 
@@ -1399,7 +1399,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockConfig = new MockCargoConfigurationReaderWithNewSettings('cross');
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
 
             assert.ok(task, 'Should create a task');
@@ -1414,7 +1414,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockConfig = new MockCargoConfigurationReaderWithNewSettings('cargo +nightly');
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
 
             assert.ok(task, 'Should create a task');
@@ -1434,7 +1434,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
 
             assert.ok(task, 'Should create a task');
@@ -1457,7 +1457,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-test', ['test'], '/test/src/test.rs');
+            const target = new CargoTarget('my-test', CargoTargetKind.Test, '/test/src/test.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Test);
 
             assert.ok(task, 'Should create a task');
@@ -1477,7 +1477,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
 
             assert.ok(task, 'Should create a task');
@@ -1499,7 +1499,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
 
             assert.ok(task, 'Should create a task');
@@ -1523,7 +1523,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-test', ['test'], '/test/src/test.rs');
+            const target = new CargoTarget('my-test', CargoTargetKind.Test, '/test/src/test.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Test);
 
             assert.ok(task, 'Should create a task');
@@ -1545,7 +1545,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
 
             assert.ok(task, 'Should create a task');
@@ -1566,7 +1566,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Run);
 
             assert.ok(task, 'Should create a task');
@@ -1586,7 +1586,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             );
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-bench', ['bench'], '/test/benches/bench.rs');
+            const target = new CargoTarget('my-bench', CargoTargetKind.Bench, '/test/benches/bench.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Bench);
 
             assert.ok(task, 'Should create a task');
@@ -1602,7 +1602,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             const mockConfig = new MockCargoConfigurationReaderWithNewSettings('cargo +nightly --verbose');
             const taskProvider = new CargoTaskProvider(mockWorkspace, mockConfig);
 
-            const target = new CargoTarget('my-binary', ['bin'], '/test/src/main.rs');
+            const target = new CargoTarget('my-binary', CargoTargetKind.Bin, '/test/src/main.rs');
             const task = taskProvider.createTaskForTargetAction(target, TargetActionType.Build);
 
             assert.ok(task, 'Should create a task');

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { CargoWorkspace } from './cargoWorkspace';
 import { CargoProfile } from './cargoProfile';
 import { IconMapping } from './iconMapping';
-import { CargoTarget } from './cargoTarget';
+import { CargoTarget, CargoTargetKind } from './cargoTarget';
 
 export class ProjectStatusNode extends vscode.TreeItem {
     constructor(
@@ -333,31 +333,19 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         if (selectedBuildTarget) {
             // Show selected target with command to change selection
             const node = new ProjectStatusNode(
-                selectedBuildTarget,
+                selectedBuildTarget.name,
                 vscode.TreeItemCollapsibleState.None,
                 'selected-build-target',
                 {
                     command: 'cargo-tools.selectBuildTarget',
                     title: 'Change Build Target'
                 },
-                `Selected build target: ${selectedBuildTarget}`,
+                `Selected build target: ${selectedBuildTarget.name}`,
                 `Click to change build target`
             );
 
-            // Set icon based on target type
-            if (selectedBuildTarget === 'lib') {
-                // For library targets, use the library icon
-                node.iconPath = IconMapping.getIconForTargetType('lib');
-            } else {
-                // For named targets, find the actual target and use its type
-                const target = this.findTargetByName(selectedBuildTarget);
-                if (target && target.kind && target.kind.length > 0) {
-                    node.iconPath = IconMapping.getIconForTargetType(target.kind[0]);
-                } else {
-                    // Fallback to build action icon if target not found
-                    node.iconPath = IconMapping.BUILD_ACTION;
-                }
-            }
+            // Use the target's kind for icon
+            node.iconPath = IconMapping.getIconForTargetType(selectedBuildTarget.kind);
 
             return [node];
         } else {
@@ -388,25 +376,19 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         if (selectedRunTarget) {
             // Show selected target with command to change selection
             const node = new ProjectStatusNode(
-                selectedRunTarget,
+                selectedRunTarget.name,
                 vscode.TreeItemCollapsibleState.None,
                 'selected-run-target',
                 {
                     command: 'cargo-tools.selectRunTarget',
                     title: 'Change Run Target'
                 },
-                `Selected run target: ${selectedRunTarget}`,
+                `Selected run target: ${selectedRunTarget.name}`,
                 `Click to change run target`
             );
 
             // Set icon based on target type
-            const target = this.findTargetByName(selectedRunTarget);
-            if (target && target.kind && target.kind.length > 0) {
-                node.iconPath = IconMapping.getIconForTargetType(target.kind[0]);
-            } else {
-                // Fallback to selected state icon if target not found
-                node.iconPath = IconMapping.SELECTED_STATE;
-            }
+            node.iconPath = IconMapping.getIconForTargetType(selectedRunTarget.kind);
 
             return [node];
         } else {
@@ -428,7 +410,7 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
                 // Specific package selected - check if runnable targets exist
                 const packageTargets = this.getTargetsForPackage(selectedPackage);
                 const targetsByType = this.groupTargetsByType(packageTargets);
-                const hasRunnableTargets = targetsByType.has('bin') || targetsByType.has('example');
+                const hasRunnableTargets = targetsByType.has(CargoTargetKind.Bin) || targetsByType.has(CargoTargetKind.Example);
 
                 if (hasRunnableTargets) {
                     // Show default "Auto-detect" option
@@ -472,17 +454,17 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         if (selectedBenchmarkTarget) {
             // Show selected target with command to change selection
             const node = new ProjectStatusNode(
-                selectedBenchmarkTarget,
+                selectedBenchmarkTarget.name,
                 vscode.TreeItemCollapsibleState.None,
                 'selected-benchmark-target',
                 {
                     command: 'cargo-tools.selectBenchmarkTarget',
                     title: 'Change Benchmark Target'
                 },
-                `Selected benchmark target: ${selectedBenchmarkTarget}`,
+                `Selected benchmark target: ${selectedBenchmarkTarget.name}`,
                 `Click to change benchmark target`
             );
-            node.iconPath = IconMapping.SELECTED_STATE;
+            node.iconPath = IconMapping.getIconForTargetType(selectedBenchmarkTarget.kind);
             return [node];
         } else {
             // Show "No selection" when no specific benchmark target is selected
@@ -545,26 +527,14 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
         return this.workspace.targets.filter(target => target.packageName === packageName);
     }
 
-    private findTargetByName(targetName: string): CargoTarget | undefined {
-        if (!this.workspace) {
-            return undefined;
-        }
-
-        return this.workspace.targets.find(target => target.name === targetName);
-    }
-
-    private groupTargetsByType(targets: CargoTarget[]): Map<string, CargoTarget[]> {
-        const groups = new Map<string, CargoTarget[]>();
+    private groupTargetsByType(targets: CargoTarget[]): Map<CargoTargetKind, CargoTarget[]> {
+        const groups = new Map<CargoTargetKind, CargoTarget[]>();
 
         for (const target of targets) {
-            const types = Array.isArray(target.kind) ? target.kind : [target.kind || 'bin'];
-
-            for (const type of types) {
-                if (!groups.has(type)) {
-                    groups.set(type, []);
-                }
-                groups.get(type)!.push(target);
+            if (!groups.has(target.kind)) {
+                groups.set(target.kind, []);
             }
+            groups.get(target.kind)!.push(target);
         }
 
         return groups;
