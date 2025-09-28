@@ -217,18 +217,43 @@ export class ProjectOutlineTreeProvider implements vscode.TreeDataProvider<Proje
 
         // Add root-level Features node (only if features are enabled in filter)
         if (this.showFeatures) {
-            const rootFeaturesNode = new ProjectOutlineNode(
-                'Features',
-                vscode.TreeItemCollapsibleState.Expanded,
-                'features',
-                undefined,
-                undefined,
-                'Project features',
-                'Features available for the entire project',
-                { packageName: undefined, features: ['all-features'] }
-            );
-            rootFeaturesNode.iconPath = IconMapping.FEATURES_CONFIG;
-            nodes.push(rootFeaturesNode);
+            if (this.workspace.isWorkspace) {
+                // For workspace projects, show project-wide features
+                const rootFeaturesNode = new ProjectOutlineNode(
+                    'Features',
+                    vscode.TreeItemCollapsibleState.Expanded,
+                    'features',
+                    undefined,
+                    undefined,
+                    'Project features',
+                    'Features available for the entire project',
+                    { packageName: undefined, features: ['all-features'] }
+                );
+                rootFeaturesNode.iconPath = IconMapping.FEATURES_CONFIG;
+                nodes.push(rootFeaturesNode);
+            } else {
+                // For single-crate projects, show package-specific features
+                const packageName = this.workspace.projectName;
+                const packageFeatures = this.workspace.getPackageFeatures(packageName);
+
+                if (packageFeatures.length > 0) {
+                    // Include 'all-features' as the first option, followed by specific features
+                    const allFeatures = ['all-features', ...packageFeatures];
+
+                    const featuresNode = new ProjectOutlineNode(
+                        'Features',
+                        vscode.TreeItemCollapsibleState.Expanded,
+                        'features',
+                        undefined,
+                        undefined,
+                        `${allFeatures.length} features`,
+                        `Features available for package ${packageName}`,
+                        { packageName: packageName, features: allFeatures }
+                    );
+                    featuresNode.iconPath = IconMapping.FEATURES_CONFIG;
+                    nodes.push(featuresNode);
+                }
+            }
         }
 
         if (this.groupByWorkspaceMember && this.workspace.isWorkspace) {
