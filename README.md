@@ -63,7 +63,10 @@ This extension provides intuitive and advanced IDE-like features for Rust/Cargo 
 - **Pin Task** (`cargo-tools.makefile.pinTask`): Pin task for quick access
 
 ### Pinned Task Shortcuts
-- **Execute 1st - 5th Pinned Task** - `Ctrl+Alt+(1 - 5)`: Run 1st - 5th pinned makefile task
+- **Execute 1st - 5th Pinned Task** (`cargo-tools.pinnedMakefileTasks.execute1 - 5`) - `Ctrl+Alt+(1 - 5)`: Run 1st - 5th pinned makefile task
+
+### Rust-analyzer Integration
+- **Set rust-analyzer Targets** (`rust-analyzer.setTargets`): Configure target platforms for code analysis
 
 ## Context Menus
 
@@ -108,17 +111,7 @@ Configure the extension behavior by adding these settings to your VS Code `setti
 ### Basic Configuration
 ```json
 {
-  "cargoTools.defaultProfile": "dev",           // Default build profile: "dev" or "release"
-  "cargoTools.cargoCommand": "cargo",           // Cargo command or wrapper to use
-  "cargoTools.cargoPath": "cargo"               // Path to cargo executable
-}
-```
-
-### Feature Configuration
-```json
-{
-  "cargoTools.features": ["feature1", "feature2"],  // Default features to enable
-  "cargoTools.noDefaultFeatures": false             // Disable default features
+  "cargoTools.cargoCommand": "cargo", // Cargo command or wrapper to use
 }
 ```
 
@@ -134,14 +127,14 @@ Configure the extension behavior by adding these settings to your VS Code `setti
 ### Environment Variables
 ```json
 {
-  "cargoTools.extraEnv": {                          // Environment variables for all commands
+  "cargoTools.extraEnv": {      // Environment variables for all commands
     "RUST_LOG": "debug",
     "CUSTOM_VAR": "value"
   },
-  "cargoTools.run.extraEnv": {                      // Additional env vars for run/debug
+  "cargoTools.run.extraEnv": {  // Additional env vars for run/debug
     "RUN_MODE": "debug"
   },
-  "cargoTools.test.extraEnv": {                     // Additional env vars for test/bench
+  "cargoTools.test.extraEnv": { // Additional env vars for test/bench
     "TEST_MODE": "verbose"
   }
 }
@@ -150,25 +143,16 @@ Configure the extension behavior by adding these settings to your VS Code `setti
 ### Command Overrides
 ```json
 {
-  "cargoTools.runCommandOverride": "cargo watch -x run",  // Override for run command
-  "cargoTools.testCommandOverride": "cargo nextest run"   // Override for test command
+  "cargoTools.runCommandOverride": "cargo watch -x run", // Override for run command
+  "cargoTools.testCommandOverride": "cargo nextest run"  // Override for test command
 }
 ```
 
 ### rust-analyzer Integration
 ```json
 {
-  "cargoTools.useRustAnalyzerEnvAndArgs": false,    // Use rust-analyzer settings
-  "cargoTools.updateRustAnalyzerTarget": false      // Auto-update rust-analyzer target
-}
-```
-
-### Legacy Settings (Deprecated)
-```json
-{
-  "cargoTools.runArgs": [],        // Use cargoTools.run.extraArgs instead
-  "cargoTools.testArgs": [],       // Use cargoTools.test.extraArgs instead  
-  "cargoTools.environment": {}     // Use cargoTools.extraEnv instead
+  "cargoTools.useRustAnalyzerEnvAndArgs": false, // Use rust-analyzer settings
+  "cargoTools.updateRustAnalyzerTarget": false   // Auto-update rust-analyzer target
 }
 ```
 
@@ -176,7 +160,7 @@ Configure the extension behavior by adding these settings to your VS Code `setti
 
 - **Visual Studio Code** 1.102.0 or higher
 - **Rust toolchain** with Cargo installed
-- **cargo** command available in PATH (or configure `cargoTools.cargoPath`)
+- **cargo** command available in PATH (or configure `cargoTools.cargoCommand`)
 
 ## Known Issues
 

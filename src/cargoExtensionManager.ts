@@ -122,14 +122,6 @@ export class CargoExtensionManager implements vscode.Disposable {
                 }
             }),
 
-            this.workspaceConfig.onChange('cargoPath', async (cargoPath: string) => {
-                console.log(`Cargo path changed to: ${cargoPath}`);
-                // Refresh workspace if needed
-                if (this.cargoWorkspace) {
-                    await this.cargoWorkspace.refreshTargets();
-                }
-            }),
-
             this.workspaceConfig.onChange('useRustAnalyzerEnvAndArgs', async (enabled: boolean) => {
                 console.log(`Rust-analyzer integration changed to: ${enabled}`);
                 // Refresh workspace when rust-analyzer integration is toggled
@@ -151,14 +143,6 @@ export class CargoExtensionManager implements vscode.Disposable {
                             console.error('Failed to refresh workspace after rust-analyzer config change:', err);
                         });
                     }
-                }
-            }),
-
-            this.workspaceConfig.onChange('defaultProfile', async (profile: string) => {
-                console.log(`Default profile changed to: ${profile}`);
-                // Update active profile if needed
-                if (this.cargoWorkspace) {
-                    this.cargoWorkspace.setProfile(CargoProfile.fromString(profile));
                 }
             }),
 
@@ -1254,7 +1238,12 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         // Build environment variables for doc commands
-        const env = this.buildCargoEnvironment('doc');
+        const env: { [key: string]: string } = {};
+
+        // Start with base extraEnv
+        if (this.workspaceConfig.extraEnv) {
+            Object.assign(env, this.workspaceConfig.extraEnv);
+        }
 
         // Create new terminal if none exists or previous one was closed
         this.docsTerminal = vscode.window.createTerminal({
@@ -1376,7 +1365,6 @@ export class CargoExtensionManager implements vscode.Disposable {
                 taskDefinition.profile = 'release';
             }
 
-            // Note: Platform target (--target) is automatically handled by getCargoArgs() in cargoWorkspace
             // Note: Features don't apply to clean command as it removes artifacts regardless of features
 
             // Show progress indicator
@@ -1705,74 +1693,6 @@ export class CargoExtensionManager implements vscode.Disposable {
     }
 
     /**
-     * Execute a cargo command with proper error handling
-     */
-    private async executeCargoCommand(command: string): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        // Build environment variables from configuration
-        const env = this.buildCargoEnvironment(command);
-
-        const terminal = vscode.window.createTerminal({
-            name: `Cargo ${command}`,
-            cwd: this.cargoWorkspace.workspaceRoot,
-            env: env
-        });
-
-        const cargoCommand = this.workspaceConfig.cargoCommand || 'cargo';
-
-        // Split cargoCommand at whitespaces - first part is command, rest are additional args
-        const commandParts = cargoCommand.trim().split(/\s+/);
-        const actualCommand = commandParts[0];
-        const cargoCommandArgs = commandParts.slice(1);
-
-        const args = this.cargoWorkspace.getCargoArgs(command);
-
-        // Add extra arguments based on command type
-        const extraArgs = this.getExtraArgsForCommand(command);
-
-        // Combine all arguments: cargoCommand args + base args + extra args
-        const allArgs = [...cargoCommandArgs, ...args, ...extraArgs];
-
-        const commandLine = `${actualCommand} ${allArgs.join(' ')}`;
-
-        terminal.sendText(commandLine);
-        terminal.show();
-    }
-
-    /**
-     * Build environment variables for cargo command execution
-     */
-    private buildCargoEnvironment(command: string): { [key: string]: string } {
-        const env: { [key: string]: string } = {};
-
-        // Start with base extraEnv
-        if (this.workspaceConfig.extraEnv) {
-            Object.assign(env, this.workspaceConfig.extraEnv);
-        }
-
-        // Add legacy environment settings for backward compatibility
-        if (this.workspaceConfig.environment) {
-            Object.assign(env, this.workspaceConfig.environment);
-        }
-
-        // Add command-specific environment variables
-        if (command === 'run' || command === 'bench') {
-            // For run and bench commands, merge run.extraEnv
-            const runExtraEnv = this.workspaceConfig.runExtraEnv || {};
-            Object.assign(env, runExtraEnv);
-        } else if (command === 'test') {
-            // For test commands, merge test.extraEnv
-            const testExtraEnv = this.workspaceConfig.testExtraEnv || {};
-            Object.assign(env, testExtraEnv);
-        }
-
-        return env;
-    }
-
-    /**
      * Get extra arguments for specific command types
      */
     private getExtraArgsForCommand(command: string): string[] {
@@ -1824,101 +1744,6 @@ export class CargoExtensionManager implements vscode.Disposable {
 
     async executeBenchAction(target: CargoTarget): Promise<void> {
         await this.executeTargetAction(target, TargetActionType.Bench);
-    }
-
-    /**
-     * Execute cargo command for a specific target with workspace awareness
-     */
-    private async executeCargoCommandForTarget(command: string, target: CargoTarget): Promise<void> {
-        if (!this.cargoWorkspace) {
-            throw new Error('No cargo workspace available');
-        }
-
-        // Get cargo args for the specific target
-        const args = this.getCargoArgsForTarget(command, target);
-        const cargoPath = this.workspaceConfig.cargoPath || 'cargo';
-
-        // Get the correct working directory for the target
-        const workingDirectory = this.getWorkingDirectoryForTarget(target);
-
-        // Create terminal for command execution
-        const terminal = vscode.window.createTerminal({
-            name: `Cargo ${command} ${target.name}`,
-            cwd: workingDirectory,
-            env: { ...process.env, ...this.workspaceConfig.environment }
-        });
-
-        const commandLine = `${cargoPath} ${args.join(' ')}`;
-        console.log(`Executing: ${commandLine} in ${workingDirectory}`);
-
-        terminal.sendText(commandLine);
-        terminal.show();
-
-        // Show information message
-        vscode.window.showInformationMessage(`Running ${command} for ${target.name}...`);
-    }
-
-    /**
-     * Get cargo arguments for a specific target
-     */
-    private getCargoArgsForTarget(command: string, target: CargoTarget): string[] {
-        const args = [command];
-
-        // Add profile
-        if (this.cargoWorkspace!.currentProfile === CargoProfile.release) {
-            args.push('--release');
-        }
-
-        // For workspace projects, we need different logic depending on working directory
-        // If we're executing in the package directory, we don't need -p flag
-        // If we're executing from workspace root, we need -p flag
-        // Also respect the selected package setting - only add package arg when specific package is selected
-        const workingDirectory = this.getWorkingDirectoryForTarget(target);
-        const isExecutingFromPackageDir = target.packagePath && workingDirectory === target.packagePath;
-        const selectedPackage = this.cargoWorkspace!.selectedPackage;
-        const shouldIncludePackageArg = selectedPackage &&
-            target.packageName && this.cargoWorkspace!.isWorkspace && !isExecutingFromPackageDir;
-
-        if (shouldIncludePackageArg) {
-            args.push('-p', target.packageName);
-        }
-
-        // Add target-specific flags
-        if (command !== 'clean' && target.kind !== CargoTargetKind.Unknown) {
-            if (target.isExecutable) {
-                args.push('--bin', target.name);
-            } else if (target.isLibrary) {
-                args.push('--lib');
-            } else if (target.isExample) {
-                args.push('--example', target.name);
-            } else if (target.isTest) {
-                args.push('--test', target.name);
-            } else if (target.isBench) {
-                args.push('--bench', target.name);
-            }
-        }
-
-        // Add features and other configuration
-        const features = this.workspaceConfig.features;
-        if (features && Array.isArray(features) && features.length > 0) {
-            args.push('--features', features.join(','));
-        }
-
-        if (this.workspaceConfig.allFeatures) {
-            args.push('--all-features');
-        }
-
-        if (this.workspaceConfig.noDefaultFeatures) {
-            args.push('--no-default-features');
-        }
-
-        // Add command-specific arguments from configuration
-        const commandArgs = this.workspaceConfig[`${command}Args` as keyof typeof this.workspaceConfig] as string[] | undefined;
-        if (commandArgs && Array.isArray(commandArgs)) {
-            args.push(...commandArgs);
-        }
-
-        return args;
     }
 
     /**

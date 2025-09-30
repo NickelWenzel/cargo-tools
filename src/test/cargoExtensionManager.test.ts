@@ -2,7 +2,6 @@ import * as assert from 'assert';
 import { CargoTarget, CargoTargetKind, TargetActionType } from '../cargoTarget';
 import { CargoProfile } from '../cargoProfile';
 import { CargoWorkspace } from '../cargoWorkspace';
-import { CargoExtensionManager } from '../cargoExtensionManager';
 
 /**
  * Mock CargoTaskProvider with a simplified buildCargoArgs method for testing
@@ -87,10 +86,6 @@ function buildCargoArgs(definition: any, mockWorkspace: any): string[] {
 
     if (definition.allFeatures) {
         args.push('--all-features');
-    }
-
-    if (definition.noDefaultFeatures) {
-        args.push('--no-default-features');
     }
 
     return args;
@@ -324,9 +319,6 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             options: {
                 profile?: CargoProfile;
                 isWorkspace?: boolean;
-                features?: string[];
-                allFeatures?: boolean;
-                noDefaultFeatures?: boolean;
                 commandArgs?: string[];
                 usePackageFlag?: boolean;
             } = {}
@@ -356,20 +348,6 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
                 } else if (target.kind.includes('bench')) {
                     args.push('--bench', target.name);
                 }
-            }
-
-            // Add features and other configuration
-            const features = options.features || [];
-            if (features && Array.isArray(features) && features.length > 0) {
-                args.push('--features', features.join(','));
-            }
-
-            if (options.allFeatures) {
-                args.push('--all-features');
-            }
-
-            if (options.noDefaultFeatures) {
-                args.push('--no-default-features');
             }
 
             // Add command-specific arguments from configuration
@@ -521,10 +499,9 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
             const args = getCargoArgsForTarget('build', target, {
                 profile: CargoProfile.dev,
-                features: ['feature1', 'feature2']
             });
 
-            const expectedArgs = ['build', '--bin', 'my-app', '--features', 'feature1,feature2'];
+            const expectedArgs = ['build', '--bin', 'my-app'];
             assert.deepStrictEqual(args, expectedArgs);
         });
 
@@ -540,10 +517,9 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
             const args = getCargoArgsForTarget('build', target, {
                 profile: CargoProfile.dev,
-                allFeatures: true
             });
 
-            const expectedArgs = ['build', '--bin', 'my-app', '--all-features'];
+            const expectedArgs = ['build', '--bin', 'my-app'];
             assert.deepStrictEqual(args, expectedArgs);
         });
 
@@ -559,10 +535,9 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
 
             const args = getCargoArgsForTarget('build', target, {
                 profile: CargoProfile.dev,
-                noDefaultFeatures: true
             });
 
-            const expectedArgs = ['build', '--bin', 'my-app', '--no-default-features'];
+            const expectedArgs = ['build', '--bin', 'my-app'];
             assert.deepStrictEqual(args, expectedArgs);
         });
 
@@ -1204,21 +1179,14 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
             ) { }
 
             get cargoCommand() { return 'cargo'; }
-            get cargoPath() { return 'cargo'; }
             get useRustAnalyzerEnvAndArgs() { return false; }
             get updateRustAnalyzerTarget() { return false; }
             get extraEnv() { return {}; }
             get buildArgs() { return []; }
-            get runArgs() { return []; }
-            get testArgs() { return []; }
             get runExtraArgs() { return []; }
             get runExtraEnv() { return {}; }
             get testExtraArgs() { return []; }
             get testExtraEnv() { return {}; }
-            get environment() { return {}; }
-            get features() { return []; }
-            get allFeatures() { return false; }
-            get noDefaultFeatures() { return false; }
         }
 
         function createMockWorkspace(targets: CargoTarget[] = []): any {
@@ -1372,14 +1340,7 @@ suite('Cargo Command Line Argument Generation Unit Tests', () => {
                 public useRustAnalyzerEnvAndArgs: boolean = false
             ) { }
 
-            get cargoPath() { return 'cargo'; }
             get buildArgs() { return []; }
-            get runArgs() { return []; }
-            get testArgs() { return []; }
-            get environment() { return {}; }
-            get features() { return []; }
-            get allFeatures() { return false; }
-            get noDefaultFeatures() { return false; }
         }
 
         function createMockWorkspace(targets: CargoTarget[] = []): any {
