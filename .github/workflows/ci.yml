@@ -40,12 +40,14 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-    
-    - name: Install cargo-make
-      run: cargo install cargo-make
 
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: test-rust-project
+    
+    - name: Install cargo-make
+      run: cargo install cargo-make
     
     - name: Install dependencies
       run: npm ci
