@@ -407,19 +407,22 @@
         {
           "id": "cargoToolsExplorer",
           "name": "Cargo Tools",
-          "when": "cargoTools:workspaceHasCargo"
+          "when": "cargoTools:workspaceHasCargo",
+          "icon": "$(package)"
         }
       ],
       "cargoTools": [
         {
           "id": "cargoToolsProjectStatus",
           "name": "Project Status",
-          "when": "cargoTools:workspaceHasCargo"
+          "when": "cargoTools:workspaceHasCargo",
+          "icon": "$(package)"
         },
         {
           "id": "cargoToolsProjectOutline",
           "name": "Project Outline",
-          "when": "cargoTools:workspaceHasCargo"
+          "when": "cargoTools:workspaceHasCargo",
+          "icon": "$(package)"
         },
         {
           "id": "cargoToolsMakefile",
@@ -816,19 +819,6 @@
     "configuration": {
       "title": "Cargo Tools",
       "properties": {
-        "cargoTools.defaultProfile": {
-          "type": "string",
-          "default": "dev",
-          "description": "Default build profile to use",
-          "enum": [
-            "dev",
-            "release"
-          ],
-          "enumDescriptions": [
-            "Development profile with debug information",
-            "Release profile with optimizations"
-          ]
-        },
         "cargoTools.cargoCommand": {
           "type": "string",
           "default": "cargo",
@@ -843,11 +833,6 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically update rust-analyzer.cargo.target setting when Platform Selection changes. When enabled, changing the platform target will also set rust-analyzer's cargo target configuration."
-        },
-        "cargoTools.cargoPath": {
-          "type": "string",
-          "default": "cargo",
-          "description": "Path to the cargo executable"
         },
         "cargoTools.extraEnv": {
           "type": "object",
@@ -881,14 +866,6 @@
           "default": {},
           "description": "Additional environment variables to set when running or debugging a target, merged with extraEnv"
         },
-        "cargoTools.runArgs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "description": "Additional arguments to pass to cargo run"
-        },
         "cargoTools.test.extraArgs": {
           "type": "array",
           "items": {
@@ -904,37 +881,6 @@
           },
           "default": {},
           "description": "Additional environment variables to set when running tests or benchmarks, merged with extraEnv"
-        },
-        "cargoTools.testArgs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "description": "Additional arguments to pass to cargo test"
-        },
-        "cargoTools.environment": {
-          "type": "object",
-          "default": {},
-          "description": "Environment variables to set when running cargo commands"
-        },
-        "cargoTools.features": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "description": "Default features to enable"
-        },
-        "cargoTools.allFeatures": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable all features by default"
-        },
-        "cargoTools.noDefaultFeatures": {
-          "type": "boolean",
-          "default": false,
-          "description": "Disable default features"
         },
         "cargoTools.runCommandOverride": {
           "type": "string",
@@ -977,10 +923,6 @@
           "allFeatures": {
             "type": "boolean",
             "description": "Enable all features"
-          },
-          "noDefaultFeatures": {
-            "type": "boolean",
-            "description": "Disable default features"
           }
         }
       }

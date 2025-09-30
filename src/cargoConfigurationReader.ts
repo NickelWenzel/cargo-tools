@@ -5,24 +5,16 @@ import * as vscode from 'vscode';
  */
 export interface CargoConfiguration {
     cargoCommand: string;
-    cargoPath: string;
     useRustAnalyzerEnvAndArgs: boolean;
     updateRustAnalyzerTarget: boolean;
-    defaultProfile: string;
     extraEnv: { [key: string]: string };
     buildArgs: string[];
-    runArgs: string[];
-    testArgs: string[];
     'run.extraArgs': string[];
     'run.extraEnv': { [key: string]: string };
     'test.extraArgs': string[];
     'test.extraEnv': { [key: string]: string };
     runCommandOverride: string;
     testCommandOverride: string;
-    environment: { [key: string]: string };
-    features: string[];
-    allFeatures: boolean;
-    noDefaultFeatures: boolean;
     // Enhanced UI configuration options
     statusBar: {
         visible: boolean;
@@ -117,24 +109,16 @@ export class CargoConfigurationReader implements vscode.Disposable {
 
         return {
             cargoCommand: cargoCommand,
-            cargoPath: config.get<string>('cargoPath', 'cargo'),
             useRustAnalyzerEnvAndArgs: useRustAnalyzerEnvAndArgs,
             updateRustAnalyzerTarget: config.get<boolean>('updateRustAnalyzerTarget', false),
-            defaultProfile: config.get<string>('defaultProfile', 'dev'),
             extraEnv: extraEnv,
             buildArgs: config.get<string[]>('buildArgs', []),
-            runArgs: config.get<string[]>('runArgs', []),
-            testArgs: config.get<string[]>('testArgs', []),
             'run.extraArgs': runExtraArgs,
             'run.extraEnv': config.get<{ [key: string]: string }>('run.extraEnv', {}),
             'test.extraArgs': testExtraArgs,
             'test.extraEnv': config.get<{ [key: string]: string }>('test.extraEnv', {}),
             runCommandOverride: config.get<string>('runCommandOverride', ''),
             testCommandOverride: config.get<string>('testCommandOverride', ''),
-            environment: config.get<{ [key: string]: string }>('environment', {}),
-            features: config.get<string[]>('features', []),
-            allFeatures: config.get<boolean>('allFeatures', false),
-            noDefaultFeatures: config.get<boolean>('noDefaultFeatures', false),
             statusBar: {
                 visible: config.get<boolean>('statusBar.visible', true),
                 showProfile: config.get<boolean>('statusBar.showProfile', true),
@@ -194,10 +178,6 @@ export class CargoConfigurationReader implements vscode.Disposable {
         return this.configData.cargoCommand;
     }
 
-    get cargoPath(): string {
-        return this.configData.cargoPath;
-    }
-
     get useRustAnalyzerEnvAndArgs(): boolean {
         return this.configData.useRustAnalyzerEnvAndArgs;
     }
@@ -206,24 +186,12 @@ export class CargoConfigurationReader implements vscode.Disposable {
         return this.configData.updateRustAnalyzerTarget;
     }
 
-    get defaultProfile(): string {
-        return this.configData.defaultProfile;
-    }
-
     get extraEnv(): { [key: string]: string } {
         return this.configData.extraEnv;
     }
 
     get buildArgs(): string[] {
         return this.configData.buildArgs;
-    }
-
-    get runArgs(): string[] {
-        return this.configData.runArgs;
-    }
-
-    get testArgs(): string[] {
-        return this.configData.testArgs;
     }
 
     get runExtraArgs(): string[] {
@@ -250,43 +218,19 @@ export class CargoConfigurationReader implements vscode.Disposable {
         return this.configData.testCommandOverride;
     }
 
-    get environment(): { [key: string]: string } {
-        return this.configData.environment;
-    }
-
-    get features(): string[] {
-        return this.configData.features;
-    }
-
-    get allFeatures(): boolean {
-        return this.configData.allFeatures;
-    }
-
-    get noDefaultFeatures(): boolean {
-        return this.configData.noDefaultFeatures;
-    }
-
     // Event emitters for configuration changes
     private readonly emitters: EmittersOf<CargoConfiguration> = {
         cargoCommand: new vscode.EventEmitter<string>(),
-        cargoPath: new vscode.EventEmitter<string>(),
         useRustAnalyzerEnvAndArgs: new vscode.EventEmitter<boolean>(),
         updateRustAnalyzerTarget: new vscode.EventEmitter<boolean>(),
-        defaultProfile: new vscode.EventEmitter<string>(),
         extraEnv: new vscode.EventEmitter<{ [key: string]: string }>(),
         buildArgs: new vscode.EventEmitter<string[]>(),
-        runArgs: new vscode.EventEmitter<string[]>(),
-        testArgs: new vscode.EventEmitter<string[]>(),
         'run.extraArgs': new vscode.EventEmitter<string[]>(),
         'run.extraEnv': new vscode.EventEmitter<{ [key: string]: string }>(),
         'test.extraArgs': new vscode.EventEmitter<string[]>(),
         'test.extraEnv': new vscode.EventEmitter<{ [key: string]: string }>(),
         runCommandOverride: new vscode.EventEmitter<string>(),
         testCommandOverride: new vscode.EventEmitter<string>(),
-        environment: new vscode.EventEmitter<{ [key: string]: string }>(),
-        features: new vscode.EventEmitter<string[]>(),
-        allFeatures: new vscode.EventEmitter<boolean>(),
-        noDefaultFeatures: new vscode.EventEmitter<boolean>(),
         statusBar: new vscode.EventEmitter<{
             visible: boolean;
             showProfile: boolean;

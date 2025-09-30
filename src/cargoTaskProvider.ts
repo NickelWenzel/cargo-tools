@@ -10,7 +10,6 @@ export interface CargoTaskDefinition extends vscode.TaskDefinition {
     targetKind?: CargoTargetKind;
     features?: string[];
     allFeatures?: boolean;
-    noDefaultFeatures?: boolean;
 }
 
 export class CargoTaskProvider implements vscode.TaskProvider {
@@ -396,10 +395,6 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             args.push('--all-features');
         }
 
-        if (definition.noDefaultFeatures) {
-            args.push('--no-default-features');
-        }
-
         // Add platform target if selected
         if (this.workspace.selectedPlatformTarget) {
             args.push('--target', this.workspace.selectedPlatformTarget);
@@ -435,11 +430,6 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         // Start with base extraEnv
         if (this.configReader?.extraEnv) {
             Object.assign(env, this.configReader.extraEnv);
-        }
-
-        // Add legacy environment settings for backward compatibility
-        if (this.configReader?.environment) {
-            Object.assign(env, this.configReader.environment);
         }
 
         // Add command-specific environment variables
