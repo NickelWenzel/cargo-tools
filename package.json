@@ -973,7 +973,7 @@
   "scripts": {
     "vscode:prepublish": "npm run build-base -- --minify",
     "package": "vsce package -o cargo-tools.vsix",
-    "build-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --platform=node --target=node20",
+    "build-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --platform=node --target=node20",
     "compile": "webpack",
     "watch": "webpack --watch",
     "compile-tests": "tsc -p . --outDir out",
