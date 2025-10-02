@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { CargoWorkspace } from './cargoWorkspace';
-import { CargoTaskProvider } from './cargoTaskProvider';
+import { CargoTaskProvider, CargoMakeTaskProvider } from './cargoTaskProvider';
 import { CargoProfile } from './cargoProfile';
 import { CargoTarget, CargoTargetKind, TargetActionType } from './cargoTarget';
 import { CargoConfigurationReader } from './cargoConfigurationReader';
@@ -31,6 +31,7 @@ export class CargoExtensionManager implements vscode.Disposable {
     // Core components
     private cargoWorkspace?: CargoWorkspace;
     private taskProvider?: CargoTaskProvider;
+    private cargoMakeTaskProvider?: CargoMakeTaskProvider;
     private statusBarProvider?: StatusBarProvider;
     private projectOutlineTreeProvider?: ProjectOutlineTreeProvider;
     private projectStatusTreeProvider?: ProjectStatusTreeProvider;
@@ -173,10 +174,13 @@ export class CargoExtensionManager implements vscode.Disposable {
             return;
         }
 
-        // Initialize task provider
+        // Initialize task providers
         this.taskProvider = new CargoTaskProvider(this.cargoWorkspace, this.workspaceConfig);
+        this.cargoMakeTaskProvider = new CargoMakeTaskProvider(this.cargoWorkspace, this.workspaceConfig);
+
         const taskProviderDisposable = vscode.tasks.registerTaskProvider('cargo', this.taskProvider);
-        const cargoMakeTaskProviderDisposable = vscode.tasks.registerTaskProvider('cargo-make', this.taskProvider);
+        const cargoMakeTaskProviderDisposable = vscode.tasks.registerTaskProvider('cargo-make', this.cargoMakeTaskProvider);
+
         this.subscriptions.push(taskProviderDisposable);
         this.subscriptions.push(cargoMakeTaskProviderDisposable);
     }
@@ -1675,6 +1679,10 @@ export class CargoExtensionManager implements vscode.Disposable {
 
     getTaskProvider(): CargoTaskProvider | undefined {
         return this.taskProvider;
+    }
+
+    getCargoMakeTaskProvider(): CargoMakeTaskProvider | undefined {
+        return this.cargoMakeTaskProvider;
     }
 
     /**
