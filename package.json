@@ -2,7 +2,7 @@
   "name": "cargo-tools",
   "displayName": "Cargo Tools",
   "description": "Cargo/Rust development tools for Visual Studio Code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "NickelWenzel",
   "license": "MIT",
   "icon": "rustacean-flat-happy.png",
