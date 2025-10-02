@@ -2,8 +2,8 @@
   "name": "cargo-tools",
   "displayName": "Cargo Tools",
   "description": "Cargo/Rust development tools for Visual Studio Code",
-  "version": "0.0.1",
-  "publisher": "cargo-tools",
+  "version": "0.1.0",
+  "publisher": "NickelWenzel",
   "license": "MIT",
   "icon": "rustacean-flat-happy.png",
   "repository": {
@@ -14,6 +14,7 @@
     "vscode": "^1.102.0"
   },
   "categories": [
+    "Programming Languages",
     "Other"
   ],
   "keywords": [
