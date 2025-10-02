@@ -1186,10 +1186,10 @@ suite('Extension Test Suite', () => {
 			assert.strictEqual(buildNodes.length, 1, 'Should have one build target node');
 			assert.strictEqual(buildNodes[0].iconPath, IconMapping.TARGET_CONFIG, 'Should fallback to target config icon when no target selected');
 
-			// Test run target fallback - when there are no runnable targets, shows warning
+			// Test run target fallback - shows auto-detect with run icon
 			const runNodes = (provider as any)['createRunTargetSelectionChildren']();
 			assert.strictEqual(runNodes.length, 1, 'Should have one run target node');
-			assert.strictEqual(runNodes[0].iconPath, IconMapping.WARNING_STATE, 'Should show warning icon when no runnable targets available');
+			assert.strictEqual(runNodes[0].iconPath, IconMapping.RUN_ACTION, 'Should show run icon for auto-detect option');
 		});
 
 		test('should handle ambiguous target names correctly', () => {

@@ -392,55 +392,20 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
 
             return [node];
         } else {
-            // Show disabled or default state
-            const selectedPackage = this.workspace.selectedPackage;
-            if (!selectedPackage) {
-                // No package selected - disabled
-                const node = new ProjectStatusNode(
-                    'Disabled when no package selected',
-                    vscode.TreeItemCollapsibleState.None,
-                    'disabled-run-target',
-                    undefined,
-                    'Select a specific package to run targets',
-                    'Run targets require a specific package selection'
-                );
-                node.iconPath = IconMapping.WARNING_STATE;
-                return [node];
-            } else {
-                // Specific package selected - check if runnable targets exist
-                const packageTargets = this.getTargetsForPackage(selectedPackage);
-                const targetsByType = this.groupTargetsByType(packageTargets);
-                const hasRunnableTargets = targetsByType.has(CargoTargetKind.Bin) || targetsByType.has(CargoTargetKind.Example);
-
-                if (hasRunnableTargets) {
-                    // Show default "Auto-detect" option
-                    const node = new ProjectStatusNode(
-                        'Auto-detect',
-                        vscode.TreeItemCollapsibleState.None,
-                        'default-run-target',
-                        {
-                            command: 'cargo-tools.selectRunTarget',
-                            title: 'Select Run Target'
-                        },
-                        'Auto-detect run target (default)',
-                        'Click to select specific run target'
-                    );
-                    node.iconPath = IconMapping.RUN_ACTION;
-                    return [node];
-                } else {
-                    // No runnable targets in package
-                    const node = new ProjectStatusNode(
-                        'No runnable targets in package',
-                        vscode.TreeItemCollapsibleState.None,
-                        'no-run-targets',
-                        undefined,
-                        'No binaries or examples to run',
-                        'This package has no runnable targets'
-                    );
-                    node.iconPath = IconMapping.WARNING_STATE;
-                    return [node];
-                }
-            }
+            // Show default "Auto-detect" option
+            const node = new ProjectStatusNode(
+                'Auto-detect',
+                vscode.TreeItemCollapsibleState.None,
+                'default-run-target',
+                {
+                    command: 'cargo-tools.selectRunTarget',
+                    title: 'Select Run Target'
+                },
+                'Auto-detect run target (default)',
+                'Click to select specific run target'
+            );
+            node.iconPath = IconMapping.RUN_ACTION;
+            return [node];
         }
     }
 
