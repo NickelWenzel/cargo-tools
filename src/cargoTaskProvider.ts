@@ -5,11 +5,16 @@ import { CargoConfigurationReader } from './cargoConfigurationReader';
 
 export interface CargoTaskDefinition extends vscode.TaskDefinition {
     command: string;
+    args?: string[]; // Additional arguments for the command
     profile?: string;
     target?: string;
     targetKind?: CargoTargetKind;
     features?: string[];
     allFeatures?: boolean;
+}
+
+export interface CargoMakeTaskDefinition extends vscode.TaskDefinition {
+    task: string; // The cargo-make task name
 }
 
 export class CargoTaskProvider implements vscode.TaskProvider {
@@ -31,9 +36,11 @@ export class CargoTaskProvider implements vscode.TaskProvider {
     }
 
     public resolveTask(task: vscode.Task): vscode.Task | undefined {
-        const definition = task.definition as CargoTaskDefinition;
+        const definition = task.definition;
         if (definition.type === CargoTaskProvider.CargoType && definition.command) {
-            return this.createCargoTask(definition);
+            return this.createCargoTask(definition as CargoTaskDefinition);
+        } else if (definition.type === 'cargo-make' && definition.task) {
+            return this.createCargoMakeTask(definition as CargoMakeTaskDefinition);
         }
         return undefined;
     }
@@ -313,8 +320,52 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         return task;
     }
 
+    private createCargoMakeTask(definition: CargoMakeTaskDefinition): vscode.Task {
+        // Use configured cargo command
+        const cargoCommand = this.configReader?.cargoCommand ||
+            vscode.workspace.getConfiguration('cargoTools').get<string>('cargoCommand', 'cargo');
+
+        // Split cargoCommand at whitespaces - first part is command, rest are additional args
+        const commandParts = cargoCommand.trim().split(/\s+/);
+        const command = commandParts[0];
+        const cargoCommandArgs = commandParts.slice(1);
+
+        // Build args: [additional cargo args, 'make', task]
+        const args = [...cargoCommandArgs, 'make', definition.task];
+
+        const execution = new vscode.ShellExecution(command, args, {
+            cwd: this.workspace.workspaceRoot
+        });
+
+        const task = new vscode.Task(
+            definition,
+            vscode.TaskScope.Workspace,
+            `make ${definition.task}`,
+            'cargo-make',
+            execution,
+            ['$rustc']
+        );
+
+        task.group = vscode.TaskGroup.Build;
+        task.presentationOptions = {
+            echo: true,
+            reveal: vscode.TaskRevealKind.Always,
+            focus: false,
+            panel: vscode.TaskPanelKind.Shared,
+            showReuseMessage: true,
+            clear: false
+        };
+
+        return task;
+    }
+
     private buildCargoArgs(definition: CargoTaskDefinition): string[] {
         const args = [definition.command];
+
+        // Add any custom arguments for the command
+        if (definition.args && definition.args.length > 0) {
+            args.push(...definition.args);
+        }
 
         // Add profile - handle both task-specific and workspace default profiles
         const profileToUse = definition.profile || this.workspace.currentProfile.toString();

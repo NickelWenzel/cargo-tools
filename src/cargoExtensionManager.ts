@@ -176,7 +176,9 @@ export class CargoExtensionManager implements vscode.Disposable {
         // Initialize task provider
         this.taskProvider = new CargoTaskProvider(this.cargoWorkspace, this.workspaceConfig);
         const taskProviderDisposable = vscode.tasks.registerTaskProvider('cargo', this.taskProvider);
+        const cargoMakeTaskProviderDisposable = vscode.tasks.registerTaskProvider('cargo-make', this.taskProvider);
         this.subscriptions.push(taskProviderDisposable);
+        this.subscriptions.push(cargoMakeTaskProviderDisposable);
     }
 
     /**
@@ -1200,31 +1202,30 @@ export class CargoExtensionManager implements vscode.Disposable {
         }
 
         try {
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: 'Building documentation...',
-                cancellable: false
-            }, async (progress) => {
-                // Execute cargo doc command using a reusable terminal
-                const terminal = this.getOrCreateDocsTerminal();
+            // Create task definition for cargo doc
+            const taskDefinition: any = {
+                type: 'cargo',
+                command: 'doc',
+                args: ['--no-deps', '--release']
+            };
 
-                const cargoCommand = this.workspaceConfig.cargoCommand || 'cargo';
+            // Create and execute the task
+            const task = this.taskProvider!.resolveTask(new vscode.Task(
+                taskDefinition,
+                vscode.TaskScope.Workspace,
+                'Build Documentation',
+                'cargo'
+            ));
 
-                // Split cargoCommand at whitespaces - first part is command, rest are additional args
-                const commandParts = cargoCommand.trim().split(/\s+/);
-                const actualCommand = commandParts[0];
-                const cargoCommandArgs = commandParts.slice(1);
-
-                // Combine command args with the doc command
-                const fullArgs = [...cargoCommandArgs, 'doc', '--no-deps', '--release'];
-                const command = `${actualCommand} ${fullArgs.join(' ')}`;
-                terminal.sendText(command);
-                terminal.show();
-
+            if (task) {
+                await vscode.tasks.executeTask(task);
                 vscode.window.showInformationMessage('Building documentation with cargo doc --no-deps --release');
-            });
+            } else {
+                throw new Error('Failed to create documentation task');
+            }
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to build documentation: ${error}`);
+            const message = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to build documentation: ${message}`);
         }
     }
 
