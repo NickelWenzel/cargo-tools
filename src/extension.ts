@@ -134,9 +134,9 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 					return;
 				}
 
-				const taskProvider = extensionManager.getTaskProvider();
+				const taskProvider = extensionManager.getCargoMakeTaskProvider();
 				if (!taskProvider) {
-					vscode.window.showErrorMessage('Task provider not available');
+					vscode.window.showErrorMessage('Cargo-make task provider not available');
 					return;
 				}
 
@@ -210,9 +210,9 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 					return;
 				}
 
-				const taskProvider = extensionManager.getTaskProvider();
+				const taskProvider = extensionManager.getCargoMakeTaskProvider();
 				if (!taskProvider) {
-					vscode.window.showErrorMessage('Task provider not available');
+					vscode.window.showErrorMessage('Cargo-make task provider not available');
 					return;
 				}
 
@@ -320,9 +320,9 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 					return;
 				}
 
-				const taskProvider = extensionManager.getTaskProvider();
+				const taskProvider = extensionManager.getCargoMakeTaskProvider();
 				if (!taskProvider) {
-					vscode.window.showErrorMessage('Task provider not available');
+					vscode.window.showErrorMessage('Cargo-make task provider not available');
 					return;
 				}
 
@@ -397,9 +397,9 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 				return;
 			}
 
-			const taskProvider = extensionManager.getTaskProvider();
+			const taskProvider = extensionManager.getCargoMakeTaskProvider();
 			if (!taskProvider) {
-				vscode.window.showErrorMessage('Task provider not available');
+				vscode.window.showErrorMessage('Cargo-make task provider not available');
 				return;
 			}
 

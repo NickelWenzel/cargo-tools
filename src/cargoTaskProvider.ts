@@ -39,8 +39,6 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         const definition = task.definition;
         if (definition.type === CargoTaskProvider.CargoType && definition.command) {
             return this.createCargoTask(definition as CargoTaskDefinition);
-        } else if (definition.type === 'cargo-make' && definition.task) {
-            return this.createCargoMakeTask(definition as CargoMakeTaskDefinition);
         }
         return undefined;
     }
@@ -302,51 +300,12 @@ export class CargoTaskProvider implements vscode.TaskProvider {
             definition,
             vscode.TaskScope.Workspace,
             this.getTaskName(definition),
-            CargoTaskProvider.CargoType,
+            definition.type, // Use the task definition type as the source
             execution,
             this.getProblemMatchers(definition.command)
         );
 
         task.group = this.getTaskGroup(definition.command);
-        task.presentationOptions = {
-            echo: true,
-            reveal: vscode.TaskRevealKind.Always,
-            focus: false,
-            panel: vscode.TaskPanelKind.Shared,
-            showReuseMessage: true,
-            clear: false
-        };
-
-        return task;
-    }
-
-    private createCargoMakeTask(definition: CargoMakeTaskDefinition): vscode.Task {
-        // Use configured cargo command
-        const cargoCommand = this.configReader?.cargoCommand ||
-            vscode.workspace.getConfiguration('cargoTools').get<string>('cargoCommand', 'cargo');
-
-        // Split cargoCommand at whitespaces - first part is command, rest are additional args
-        const commandParts = cargoCommand.trim().split(/\s+/);
-        const command = commandParts[0];
-        const cargoCommandArgs = commandParts.slice(1);
-
-        // Build args: [additional cargo args, 'make', task]
-        const args = [...cargoCommandArgs, 'make', definition.task];
-
-        const execution = new vscode.ShellExecution(command, args, {
-            cwd: this.workspace.workspaceRoot
-        });
-
-        const task = new vscode.Task(
-            definition,
-            vscode.TaskScope.Workspace,
-            `make ${definition.task}`,
-            'cargo-make',
-            execution,
-            ['$rustc']
-        );
-
-        task.group = vscode.TaskGroup.Build;
         task.presentationOptions = {
             echo: true,
             reveal: vscode.TaskRevealKind.Always,
@@ -575,5 +534,68 @@ export class CargoTaskProvider implements vscode.TaskProvider {
         };
 
         return this.createCargoTask(definition);
+    }
+}
+
+/**
+ * Dedicated task provider for cargo-make tasks
+ */
+export class CargoMakeTaskProvider implements vscode.TaskProvider {
+    constructor(
+        private workspace: CargoWorkspace,
+        private configReader?: CargoConfigurationReader
+    ) { }
+
+    public provideTasks(): Thenable<vscode.Task[]> {
+        // Don't provide any predefined tasks for cargo-make
+        // Tasks are only created on-demand via resolveTask
+        return Promise.resolve([]);
+    }
+
+    public resolveTask(task: vscode.Task): vscode.Task | undefined {
+        const definition = task.definition;
+        if (definition.type === 'cargo-make' && definition.task) {
+            return this.createCargoMakeTask(definition as CargoMakeTaskDefinition);
+        }
+        return undefined;
+    }
+
+    private createCargoMakeTask(definition: CargoMakeTaskDefinition): vscode.Task {
+        // Use configured cargo command
+        const cargoCommand = this.configReader?.cargoCommand ||
+            vscode.workspace.getConfiguration('cargoTools').get<string>('cargoCommand', 'cargo');
+
+        // Split cargoCommand at whitespaces - first part is command, rest are additional args
+        const commandParts = cargoCommand.trim().split(/\s+/);
+        const command = commandParts[0];
+        const cargoCommandArgs = commandParts.slice(1);
+
+        // Build args: [additional cargo args, 'make', task]
+        const args = [...cargoCommandArgs, 'make', definition.task];
+
+        const execution = new vscode.ShellExecution(command, args, {
+            cwd: this.workspace.workspaceRoot
+        });
+
+        const task = new vscode.Task(
+            definition,
+            vscode.TaskScope.Workspace,
+            `make ${definition.task}`,
+            definition.type,
+            execution,
+            ['$rustc']
+        );
+
+        task.group = vscode.TaskGroup.Build;
+        task.presentationOptions = {
+            echo: true,
+            reveal: vscode.TaskRevealKind.Always,
+            focus: false,
+            panel: vscode.TaskPanelKind.Shared,
+            showReuseMessage: true,
+            clear: false
+        };
+
+        return task;
     }
 }
