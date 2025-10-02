@@ -925,6 +925,18 @@
             "description": "Enable all features"
           }
         }
+      },
+      {
+        "type": "cargo-make",
+        "required": [
+          "task"
+        ],
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "The cargo-make task to run"
+          }
+        }
       }
     ],
     "keybindings": [

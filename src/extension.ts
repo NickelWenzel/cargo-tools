@@ -123,14 +123,35 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 				// Show which task is being run
 				vscode.window.showInformationMessage(`Running cargo make task: ${taskName}`);
 
-				// Create a terminal and run the cargo make command
-				const terminal = vscode.window.createTerminal({
-					name: `cargo make ${taskName}`,
-					cwd: cargoWorkspace.workspaceRoot
-				});
+				// Create and execute VS Code task instead of terminal
+				const taskDefinition: vscode.TaskDefinition = {
+					type: 'cargo-make',
+					task: taskName
+				};
 
-				terminal.sendText(`cargo make ${taskName}`);
-				terminal.show();
+				if (!extensionManager) {
+					vscode.window.showErrorMessage('Extension manager not available');
+					return;
+				}
+
+				const taskProvider = extensionManager.getTaskProvider();
+				if (!taskProvider) {
+					vscode.window.showErrorMessage('Task provider not available');
+					return;
+				}
+
+				const task = await taskProvider.resolveTask(new vscode.Task(
+					taskDefinition,
+					vscode.TaskScope.Workspace,
+					`make ${taskName}`,
+					'cargo-make'
+				));
+
+				if (task) {
+					await vscode.tasks.executeTask(task);
+				} else {
+					vscode.window.showErrorMessage(`Failed to create task for: ${taskName}`);
+				}
 
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
@@ -178,14 +199,35 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 				// Show which task is being run
 				vscode.window.showInformationMessage(`Running cargo make task: ${taskName}`);
 
-				// Create a terminal and run the cargo make command
-				const terminal = vscode.window.createTerminal({
-					name: `cargo make ${taskName}`,
-					cwd: cargoWorkspace.workspaceRoot
-				});
+				// Create and execute VS Code task instead of terminal
+				const taskDefinition: vscode.TaskDefinition = {
+					type: 'cargo-make',
+					task: taskName
+				};
 
-				terminal.sendText(`cargo make ${taskName}`);
-				terminal.show();
+				if (!extensionManager) {
+					vscode.window.showErrorMessage('Extension manager not available');
+					return;
+				}
+
+				const taskProvider = extensionManager.getTaskProvider();
+				if (!taskProvider) {
+					vscode.window.showErrorMessage('Task provider not available');
+					return;
+				}
+
+				const task = await taskProvider.resolveTask(new vscode.Task(
+					taskDefinition,
+					vscode.TaskScope.Workspace,
+					`make ${taskName}`,
+					'cargo-make'
+				));
+
+				if (task) {
+					await vscode.tasks.executeTask(task);
+				} else {
+					vscode.window.showErrorMessage(`Failed to create task for: ${taskName}`);
+				}
 
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
@@ -267,14 +309,35 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 				// Show which task is being run
 				vscode.window.showInformationMessage(`Running cargo make task: ${taskName}`);
 
-				// Create a terminal and run the cargo make command
-				const terminal = vscode.window.createTerminal({
-					name: `cargo make ${taskName}`,
-					cwd: cargoWorkspace.workspaceRoot
-				});
+				// Create and execute VS Code task instead of terminal
+				const taskDefinition: vscode.TaskDefinition = {
+					type: 'cargo-make',
+					task: taskName
+				};
 
-				terminal.sendText(`cargo make ${taskName}`);
-				terminal.show();
+				if (!extensionManager) {
+					vscode.window.showErrorMessage('Extension manager not available');
+					return;
+				}
+
+				const taskProvider = extensionManager.getTaskProvider();
+				if (!taskProvider) {
+					vscode.window.showErrorMessage('Task provider not available');
+					return;
+				}
+
+				const task = await taskProvider.resolveTask(new vscode.Task(
+					taskDefinition,
+					vscode.TaskScope.Workspace,
+					`make ${taskName}`,
+					'cargo-make'
+				));
+
+				if (task) {
+					await vscode.tasks.executeTask(task);
+				} else {
+					vscode.window.showErrorMessage(`Failed to create task for: ${taskName}`);
+				}
 
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
@@ -323,14 +386,35 @@ async function setup(context: vscode.ExtensionContext): Promise<any> {
 			// Show which task is being run
 			vscode.window.showInformationMessage(`Running ${position} pinned cargo make task: ${taskName}`);
 
-			// Create a terminal and run the cargo make command
-			const terminal = vscode.window.createTerminal({
-				name: `cargo make ${taskName}`,
-				cwd: workspace.workspaceRoot
-			});
+			// Create and execute VS Code task instead of terminal
+			const taskDefinition: vscode.TaskDefinition = {
+				type: 'cargo-make',
+				task: taskName
+			};
 
-			terminal.sendText(`cargo make ${taskName}`);
-			terminal.show();
+			if (!extensionManager) {
+				vscode.window.showErrorMessage('Extension manager not available');
+				return;
+			}
+
+			const taskProvider = extensionManager.getTaskProvider();
+			if (!taskProvider) {
+				vscode.window.showErrorMessage('Task provider not available');
+				return;
+			}
+
+			const task = await taskProvider.resolveTask(new vscode.Task(
+				taskDefinition,
+				vscode.TaskScope.Workspace,
+				`make ${taskName}`,
+				'cargo-make'
+			));
+
+			if (task) {
+				await vscode.tasks.executeTask(task);
+			} else {
+				vscode.window.showErrorMessage(`Failed to create task for: ${taskName}`);
+			}
 
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
