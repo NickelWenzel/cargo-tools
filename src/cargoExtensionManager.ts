@@ -54,7 +54,6 @@ export class CargoExtensionManager implements vscode.Disposable {
     private subscriptions: vscode.Disposable[] = [];
     private workspaceSubscriptions: vscode.Disposable[] = [];
     private commandsRegistered = false; // Guard flag to prevent double registration
-    private docsTerminal?: vscode.Terminal; // Reusable terminal for cargo doc commands
 
     private constructor(private readonly extensionContext: vscode.ExtensionContext) { }
 
@@ -1244,33 +1243,6 @@ export class CargoExtensionManager implements vscode.Disposable {
             const message = error instanceof Error ? error.message : String(error);
             vscode.window.showErrorMessage(`Failed to build documentation: ${message}`);
         }
-    }
-
-    /**
-     * Get or create a reusable terminal for cargo doc commands
-     */
-    private getOrCreateDocsTerminal(): vscode.Terminal {
-        // Check if existing terminal is still valid (not closed)
-        if (this.docsTerminal && this.docsTerminal.exitStatus === undefined) {
-            return this.docsTerminal;
-        }
-
-        // Build environment variables for doc commands
-        const env: { [key: string]: string } = {};
-
-        // Start with base extraEnv
-        if (this.workspaceConfig.extraEnv) {
-            Object.assign(env, this.workspaceConfig.extraEnv);
-        }
-
-        // Create new terminal if none exists or previous one was closed
-        this.docsTerminal = vscode.window.createTerminal({
-            name: 'Cargo doc',
-            cwd: this.cargoWorkspace?.workspaceRoot,
-            env: env
-        });
-
-        return this.docsTerminal;
     }
 
     async selectFeatures(): Promise<void> {
@@ -2754,16 +2726,6 @@ export class CargoExtensionManager implements vscode.Disposable {
             this.workspaceConfig.dispose();
         } catch (error) {
             console.error('Error disposing workspace config:', error);
-        }
-
-        // Dispose docs terminal if it exists
-        if (this.docsTerminal) {
-            try {
-                this.docsTerminal.dispose();
-            } catch (error) {
-                console.error('Error disposing docs terminal:', error);
-            }
-            this.docsTerminal = undefined;
         }
 
         // Clear workspace reference
