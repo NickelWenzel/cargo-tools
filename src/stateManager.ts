@@ -245,3 +245,18 @@ export class StateManager {
         await this.setPinnedMakefileTasks(folderName, [], isMultiProject);
     }
 }
+
+export class StateManagerTS {
+    constructor(
+        readonly extensionContext: vscode.ExtensionContext,
+        readonly folder: vscode.WorkspaceFolder
+    ) { }
+
+    get(key: string): any | undefined {
+        return this.extensionContext.globalState.get(this.folder.uri.fsPath + key);
+    }
+
+    async update(key: string, value: any) {
+        await this.extensionContext.globalState.update(this.folder.uri.fsPath + key, value);
+    }
+}

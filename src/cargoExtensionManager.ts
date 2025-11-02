@@ -11,7 +11,6 @@ import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
 import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { StateManager } from './stateManager';
-import { CargoTools } from './wasm/cargo_tools_vscode';
 
 /**
  * Generates a unique correlation ID for tracking commands and operations
@@ -27,7 +26,6 @@ function generateCorrelationId(): string {
  */
 export class CargoExtensionManager implements vscode.Disposable {
     private static instance?: CargoExtensionManager;
-    private static cargoToolsInstance?: CargoTools;
     private initializationPromise?: Promise<void>;
 
     // Core components
@@ -67,10 +65,6 @@ export class CargoExtensionManager implements vscode.Disposable {
             CargoExtensionManager.instance = new CargoExtensionManager(context);
             CargoExtensionManager.instance.initializationPromise = CargoExtensionManager.instance.init();
             await CargoExtensionManager.instance.initializationPromise;
-        }
-
-        if (!CargoExtensionManager.cargoToolsInstance) {
-            CargoExtensionManager.cargoToolsInstance = new CargoTools();
         }
 
         return CargoExtensionManager.instance;
@@ -228,52 +222,6 @@ export class CargoExtensionManager implements vscode.Disposable {
         if (this.commandsRegistered) {
             console.log('Commands already registered, skipping duplicate registration');
             return;
-        }
-        const commandId = `cargo-tools.testRust`;
-        try {
-
-            const disposable = vscode.commands.registerCommand(commandId, async (...args: any[]) => {
-                // Generate a unique ID that can be correlated in the log file
-                const correlationId = generateCorrelationId();
-
-
-                try {
-                    console.log(`[${correlationId}] ${commandId} started`);
-
-                    await CargoExtensionManager.cargoToolsInstance?.test();
-
-                    console.log(`[${correlationId}] ${commandId} completed`);
-                    return 'Test command executed successfully';
-                } catch (error) {
-                    console.error(`[${correlationId}] ${commandId} failed:`, error);
-
-                    // Show user-friendly error message
-                    const message = error instanceof Error ? error.message : String(error);
-                    vscode.window.showErrorMessage(`Command failed: ${message}`);
-
-                    throw error;
-                }
-            });
-            this.subscriptions.push(disposable);
-            console.log(`Registered command: ${commandId}`);
-        } catch (error) {
-            console.error(`Failed to register command ${commandId}:`, error);
-
-            // If it's a "command already exists" error, show a user-friendly message
-            if (error instanceof Error && error.message.includes('already exists')) {
-                console.warn(`Command ${commandId} already exists - this may indicate an extension reload issue`);
-                vscode.window.showWarningMessage(
-                    'Cargo Tools: Some commands may already be registered. Try reloading the window if you experience issues.',
-                    'Reload Window'
-                ).then(selection => {
-                    if (selection === 'Reload Window') {
-                        vscode.commands.executeCommand('workbench.action.reloadWindow');
-                    }
-                });
-            } else {
-                // Re-throw other errors
-                throw error;
-            }
         }
 
         // Register command with improved CMake Tools-style wrapper

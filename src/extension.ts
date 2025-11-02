@@ -4,8 +4,12 @@ import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
 import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
+import { CargoTools, StateManager } from './wasm/cargo_tools_vscode';
+import { StateManagerTS } from './stateManager';
 
 let extensionManager: CargoExtensionManager | undefined;
+let cargoTools: CargoTools | undefined;
+let stateManager: StateManager | undefined;
 
 /**
  * Main extension activation function.
@@ -19,9 +23,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 		// Initialize and start the extension manager
 		extensionManager = await CargoExtensionManager.create(context);
 
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+		if (!workspaceFolder) {
+			throw new Error('No workspace folder found');
+		}
+
+		let stateManager = new StateManager(new StateManagerTS(context, workspaceFolder));
+		cargoTools = await CargoTools.create(workspaceFolder.uri.fsPath, stateManager);
+
+		const folders = vscode.workspace.workspaceFolders;
+
+		if (!folders || folders.length === 0) {
+			return {};
+		}
+		
 		console.log('Cargo Tools extension fully initialized!');
 		return setup(context);
 	} catch (error) {
+		await setCargoContext(false);
 		console.error('Failed to activate Cargo Tools extension:', error);
 		vscode.window.showErrorMessage(`Cargo Tools extension failed to activate: ${error}`);
 		throw error;
