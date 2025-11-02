@@ -1,0 +1,24 @@
+[config]
+# Disable all default tasks
+skip_core_tasks = true
+default_to_workspace = false
+
+[tasks.package]
+description = "Package the extension"
+command = "npm"
+args = ["run", "package"]
+
+[tasks.compile]
+description = "Compile the extension"
+command = "npm"
+args = ["run", "compile"]
+
+[tasks.lint]
+description = "Lint the codebase"
+command = "npm"
+args = ["run", "lint"]
+
+[tasks.test]
+description = "Run the test suite"
+command = "npm"
+args = ["run", "test"]
