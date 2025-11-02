@@ -1,8 +1,14 @@
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen(raw_module = "../cargoTools.ts")]
+extern "C" {
+    async fn echo_task(msg: &str);
+}
+
 #[wasm_bindgen]
-pub fn test() -> String {
-    String::from("This is a test function in the cargo_tools_vscode package.")
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
 }
 
 #[wasm_bindgen]
@@ -12,11 +18,12 @@ pub struct CargoTools;
 impl CargoTools {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
+        log("Creating new CargoTools instance");
         CargoTools
     }
 
-    pub fn test(&self) -> String {
-        test()
+    pub async fn test(&self) {
+        echo_task("Test echo task from CargoTools").await;
     }
 }
 

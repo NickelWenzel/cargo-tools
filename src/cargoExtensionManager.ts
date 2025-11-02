@@ -11,9 +11,7 @@ import { ProjectStatusTreeProvider } from './projectStatusTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
 import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { StateManager } from './stateManager';
-
-import { test } from './wasm/cargo_tools_vscode.js';
-// import wasmUrl from './wasm/cargo_tools_vscode_bg.wasm';
+import { CargoTools } from './wasm/cargo_tools_vscode';
 
 /**
  * Generates a unique correlation ID for tracking commands and operations
@@ -29,6 +27,7 @@ function generateCorrelationId(): string {
  */
 export class CargoExtensionManager implements vscode.Disposable {
     private static instance?: CargoExtensionManager;
+    private static cargoToolsInstance?: CargoTools;
     private initializationPromise?: Promise<void>;
 
     // Core components
@@ -69,6 +68,11 @@ export class CargoExtensionManager implements vscode.Disposable {
             CargoExtensionManager.instance.initializationPromise = CargoExtensionManager.instance.init();
             await CargoExtensionManager.instance.initializationPromise;
         }
+
+        if (!CargoExtensionManager.cargoToolsInstance) {
+            CargoExtensionManager.cargoToolsInstance = new CargoTools();
+        }
+
         return CargoExtensionManager.instance;
     }
 
@@ -93,9 +97,6 @@ export class CargoExtensionManager implements vscode.Disposable {
      * Initialize the extension manager and all components
      */
     public async init(): Promise<void> {
-        // const wasm = await init().catch(console.error);
-        // console.log(wasm);
-
         // Set up configuration change listeners
         this.setupConfigurationSubscriptions();
 
@@ -238,10 +239,8 @@ export class CargoExtensionManager implements vscode.Disposable {
 
                 try {
                     console.log(`[${correlationId}] ${commandId} started`);
-                    console.log(test());
-                    await import('./wasm/cargo_tools_vscode').then(module => {
-                        module.test();
-                    });
+
+                    await CargoExtensionManager.cargoToolsInstance?.test();
 
                     console.log(`[${correlationId}] ${commandId} completed`);
                     return 'Test command executed successfully';
