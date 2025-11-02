@@ -30,7 +30,13 @@
   "contributes": {
     "commands": [
       {
-        "command": "cargo-tools.selectProfile",
+        "command": "cargo-tools.testRust",
+        "title": "Test Rust bindgen",
+        "category": "Cargo Tools",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "cargo-tools.selec tProfile",
         "title": "Select Build Profile",
         "category": "Cargo Tools",
         "icon": "$(gear)"
@@ -997,24 +1003,20 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^24.12.2",
-    "@types/vscode": "^1.102",
-    "@typescript-eslint/eslint-plugin": "^8.58",
-    "@typescript-eslint/parser": "^8.58",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5",
-    "@vscode/vsce": "^3.8",
-    "esbuild": "^0.28",
-    "eslint": "^10.2",
-    "ts-loader": "^9.5",
-    "typescript": "^6.0",
-    "webpack": "^5.106",
-    "webpack-cli": "^7.0"
-  },
-  "overrides": {
-    "mocha": {
-      "diff": "^8.0.3",
-      "serialize-javascript": "^7.0.5"
-    }
+    "@types/node": "20.x",
+    "@types/vscode": "^1.102.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.0",
+    "@wasm-tool/wasm-pack-plugin": "^1.5.1",
+    "esbuild": "^0.25.10",
+    "eslint": "^9.25.1",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.7",
+    "webpack-cli": "^6.0.1",
+    "copy-webpack-plugin": "^13.0.1"
   }
 }
