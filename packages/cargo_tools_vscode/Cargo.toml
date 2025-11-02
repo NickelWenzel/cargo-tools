@@ -1,0 +1,13 @@
+[package]
+authors = ["Nicolas Wenzel"]
+edition = "2021"
+name = "cargo_tools_vscode"
+publish = false
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
