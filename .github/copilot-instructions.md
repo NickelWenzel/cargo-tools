@@ -86,10 +86,10 @@
 - **Rust Source Directory (`packages/cargo_tools_vscode/`):**
   - Contains core business logic implemented in Rust with specific architectural patterns:
     - **`vs_code_api` module:** All methods and types imported from TypeScript must reside in this module
-    - **`cargo_tools_ext` module:** Contains the `CargoToolsExt` struct, which is a thin wrapper around the core `CargoTools` type
+    - **`vs_code_cargo_tools` module:** Contains the `VSCodeCargoTools` struct, which is a thin wrapper around the core `CargoTools` type
     - **Trait-based abstraction:** All functions or types requiring VS Code API access must be abstracted by traits
     - **Concrete implementations:** Only concrete trait implementations should use the `vs_code_api` module
-    - **WASM bindings:** TypeScript bindings are generated via wasm_bindgen for the `CargoToolsExt` interface
+    - **WASM bindings:** TypeScript bindings are generated via wasm_bindgen for the `VSCodeCargoTools` interface
   - Files will evolve during implementation - check current directory structure
   - Focus on lib.rs for main exports and module organization
 - **TypeScript Source Directory (`src/`):**
@@ -114,8 +114,8 @@
 - **Migration Strategy:** Business logic should be moved from TypeScript to Rust incrementally
 - **Architectural Constraints:**
   - All TypeScript imports in Rust code must be defined in the `vs_code_api` module
-  - The `CargoToolsExt` struct serves as the primary WASM interface, wrapping the core `CargoTools` functionality
-  - wasm_bindgen generates TypeScript bindings specifically for the `CargoToolsExt` interface
+  - The `VSCodeCargoTools` struct serves as the primary WASM interface, wrapping the core `CargoTools` functionality
+  - wasm_bindgen generates TypeScript bindings specifically for the `VSCodeCargoTools` interface
   - **Trait Abstraction:** All functions or types requiring VS Code API access must be abstracted by traits
   - **Implementation Isolation:** Only concrete trait implementations should depend on the `vs_code_api` module
   - **Test Independence:** Tests use mock implementations of traits that do not depend on `vs_code_api`
@@ -133,8 +133,8 @@
 - **For Rust changes:**
   - Modify files in `packages/cargo_tools_vscode/src/` and ensure proper wasm_bindgen exports
   - Place all TypeScript imports in the `vs_code_api` module
-  - Use `CargoToolsExt` as the primary interface for WASM bindings
-  - Ensure `CargoToolsExt` properly wraps `CargoTools` functionality
+  - Use `VSCodeCargoTools` as the primary interface for WASM bindings
+  - Ensure `VSCodeCargoTools` properly wraps `CargoTools` functionality
   - **Abstract VS Code API dependencies behind traits**
   - **Keep trait implementations separate from core logic**
   - **Use mock implementations for testing that don't depend on VS Code API**
@@ -144,7 +144,7 @@
   - Implement core logic in Rust using the `CargoTools` type with trait abstractions
   - Create traits for any VS Code API dependencies
   - Implement concrete trait implementations in separate modules that use `vs_code_api`
-  - Expose functionality through the `CargoToolsExt` wrapper with wasm_bindgen
+  - Expose functionality through the `VSCodeCargoTools` wrapper with wasm_bindgen
   - Add TypeScript wrappers if needed for VS Code integration
   - **Add tests using mock trait implementations that don't depend on VS Code API**
   - Add tests covering both Rust and TypeScript layers
