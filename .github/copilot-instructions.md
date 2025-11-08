@@ -84,8 +84,12 @@
   - `README.md`: Project overview and usage
   - `.github/copilot-instructions.md`: (this file)
 - **Rust Source Directory (`packages/cargo_tools_vscode/`):**
-  - Contains core business logic implemented in Rust
-  - Exports WASM modules with wasm_bindgen for TypeScript integration
+  - Contains core business logic implemented in Rust with specific architectural patterns:
+    - **`vs_code_api` module:** All methods and types imported from TypeScript must reside in this module
+    - **`cargo_tools_ext` module:** Contains the `CargoToolsExt` struct, which is a thin wrapper around the core `CargoTools` type
+    - **Trait-based abstraction:** All functions or types requiring VS Code API access must be abstracted by traits
+    - **Concrete implementations:** Only concrete trait implementations should use the `vs_code_api` module
+    - **WASM bindings:** TypeScript bindings are generated via wasm_bindgen for the `CargoToolsExt` interface
   - Files will evolve during implementation - check current directory structure
   - Focus on lib.rs for main exports and module organization
 - **TypeScript Source Directory (`src/`):**
@@ -108,9 +112,17 @@
 - **Hybrid Architecture:** Core logic is implemented in Rust (performance-critical operations) with TypeScript handling VS Code integration
 - **WASM Integration:** Rust code is compiled to WebAssembly and imported into TypeScript via generated bindings
 - **Migration Strategy:** Business logic should be moved from TypeScript to Rust incrementally
+- **Architectural Constraints:**
+  - All TypeScript imports in Rust code must be defined in the `vs_code_api` module
+  - The `CargoToolsExt` struct serves as the primary WASM interface, wrapping the core `CargoTools` functionality
+  - wasm_bindgen generates TypeScript bindings specifically for the `CargoToolsExt` interface
+  - **Trait Abstraction:** All functions or types requiring VS Code API access must be abstracted by traits
+  - **Implementation Isolation:** Only concrete trait implementations should depend on the `vs_code_api` module
+  - **Test Independence:** Tests use mock implementations of traits that do not depend on `vs_code_api`
 - **Command Registration:** Extension commands are registered via VS Code API in TypeScript
 - **Task Execution:** Cargo command execution should be handled in Rust when possible
 - **State Management:** Core state logic should be implemented in Rust with TypeScript wrappers
+- **Testing Strategy:** Logic tests use mock trait implementations to avoid VS Code API dependencies
 - **Configuration:** All extension settings are under the `cargoTools` namespace in `package.json`
 - **Build System:** Uses cargo-make for orchestrating Rust compilation, WASM generation, and TypeScript bundling
 
@@ -118,10 +130,28 @@
 - **Trust these instructions for build, test, and validation.** Only search the codebase if information here is incomplete or found to be in error.
 - **Always run `npm install` and ensure Rust toolchain is installed before any build or test.**
 - **Use cargo-make commands:** `cargo make compile`, `cargo make lint`, and `cargo make test` for all validation.
-- **For Rust changes:** Modify files in `packages/cargo_tools_vscode/src/` and ensure proper wasm_bindgen exports.
+- **For Rust changes:**
+  - Modify files in `packages/cargo_tools_vscode/src/` and ensure proper wasm_bindgen exports
+  - Place all TypeScript imports in the `vs_code_api` module
+  - Use `CargoToolsExt` as the primary interface for WASM bindings
+  - Ensure `CargoToolsExt` properly wraps `CargoTools` functionality
+  - **Abstract VS Code API dependencies behind traits**
+  - **Keep trait implementations separate from core logic**
+  - **Use mock implementations for testing that don't depend on VS Code API**
 - **For TypeScript changes:** Consider migrating logic to Rust instead when possible. For VS Code integration code, modify files in `src/` and ensure WASM integration points are maintained.
 - **For UI or command changes:** Update both `package.json` and the relevant implementation files.
-- **For new features:** Implement core logic in Rust, add TypeScript wrappers if needed, and add tests covering both layers.
+- **For new features:** 
+  - Implement core logic in Rust using the `CargoTools` type with trait abstractions
+  - Create traits for any VS Code API dependencies
+  - Implement concrete trait implementations in separate modules that use `vs_code_api`
+  - Expose functionality through the `CargoToolsExt` wrapper with wasm_bindgen
+  - Add TypeScript wrappers if needed for VS Code integration
+  - **Add tests using mock trait implementations that don't depend on VS Code API**
+  - Add tests covering both Rust and TypeScript layers
+- **For testing:**
+  - Create mock implementations of traits for unit testing
+  - Ensure tests can run without VS Code API dependencies
+  - Test core logic independently from VS Code integration
 - **WASM Workflow:** Rust changes require rebuilding WASM modules, which regenerates TypeScript bindings in `src/wasm/`.
 - **If you encounter errors:** Check for missing Rust toolchain, wasm-pack installation, Node.js dependencies, outdated VS Code, or TypeScript issues.
 - **Documentation Updates:** If changes make this copilot-instructions.md file outdated or inaccurate, propose updates to keep it current and useful.
