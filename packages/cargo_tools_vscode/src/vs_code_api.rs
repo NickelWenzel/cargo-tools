@@ -17,7 +17,7 @@ extern "C" {
     pub fn get(this: &StateManagerTS, key: &str) -> Option<JsValue>;
 
     #[wasm_bindgen(method)]
-    pub async fn update(this: &StateManagerTS, key: &str, value: &JsValue);
+    pub async fn update(this: &StateManagerTS, key: String, value: JsValue);
 }
 
 #[wasm_bindgen]

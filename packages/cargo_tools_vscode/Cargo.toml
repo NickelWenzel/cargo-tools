@@ -9,8 +9,11 @@ version = "0.0.0"
 crate-type = ["cdylib"]
 
 [dependencies]
+cargo_tools_vscode_macros = { workspace = true }
+
 cargo_metadata = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
+serde = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 async-trait = { workspace = true }

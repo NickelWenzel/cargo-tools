@@ -1,15 +1,14 @@
 use cargo_metadata::{Error, Metadata, MetadataCommand};
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsValue;
 
 use crate::{
     state_manager::StateManager,
     vs_code_api::{echo_task, execute_async, log, set_cargo_context, set_makefile_context},
 };
 
-#[wasm_bindgen]
-pub struct CargoTools {
+pub struct CargoTools<SM> {
     metadata: Metadata,
-    state_manager: StateManager,
+    state_manager: SM,
 }
 
 #[derive(Debug)]
@@ -47,11 +46,8 @@ impl From<CargoToolsError> for JsValue {
     }
 }
 
-impl CargoTools {
-    pub async fn create(
-        workspace_root: &str,
-        state_manager: StateManager,
-    ) -> Result<Self, JsValue> {
+impl<SM: StateManager> CargoTools<SM> {
+    pub async fn create(workspace_root: &str, state_manager: SM) -> Result<Self, JsValue> {
         match Self::create_impl(workspace_root, state_manager).await {
             Ok(instance) => {
                 set_cargo_context(true);
@@ -70,10 +66,7 @@ impl CargoTools {
         echo_task("Test echo task from CargoTools").await;
     }
 
-    async fn create_impl(
-        workspace_root: &str,
-        state_manager: StateManager,
-    ) -> Result<Self, CargoToolsError> {
+    async fn create_impl(workspace_root: &str, state_manager: SM) -> Result<Self, CargoToolsError> {
         log("Creating new CargoTools instance");
 
         let metadata = execute_async(
