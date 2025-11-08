@@ -74,6 +74,34 @@ These instructions are based on [The Rust Book](https://doc.rust-lang.org/book/)
 - Error types should be meaningful and well-behaved (implement standard traits).
 - Validate function arguments and return appropriate errors for invalid input.
 
+### Error Type Design with thiserror
+
+When using `thiserror` for custom error types:
+- **Always explicitly declare `#[source]` attributes** for error variants that wrap other errors
+- Do not rely on automatic source detection—make error mappings explicit
+- This ensures clear error chains and prevents unexpected behavior when error types change
+
+Example:
+```rust
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum MyError {
+    #[error("IO operation failed")]
+    Io(#[source] std::io::Error),  // Explicit #[source] required
+    
+    #[error("Parse error: {message}")]
+    Parse {
+        message: String,
+        #[source]
+        source: serde_json::Error,  // Explicit #[source] required
+    },
+    
+    #[error("Custom error: {0}")]
+    Custom(String),  // No wrapped error, no #[source] needed
+}
+```
+
 ## API Design Guidelines
 
 ### Common Traits Implementation
@@ -124,6 +152,7 @@ Before publishing or reviewing Rust code, ensure:
 - [ ] **Naming**: Follows RFC 430 naming conventions
 - [ ] **Traits**: Implements `Debug`, `Clone`, `PartialEq` where appropriate
 - [ ] **Error Handling**: Uses `Result<T, E>` and provides meaningful error types
+- [ ] **Error Sources**: Explicit `#[source]` attributes for all wrapped errors in `thiserror` types
 - [ ] **Documentation**: All public items have rustdoc comments with examples
 - [ ] **Testing**: Comprehensive test coverage including edge cases
 
