@@ -1,4 +1,4 @@
-use cargo_tools::state_manager::{StateManager, StateValue};
+use cargo_tools::state_manager::{State, StateManager, StateValue};
 use cargo_tools_macros::wasm_async_trait;
 use serde_wasm_bindgen::{from_value, to_value};
 use thiserror::Error;
@@ -35,10 +35,10 @@ impl StateManager for VSCodeStateManager {
         Ok(())
     }
 
-    fn add_on_changed_handler<T: StateValue>(&self, _changed_handler: impl AsyncFn()) {
+    fn subscribe(&self, _changed_handler: impl AsyncFn(&State)) {
         todo!()
     }
-    fn reset_changed_handlers() {
+    fn reset_subscriptions() {
         todo!()
     }
 }

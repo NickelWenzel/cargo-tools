@@ -83,6 +83,7 @@ dependencies = [
  "cargo_tools_macros",
  "serde",
  "serde-wasm-bindgen",
+ "serde_json",
  "thiserror 1.0.69",
  "wasm-bindgen",
  "wasm-bindgen-futures",

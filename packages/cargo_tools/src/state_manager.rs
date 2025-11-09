@@ -55,6 +55,25 @@ pub trait StateValue: Serialize + for<'de> Deserialize<'de> + Send {
     fn into_value(self) -> Self::Value;
 }
 
+pub struct State {
+    pub selected_package: SelectedPackage,
+    pub selected_build_target: SelectedBuildTarget,
+    pub selected_run_target: SelectedRunTarget,
+    pub selected_benchmark_target: SelectedBenchmarkTarget,
+    pub selected_platform_target: SelectedPlatformTarget,
+    pub selected_features: SelectedFeatures,
+    pub selected_profile: SelectedProfile,
+    pub group_by_workspace_member: GroupByWorkspaceMember,
+    pub workspace_member_filter: WorkspaceMemberFilter,
+    pub target_type_filter: TargetTypeFilter,
+    pub is_target_type_filter_active: IsTargetTypeFilterActive,
+    pub show_features: ShowFeatures,
+    pub makefile_task_filter: MakefileTaskFilter,
+    pub makefile_category_filter: MakefileCategoryFilter,
+    pub is_makefile_category_filter_active: IsMakefileCategoryFilterActive,
+    pub pinned_makefile_tasks: PinnedMakefileTasks,
+}
+
 #[wasm_async_trait]
 pub trait StateManager {
     type UpdateError;
@@ -62,6 +81,6 @@ pub trait StateManager {
     fn get<T: StateValue>(&self) -> Option<T>;
     async fn update<T: StateValue>(&self, value: T) -> Result<(), Self::UpdateError>;
 
-    fn add_on_changed_handler<T: StateValue>(&self, changed_handler: impl AsyncFn());
-    fn reset_changed_handlers();
+    fn subscribe(&self, on_change: impl AsyncFn(&State));
+    fn reset_subscriptions();
 }

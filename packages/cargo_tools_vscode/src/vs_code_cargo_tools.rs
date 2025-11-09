@@ -45,7 +45,7 @@ impl VSCodeCargoTools {
     /// Returns an error if initialization fails (e.g., not a valid Cargo project).
     #[wasm_bindgen]
     pub async fn create() -> Result<VSCodeCargoTools, JsValue> {
-        let metadata_provider = VSCodeMetaDataProvider::new();
+        let metadata_provider = VSCodeMetaDataProvider;
         let workspace = VSCodeWorkspace::new();
         let state_manager = VSCodeStateManager;
         let context_manager = VSCodeContextManager::new(state_manager);

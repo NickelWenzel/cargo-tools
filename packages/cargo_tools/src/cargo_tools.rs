@@ -1,13 +1,15 @@
 use std::error::Error;
 
 use cargo_metadata::Metadata;
+use cargo_tools_macros::wasm_async_trait;
 
 use crate::state_manager::StateManager;
 
+#[wasm_async_trait]
 pub trait MetaDataProvider {
     type Error: Error + 'static;
 
-    fn request(&self, path: &str) -> Result<Metadata, Self::Error>;
+    async fn request(&self, path: &str) -> Result<Metadata, Self::Error>;
 }
 
 pub trait Workspace {
@@ -78,6 +80,7 @@ impl<
             let cargo_metadata = self
                 .metadata_provider
                 .request(&workspace_root)
+                .await
                 .map_err(InitError::MetaDataError)?;
 
             self.user_interface
