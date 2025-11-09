@@ -1,33 +1,48 @@
 use async_trait::async_trait;
 use serde_wasm_bindgen::{from_value, to_value};
+use thiserror::Error;
 
 use crate::{
     state_manager::{StateManager, StateValue},
-    vs_code_api::StateManagerTS,
+    vs_code_api::{get_state, update_state, JsValueExt},
 };
 
-pub struct VSCodeStateManager(StateManagerTS);
+/// Error type for VSCodeStateManager operations
+#[derive(Error, Debug)]
+pub enum StateManagerError {
+    /// Error during serialization/deserialization with serde_wasm_bindgen
+    #[error("Serialization error")]
+    SerializationError(#[source] serde_wasm_bindgen::Error),
 
-impl VSCodeStateManager {
-    pub fn new(state_manager_inner: StateManagerTS) -> Self {
-        Self(state_manager_inner)
+    /// Error during state update operation from TypeScript
+    #[error("State update error")]
+    UpdateError(String),
+}
+
+impl From<serde_wasm_bindgen::Error> for StateManagerError {
+    fn from(err: serde_wasm_bindgen::Error) -> Self {
+        StateManagerError::SerializationError(err)
     }
 }
 
-#[async_trait(?Send)]
+pub struct VSCodeStateManager;
+
+#[async_trait]
 impl StateManager for VSCodeStateManager {
-    type UpdateError = serde_wasm_bindgen::Error;
+    type UpdateError = StateManagerError;
 
     fn get<T: StateValue>(&self) -> Option<T> {
-        self.0.get(T::KEY).and_then(|v| from_value(v).ok())
+        get_state(T::KEY).and_then(|v| from_value(v).ok())
     }
 
     async fn update<T: StateValue + Send + Sync + 'static>(
         &self,
         value: T,
     ) -> Result<(), Self::UpdateError> {
-        let value = to_value(&value)?;
-        self.0.update(T::KEY.to_string(), value).await;
+        let value = to_value(&value).map_err(StateManagerError::SerializationError)?;
+        update_state(T::KEY.to_string(), value)
+            .await
+            .map_err(|e| StateManagerError::UpdateError(e.as_error_string()))?;
         Ok(())
     }
 }

@@ -56,7 +56,7 @@ pub trait StateValue: Serialize + for<'de> Deserialize<'de> {
     fn into_value(self) -> Self::Value;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait StateManager {
     type UpdateError;
 

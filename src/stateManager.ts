@@ -1,5 +1,32 @@
 import * as vscode from 'vscode';
 import { CargoTarget } from './cargoTarget';
+import { extension_context } from './extension';
+
+/**
+ * Get a value from the global state for the current workspace
+ * @param key The key to retrieve
+ * @returns The value or undefined if not found
+ */
+export function get_state<T>(key: string): T | undefined {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder || !extension_context) {
+        return undefined;
+    }
+    return extension_context.globalState.get<T>(workspaceFolder.uri.fsPath + key);
+}
+
+/**
+ * Update a value in the global state for the current workspace
+ * @param key The key to update
+ * @param value The value to store
+ */
+export async function update_state(key: string, value: any): Promise<void> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder || !extension_context) {
+        throw new Error('No workspace folder or extension context available');
+    }
+    await extension_context.globalState.update(workspaceFolder.uri.fsPath + key, value);
+}
 
 /**
  * This class keeps track of all state that needs to persist between sessions
@@ -243,20 +270,5 @@ export class StateManager {
 
         // Pinned Makefile Tasks state
         await this.setPinnedMakefileTasks(folderName, [], isMultiProject);
-    }
-}
-
-export class StateManagerTS {
-    constructor(
-        readonly extensionContext: vscode.ExtensionContext,
-        readonly folder: vscode.WorkspaceFolder
-    ) { }
-
-    get(key: string): any | undefined {
-        return this.extensionContext.globalState.get(this.folder.uri.fsPath + key);
-    }
-
-    async update(key: string, value: any) {
-        await this.extensionContext.globalState.update(this.folder.uri.fsPath + key, value);
     }
 }

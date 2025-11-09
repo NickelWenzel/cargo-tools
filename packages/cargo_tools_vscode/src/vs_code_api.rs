@@ -6,18 +6,16 @@ extern "C" {
     pub async fn echo_task(msg: &str);
 
     #[wasm_bindgen(catch)]
-    pub async fn execute_async(command: &str, cwd: &str) -> Result<JsString, JsValue>;
+    pub async fn execute_async(command: &str) -> Result<JsString, JsValue>;
 }
 
 #[wasm_bindgen(raw_module = "../stateManager.ts")]
 extern "C" {
-    pub type StateManagerTS;
+    #[wasm_bindgen]
+    pub fn get_state(key: &str) -> Option<JsValue>;
 
-    #[wasm_bindgen(method)]
-    pub fn get(this: &StateManagerTS, key: &str) -> Option<JsValue>;
-
-    #[wasm_bindgen(method)]
-    pub async fn update(this: &StateManagerTS, key: String, value: JsValue);
+    #[wasm_bindgen(catch)]
+    pub async fn update_state(key: String, value: JsValue) -> Result<(), JsValue>;
 }
 
 #[wasm_bindgen]
@@ -47,4 +45,14 @@ pub fn set_makefile_context(has_makefile: bool) {
             JsValue::from(has_makefile),
         ],
     );
+}
+
+pub trait JsValueExt {
+    fn as_error_string(self) -> String;
+}
+
+impl JsValueExt for JsValue {
+    fn as_error_string(self) -> String {
+        self.as_string().unwrap_or(format!("{self:?}"))
+    }
 }

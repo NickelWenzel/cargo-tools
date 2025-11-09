@@ -47,8 +47,8 @@ impl From<CargoToolsError> for JsValue {
 }
 
 impl<SM: StateManager> CargoTools<SM> {
-    pub async fn create(workspace_root: &str, state_manager: SM) -> Result<Self, JsValue> {
-        match Self::create_impl(workspace_root, state_manager).await {
+    pub async fn create(state_manager: SM) -> Result<Self, JsValue> {
+        match Self::create_impl(state_manager).await {
             Ok(instance) => {
                 set_cargo_context(true);
                 Ok(instance)
@@ -66,15 +66,12 @@ impl<SM: StateManager> CargoTools<SM> {
         echo_task("Test echo task from CargoTools").await;
     }
 
-    async fn create_impl(workspace_root: &str, state_manager: SM) -> Result<Self, CargoToolsError> {
+    async fn create_impl(state_manager: SM) -> Result<Self, CargoToolsError> {
         log("Creating new CargoTools instance");
 
-        let metadata = execute_async(
-            "cargo metadata --no-deps --format-version 1",
-            workspace_root,
-        )
-        .await
-        .map_err(CargoToolsError::AsyncExecution)?;
+        let metadata = execute_async("cargo metadata --no-deps --format-version 1")
+            .await
+            .map_err(CargoToolsError::AsyncExecution)?;
 
         let metadata = metadata
             .as_string()

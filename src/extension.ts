@@ -5,11 +5,15 @@ import { MakefileTreeProvider } from './makefileTreeProvider';
 import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
 import { CargoTools, StateManager } from './wasm/cargo_tools_vscode';
-import { StateManagerTS } from './stateManager';
 
 let extensionManager: CargoExtensionManager | undefined;
 let cargoTools: CargoTools | undefined;
 let stateManager: StateManager | undefined;
+
+/**
+ * Global extension context - accessible throughout the extension
+ */
+export let extension_context: vscode.ExtensionContext | undefined;
 
 /**
  * Main extension activation function.
@@ -17,6 +21,7 @@ let stateManager: StateManager | undefined;
  * @returns A promise that will resolve when the extension is ready for use
  */
 export async function activate(context: vscode.ExtensionContext): Promise<any> {
+	extension_context = context;
 	try {
 		console.log('Cargo Tools extension activation started...');
 
@@ -28,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 			throw new Error('No workspace folder found');
 		}
 
-		let stateManager = new StateManager(new StateManagerTS(context, workspaceFolder));
+		stateManager = new StateManager();
 		cargoTools = await CargoTools.create(workspaceFolder.uri.fsPath, stateManager);
 
 		const folders = vscode.workspace.workspaceFolders;
@@ -36,7 +41,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 		if (!folders || folders.length === 0) {
 			return {};
 		}
-		
+
 		console.log('Cargo Tools extension fully initialized!');
 		return setup(context);
 	} catch (error) {
@@ -47,10 +52,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 	}
 }
 
-/**
- * Setup function that configures the extension components and commands
- */
-async function setup(context: vscode.ExtensionContext): Promise<any> {
+export
+
+	/**
+	 * Setup function that configures the extension components and commands
+	 */
+	async function setup(context: vscode.ExtensionContext): Promise<any> {
 	if (!extensionManager) {
 		throw new Error('Extension manager not initialized');
 	}

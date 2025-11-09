@@ -15,9 +15,14 @@ export async function echo_task(msg: string) {
     vscode.window.showInformationMessage(`Running echo cmd...`);
 }
 
-export async function execute_async(command: string, cwd: string): Promise<String> {
+export async function execute_async(command: string): Promise<String> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+        throw new Error('No workspace folder found');
+    }
+
     const { stdout } = await promisify(exec)(command, {
-        cwd: cwd,
+        cwd: workspaceFolder.uri.fsPath,
         timeout: 10000 // 10 second timeout
     });
     return stdout;
