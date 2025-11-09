@@ -1,5 +1,4 @@
-use async_trait::async_trait;
-use cargo_tools_vscode_macros::StateValue;
+use cargo_tools_vscode_macros::{wasm_async_trait, StateValue};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, StateValue, Serialize, Deserialize)]
@@ -56,13 +55,10 @@ pub trait StateValue: Serialize + for<'de> Deserialize<'de> {
     fn into_value(self) -> Self::Value;
 }
 
-#[async_trait]
+#[wasm_async_trait]
 pub trait StateManager {
     type UpdateError;
 
     fn get<T: StateValue>(&self) -> Option<T>;
-    async fn update<T: StateValue + Send + Sync + 'static>(
-        &self,
-        value: T,
-    ) -> Result<(), Self::UpdateError>;
+    async fn update<T: StateValue + 'static>(&self, value: T) -> Result<(), Self::UpdateError>;
 }

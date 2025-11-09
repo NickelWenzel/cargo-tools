@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+use cargo_tools_vscode_macros::wasm_async_trait;
 use serde_wasm_bindgen::{from_value, to_value};
 use thiserror::Error;
 
@@ -27,7 +27,7 @@ impl From<serde_wasm_bindgen::Error> for StateManagerError {
 
 pub struct VSCodeStateManager;
 
-#[async_trait]
+#[wasm_async_trait]
 impl StateManager for VSCodeStateManager {
     type UpdateError = StateManagerError;
 
@@ -35,10 +35,7 @@ impl StateManager for VSCodeStateManager {
         get_state(T::KEY).and_then(|v| from_value(v).ok())
     }
 
-    async fn update<T: StateValue + Send + Sync + 'static>(
-        &self,
-        value: T,
-    ) -> Result<(), Self::UpdateError> {
+    async fn update<T: StateValue + 'static>(&self, value: T) -> Result<(), Self::UpdateError> {
         let value = to_value(&value).map_err(StateManagerError::SerializationError)?;
         update_state(T::KEY.to_string(), value)
             .await
