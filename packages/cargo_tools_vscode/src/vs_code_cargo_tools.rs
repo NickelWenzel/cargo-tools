@@ -47,7 +47,7 @@ impl VSCodeCargoTools {
     pub async fn create() -> Result<VSCodeCargoTools, JsValue> {
         let metadata_provider = VSCodeMetaDataProvider;
         let workspace = VSCodeWorkspace::new();
-        let state_manager = VSCodeStateManager;
+        let state_manager = VSCodeStateManager::new();
         let context_manager = VSCodeContextManager::new(state_manager);
         let user_interface = VSCodeUserInterface::new();
 
