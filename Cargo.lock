@@ -52,21 +52,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo_tools_vscode"
+name = "cargo_tools"
 version = "0.0.0"
 dependencies = [
  "async-trait",
  "cargo_metadata",
- "cargo_tools_vscode_macros",
+ "cargo_tools_macros",
  "serde",
- "serde-wasm-bindgen",
  "thiserror 1.0.69",
- "wasm-bindgen",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
-name = "cargo_tools_vscode_macros"
+name = "cargo_tools_macros"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -74,6 +71,21 @@ dependencies = [
  "quote",
  "syn",
  "trybuild",
+]
+
+[[package]]
+name = "cargo_tools_vscode"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "cargo_metadata",
+ "cargo_tools",
+ "cargo_tools_macros",
+ "serde",
+ "serde-wasm-bindgen",
+ "thiserror 1.0.69",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

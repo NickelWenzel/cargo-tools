@@ -25,6 +25,7 @@ These instructions are based on [The Rust Book](https://doc.rust-lang.org/book/)
 ## Patterns to Follow
 
 - Use modules (`mod`) and public interfaces (`pub`) to encapsulate logic.
+- **Always use inline module files** (e.g., `my_module.rs`) instead of `mod.rs` files—declare submodules directly within the parent module file.
 - Handle errors properly using `?`, `match`, or `if let`.
 - Use `serde` for serialization and `thiserror` for custom errors.
 - Implement traits to abstract services or external dependencies.
@@ -56,6 +57,7 @@ These instructions are based on [The Rust Book](https://doc.rust-lang.org/book/)
 - Don't overuse `clone()`, use borrowing instead of cloning unless ownership transfer is needed.
 - Avoid premature `collect()`, keep iterators lazy until you actually need the collection.
 - Avoid unnecessary allocations—prefer borrowing and zero-copy operations.
+- **Never create `mod.rs` files**—use inline module files (e.g., `my_module.rs`) and declare submodules within parent files.
 
 ## Code Style and Formatting
 
@@ -63,6 +65,31 @@ These instructions are based on [The Rust Book](https://doc.rust-lang.org/book/)
 - Keep lines under 100 characters when possible.
 - Place function and struct documentation immediately before the item using `///`.
 - Use `cargo clippy` to catch common mistakes and enforce best practices.
+
+## Build and Compilation
+
+### WASM-specific Crate (cargo_tools_vscode)
+- **The `cargo_tools_vscode` crate is WASM-only** and should only be compiled for the `wasm32-unknown-unknown` target:
+  ```sh
+  cargo build -p cargo_tools_vscode --target wasm32-unknown-unknown
+  ```
+- Use `wasm-pack` for building and packaging this crate for JavaScript/TypeScript integration.
+
+### Platform-independent Crates (cargo_tools, cargo_tools_macros, etc.)
+- **All other crates must compile for both WASM and native targets**:
+  ```sh
+  # Build for native target
+  cargo build -p <crate_name>
+  
+  # Build for WASM target
+  cargo build -p <crate_name> --target wasm32-unknown-unknown
+  ```
+- **Run tests on the native target only**:
+  ```sh
+  cargo test -p <crate_name>
+  ```
+- Ensure code compiles without warnings on both target platforms.
+- Use conditional compilation (`#[cfg(target_arch = "wasm32")]`) when platform-specific code is necessary.
 
 ## Error Handling
 
@@ -77,7 +104,9 @@ These instructions are based on [The Rust Book](https://doc.rust-lang.org/book/)
 ### Error Type Design with thiserror
 
 When using `thiserror` for custom error types:
+- **Always derive `thiserror::Error` on custom error types**
 - **Always explicitly declare `#[source]` attributes** for error variants that wrap other errors
+- **Do not implement `From` traits for error conversions**—rely only on `#[source]` for error chaining
 - Do not rely on automatic source detection—make error mappings explicit
 - This ensures clear error chains and prevents unexpected behavior when error types change
 

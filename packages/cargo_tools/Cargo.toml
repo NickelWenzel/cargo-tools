@@ -1,21 +1,14 @@
 [package]
 authors = ["Nicolas Wenzel"]
 edition = "2021"
-name = "cargo_tools_vscode"
+name = "cargo_tools"
 publish = false
 version = "0.0.0"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
-cargo_tools = { workspace = true }
 cargo_tools_macros = { workspace = true }
 
 cargo_metadata = { workspace = true }
-wasm-bindgen = { workspace = true }
-wasm-bindgen-futures = { workspace = true }
 serde = { workspace = true }
-serde-wasm-bindgen = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
