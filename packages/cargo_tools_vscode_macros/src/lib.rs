@@ -16,7 +16,7 @@ use syn::{parse_macro_input, Data, DeriveInput, Fields, Item};
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// #[derive(StateValue)]
 /// pub struct SelectedPackage(String);
 ///

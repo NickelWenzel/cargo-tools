@@ -1,0 +1,5 @@
+error: StateValue can only be derived for tuple structs with exactly one field
+ --> tests/compile_fail/state_value_multiple_fields.rs:5:8
+  |
+5 | struct MultipleFields(String, i32);
+  |        ^^^^^^^^^^^^^^

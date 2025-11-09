@@ -31,7 +31,7 @@ struct GenericImpl;
 #[wasm_async_trait]
 impl<T> GenericTrait<T> for GenericImpl
 where
-    T: Clone + 'static,
+    T: Clone + Send + 'static,
 {
     async fn generic_method(&self, value: T) -> Result<T, String> {
         Ok(value.clone())

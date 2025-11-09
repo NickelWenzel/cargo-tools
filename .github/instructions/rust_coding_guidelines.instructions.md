@@ -141,7 +141,7 @@ Eagerly implement common traits where appropriate:
 For procedural macros and type-level APIs that should reject invalid code at compile time, use the `trybuild` crate to write compile-fail tests:
 
 - Add `trybuild` as a dev-dependency in `Cargo.toml`
-- Create test files in `tests/ui/` directory with `.rs` extension
+- Create test files in `tests/compile_fail/` directory with `.rs` extension
 - Create corresponding `.stderr` files with expected compiler error messages
 - Use `#[test]` functions that call `trybuild::TestCases::new().compile_fail()`
 
@@ -151,16 +151,16 @@ For procedural macros and type-level APIs that should reject invalid code at com
 trybuild = "1.0"
 ```
 
-**Example test in `tests/compile_fail.rs`:**
+**Example test runner in `tests/compile_fail.rs`:**
 ```rust
 #[test]
-fn ui() {
+fn compile_fail_tests() {
     let t = trybuild::TestCases::new();
-    t.compile_fail("tests/ui/*.rs");
+    t.compile_fail("tests/compile_fail/*.rs");
 }
 ```
 
-**Example failing code in `tests/ui/invalid_usage.rs`:**
+**Example failing code in `tests/compile_fail/invalid_usage.rs`:**
 ```rust
 use my_crate::MyMacro;
 
@@ -168,10 +168,10 @@ use my_crate::MyMacro;
 fn invalid_function() {}  // This should fail to compile
 ```
 
-**Expected output in `tests/ui/invalid_usage.stderr`:**
+**Expected output in `tests/compile_fail/invalid_usage.stderr`:**
 ```
 error: MyMacro can only be applied to structs
- --> tests/ui/invalid_usage.rs:3:1
+ --> tests/compile_fail/invalid_usage.rs:3:1
   |
 3 | #[MyMacro]
   | ^^^^^^^^^^

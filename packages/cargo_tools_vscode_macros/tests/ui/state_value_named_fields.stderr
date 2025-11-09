@@ -1,0 +1,5 @@
+error: StateValue can only be derived for tuple structs, not structs with named fields
+ --> tests/ui/state_value_named_fields.rs:5:8
+  |
+5 | struct NamedFields {
+  |        ^^^^^^^^^^^

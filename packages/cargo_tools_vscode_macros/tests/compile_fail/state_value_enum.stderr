@@ -1,0 +1,5 @@
+error: StateValue can only be derived for tuple structs, not enums
+ --> tests/compile_fail/state_value_enum.rs:5:6
+  |
+5 | enum MyEnum {
+  |      ^^^^^^

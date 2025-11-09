@@ -11,3 +11,6 @@ syn = { workspace = true, features = ["full"] }
 quote = { workspace = true }
 proc-macro2 = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+trybuild = "1.0"
