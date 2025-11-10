@@ -60,7 +60,7 @@ pub enum MetaDataProviderError {
 }
 
 #[wasm_async_trait]
-impl cargo_tools::cargo_tools::MetaDataProvider for VSCodeMetaDataProvider {
+impl cargo_tools::cargo_tools::CargoTomlHandler for VSCodeMetaDataProvider {
     type Error = MetaDataProviderError;
 
     async fn request(&self, path: &str) -> Result<Metadata, Self::Error> {

@@ -8,6 +8,8 @@ version = "0.0.0"
 [dependencies]
 cargo_tools_macros = { workspace = true }
 
+async-broadcast = { workspace = true }
+futures = { workspace = true }
 cargo_metadata = { workspace = true }
 serde = { workspace = true }
 async-trait = { workspace = true }

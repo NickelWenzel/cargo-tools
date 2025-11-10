@@ -1,4 +1,4 @@
-use cargo_tools::state_manager::{Callback, State, StateManager, StateValue};
+use cargo_tools::state_manager::{Callback, State, ConfigurationManager, StateValue};
 use cargo_tools_macros::wasm_async_trait;
 use serde_wasm_bindgen::{from_value, to_value};
 use thiserror::Error;
@@ -76,7 +76,7 @@ impl Default for VSCodeStateManager {
 }
 
 #[wasm_async_trait]
-impl StateManager for VSCodeStateManager {
+impl ConfigurationManager for VSCodeStateManager {
     type UpdateError = StateManagerError;
 
     fn get<T: StateValue>(&self) -> Option<T> {

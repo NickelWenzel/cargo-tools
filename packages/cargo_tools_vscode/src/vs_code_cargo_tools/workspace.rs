@@ -16,7 +16,7 @@ impl Default for VSCodeWorkspace {
     }
 }
 
-impl cargo_tools::cargo_tools::Workspace for VSCodeWorkspace {
+impl cargo_tools::cargo_tools::WorkspaceHandler for VSCodeWorkspace {
     fn get_root(&self) -> String {
         todo!("Get workspace root from VS Code API")
     }

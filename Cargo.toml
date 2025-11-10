@@ -17,6 +17,8 @@ cargo_tools = { path = "packages/cargo_tools" }
 cargo_tools_vscode = { path = "packages/cargo_tools_vscode" }
 cargo_tools_macros = { path = "packages/cargo_tools_macros" }
 
+async-broadcast = "0.7.2"
+futures = "0.3.31"
 cargo_metadata = "0.23.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

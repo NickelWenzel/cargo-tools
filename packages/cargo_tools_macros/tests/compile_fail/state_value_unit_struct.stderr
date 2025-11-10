@@ -1,5 +1,0 @@
-error: StateValue can only be derived for tuple structs with exactly one field, not unit structs
- --> tests/compile_fail/state_value_unit_struct.rs:5:8
-  |
-5 | struct UnitStruct;
-  |        ^^^^^^^^^^

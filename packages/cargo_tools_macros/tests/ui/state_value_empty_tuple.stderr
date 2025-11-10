@@ -1,5 +1,0 @@
-error: StateValue can only be derived for tuple structs with exactly one field
- --> tests/ui/state_value_empty_tuple.rs:5:8
-  |
-5 | struct EmptyTuple();
-  |        ^^^^^^^^^^

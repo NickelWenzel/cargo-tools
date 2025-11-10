@@ -1,7 +1,0 @@
-error: wasm_async_trait can only be applied to trait definitions or trait implementations
- --> tests/ui/wasm_async_trait_enum.rs:5:1
-  |
-5 | / enum InvalidEnum {
-6 | |     Variant,
-7 | | }
-  | |_^
