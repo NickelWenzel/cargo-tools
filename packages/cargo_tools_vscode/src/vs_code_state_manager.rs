@@ -1,4 +1,4 @@
-use cargo_tools::state_manager::{Callback, State, ConfigurationManager, StateValue};
+use cargo_tools::state::{Callback, ConfigurationManager, State, StateValue};
 use cargo_tools_macros::wasm_async_trait;
 use serde_wasm_bindgen::{from_value, to_value};
 use thiserror::Error;
@@ -36,7 +36,7 @@ impl VSCodeStateManager {
     }
 
     fn get_state(&self) -> State {
-        use cargo_tools::state_manager::*;
+        use cargo_tools::state::*;
 
         State {
             selected_package: get_state(SelectedPackage::KEY).and_then(|v| from_value(v).ok()),

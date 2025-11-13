@@ -1,6 +1,6 @@
 use cargo_tools_macros::wasm_async_trait;
 
-use crate::cargo_tools::Runtime;
+use crate::runtime::Runtime;
 
 #[wasm_async_trait]
 pub trait ConfigurationManager: Sized {
