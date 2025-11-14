@@ -16,8 +16,8 @@ fn spawn_manifest_handler<RuntimeT: Runtime>(
     mut manifest_dir_rx: async_broadcast::Receiver<String>,
 ) -> RuntimeT::ThreadHandle {
     RuntimeT::spawn(async move {
-        while let Some(manifest_dir) = manifest_dir_rx.next().await {
-            match update_metadata(&manifest_dir).await {
+        while let Ok(manifest_dir) = manifest_dir_rx.recv().await {
+            match update_metadata::<RuntimeT>(&manifest_dir).await {
                 MetadataUpdate::New(metadata) => {
                     let _ = metadata_tx.broadcast(metadata).await;
                 }
@@ -33,27 +33,29 @@ async fn update_metadata<RuntimeT: Runtime>(manifest_dir: &str) -> MetadataUpdat
         format!("cargo metadata --format-version 1 --manifest-path {manifest_dir}/Cargo.toml");
 
     // Execute command via runtime
-    let Ok(metadata) = RuntimeT::exec(command)
-        .await
-        .inspect_err(|e| RuntimeT::log(format!("Failed to generate cargo metadata: {e}")))
-    else {
-        return MetadataUpdate::NoCargoToml;
-    };
+    match RuntimeT::exec(command).await {
+        Ok(metadata) => extract_raw_metadata::<RuntimeT>(&metadata).await,
+        Err(e) => {
+            RuntimeT::log(format!("Failed to generate cargo metadata: {e}")).await;
+            MetadataUpdate::NoCargoToml
+        }
+    }
+}
 
-    // Convert JsString to Rust String
-    let Some(metadata) = metadata.lines().find(|line| line.starts_with('{')) else {
+async fn extract_raw_metadata<RuntimeT: Runtime>(raw_metadata: &str) -> MetadataUpdate {
+    let Some(metadata) = raw_metadata.lines().find(|line| line.starts_with('{')) else {
         RuntimeT::log("Cargo metadata do not contain valid JSON".to_string()).await;
         return MetadataUpdate::FailedToRetrieve;
     };
 
     // Parse JSON output into Metadata
-    let Ok(metadata) = MetadataCommand::parse(metadata)
-        .inspect_err(|e| RuntimeT::log(format!("Failed to parse cargo metadata: {e}")))
-    else {
-        return MetadataUpdate::NoCargoToml;
-    };
-
-    MetadataUpdate::New(Arc::new(RwLock::new(metadata)))
+    match MetadataCommand::parse(metadata) {
+        Ok(metadata) => MetadataUpdate::New(Arc::new(RwLock::new(metadata))),
+        Err(e) => {
+            RuntimeT::log(format!("Failed to parse cargo metadata: {e}")).await;
+            MetadataUpdate::NoCargoToml
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -77,7 +79,7 @@ fn spawn_makefile_handler<RuntimeT: Runtime>(
     mut workspace_root_rx: async_broadcast::Receiver<String>,
 ) -> RuntimeT::ThreadHandle {
     RuntimeT::spawn(async move {
-        while let Some(workspace_root) = workspace_root_rx.next().await {
+        while let Ok(workspace_root) = workspace_root_rx.recv().await {
             match update_makefile_tasks::<RuntimeT>(&workspace_root).await {
                 MakefileTasksUpdate::New(makefile_tasks) => {
                     let _ = makefile_tasks_tx.broadcast(makefile_tasks).await;
@@ -89,7 +91,7 @@ fn spawn_makefile_handler<RuntimeT: Runtime>(
 }
 
 /// Parse cargo-make task list output into structured task data
-fn parse_makefile_output(output: &str) -> Vec<MakefileTask> {
+async fn parse_makefile_output<RuntimeT: Runtime>(output: &str) -> MakefileTasksUpdate {
     let mut tasks = Vec::new();
     let lines: Vec<&str> = output.lines().collect();
     let mut current_category = String::new();
@@ -158,7 +160,8 @@ fn parse_makefile_output(output: &str) -> Vec<MakefileTask> {
         }
     }
 
-    tasks
+    RuntimeT::log(format!("Discovered {} cargo-make tasks", tasks.len())).await;
+    MakefileTasksUpdate::New(Arc::new(RwLock::new(tasks)))
 }
 
 async fn update_makefile_tasks<RuntimeT: Runtime>(workspace_root: &str) -> MakefileTasksUpdate {
@@ -172,32 +175,27 @@ async fn update_makefile_tasks<RuntimeT: Runtime>(workspace_root: &str) -> Makef
     }
 
     // Execute cargo-make to list all tasks
-    let Ok(output) = RuntimeT::exec("cargo make --list-all-steps".to_string())
-        .await
-        .inspect_err(|e| RuntimeT::log(format!("Failed to list cargo-make tasks: {e}")))
-    else {
-        return MakefileTasksUpdate::FailedToRetrieve;
-    };
-
-    // Parse the output
-    let tasks = parse_makefile_output(&output);
-
-    if tasks.is_empty() {
-        RuntimeT::log("No cargo-make tasks found".to_string()).await;
-        return MakefileTasksUpdate::NoMakefile;
+    match RuntimeT::exec(format!(
+        "cargo make --list-all-steps --makefile {workspace_root}/Makefile.toml"
+    ))
+    .await
+    {
+        Ok(output) => parse_makefile_output::<RuntimeT>(&output).await,
+        Err(e) => {
+            RuntimeT::log(format!("Failed to list cargo-make tasks: {e}")).await;
+            MakefileTasksUpdate::FailedToRetrieve
+        }
     }
-
-    RuntimeT::log(format!("Discovered {} cargo-make tasks", tasks.len())).await;
-    MakefileTasksUpdate::New(Arc::new(RwLock::new(tasks)))
 }
 
-pub fn spawn_environment<RuntimeT: Runtime>(
+pub async fn spawn_environment<RuntimeT: Runtime>(
     metadata_tx: async_broadcast::Sender<Arc<RwLock<Metadata>>>,
     makefile_tasks_tx: async_broadcast::Sender<Arc<RwLock<MakefileTasks>>>,
 ) -> EnvironmentHandles<RuntimeT> {
-    let workspace_root_rx = RuntimeT::current_dir_notitifier();
-    let manifest_handle = spawn_manifest_handler(metadata_tx, workspace_root_rx.clone());
-    let makefile_handle = spawn_makefile_handler(makefile_tasks_tx, workspace_root_rx);
+    let workspace_root_rx = RuntimeT::current_dir_notitifier().await;
+    let manifest_handle =
+        spawn_manifest_handler::<RuntimeT>(metadata_tx, workspace_root_rx.clone());
+    let makefile_handle = spawn_makefile_handler::<RuntimeT>(makefile_tasks_tx, workspace_root_rx);
 
     EnvironmentHandles {
         manifest_handle,

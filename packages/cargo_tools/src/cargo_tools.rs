@@ -5,7 +5,7 @@ use cargo_tools_macros::wasm_async_trait;
 
 use crate::{
     configuration_handler::ConfigurationManager,
-    environment::{CargoTomlHandler, Environment, MakefileHandler, MakefileTasks},
+    environment::{spawn_environment, EnvironmentHandles, MakefileTasks},
     runtime::Runtime,
     state::{State, StateUpdate},
 };
@@ -79,22 +79,14 @@ pub trait UserInterface: Sized {
 }
 
 pub struct CargoToolsHandles<RuntimeT: Runtime> {
-    pub environment_handle: RuntimeT::ThreadHandle,
+    pub environment_handles: EnvironmentHandles<RuntimeT>,
     pub state_handle: RuntimeT::ThreadHandle,
     pub settings_handle: RuntimeT::ThreadHandle,
     pub user_interface_handle: RuntimeT::ThreadHandle,
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn spawn_cargo_tools<
-    RuntimeT,
-    CargoTomlHandlerT,
-    MakefileHandlerT,
-    StateHandlerT,
-    SettingsHandlerT,
-    UserInterfaceT,
->(
-    environment: Environment<CargoTomlHandlerT, MakefileHandlerT>,
+pub async fn spawn_cargo_tools<RuntimeT, StateHandlerT, SettingsHandlerT, UserInterfaceT>(
     state_handler: StateHandlerT,
     settings_handler: SettingsHandlerT,
     user_interface: UserInterfaceT,
@@ -103,8 +95,6 @@ pub async fn spawn_cargo_tools<
 ) -> CargoToolsHandles<RuntimeT>
 where
     RuntimeT: Runtime,
-    CargoTomlHandlerT: CargoTomlHandler<Runtime = RuntimeT>,
-    MakefileHandlerT: MakefileHandler<Runtime = RuntimeT>,
     StateHandlerT: ConfigurationManager<
         Runtime = RuntimeT,
         Configuration = Arc<RwLock<State>>,
@@ -117,10 +107,10 @@ where
     >,
     UserInterfaceT: UserInterface<Runtime = RuntimeT>,
 {
-    let (workspace_root_tx, workspace_root_rx) = async_broadcast::broadcast(100);
+    let (_workspace_root_tx, workspace_root_rx) = async_broadcast::broadcast(100);
     let (metadata_tx, metadata_rx) = async_broadcast::broadcast(100);
     let (makefile_tasks_tx, makefile_tasks_rx) = async_broadcast::broadcast(100);
-    let environment_handle = environment.spawn(metadata_tx, makefile_tasks_tx);
+    let environment_handles = spawn_environment::<RuntimeT>(metadata_tx, makefile_tasks_tx).await;
 
     let (state_tx, state_rx) = async_broadcast::broadcast(100);
     let state_handle = state_handler.spawn(state_tx, workspace_root_rx.clone(), state_update_rx);
@@ -133,7 +123,7 @@ where
         user_interface.spawn(metadata_rx, makefile_tasks_rx, state_rx, settings_rx);
 
     CargoToolsHandles {
-        environment_handle,
+        environment_handles,
         state_handle,
         settings_handle,
         user_interface_handle,
