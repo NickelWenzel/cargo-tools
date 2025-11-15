@@ -14,3 +14,10 @@ cargo_metadata = { workspace = true }
 serde = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+cmd_lib = "2.0"
+tokio = { version = "1.0", features = ["rt", "macros"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-test = "0.2"

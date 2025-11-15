@@ -27,7 +27,7 @@ fn spawn_manifest_handler<RuntimeT: Runtime>(
     })
 }
 
-async fn update_metadata<RuntimeT: Runtime>(manifest_dir: &str) -> MetadataUpdate {
+pub async fn update_metadata<RuntimeT: Runtime>(manifest_dir: &str) -> MetadataUpdate {
     // Construct cargo metadata command with manifest path
     let command =
         format!("cargo metadata --format-version 1 --manifest-path {manifest_dir}/Cargo.toml");
@@ -164,7 +164,7 @@ async fn parse_makefile_output<RuntimeT: Runtime>(output: &str) -> MakefileTasks
     MakefileTasksUpdate::New(Arc::new(RwLock::new(tasks)))
 }
 
-async fn update_makefile_tasks<RuntimeT: Runtime>(workspace_root: &str) -> MakefileTasksUpdate {
+pub async fn update_makefile_tasks<RuntimeT: Runtime>(workspace_root: &str) -> MakefileTasksUpdate {
     // Check if cargo-make is available
     if RuntimeT::exec("cargo make --version".to_string())
         .await
