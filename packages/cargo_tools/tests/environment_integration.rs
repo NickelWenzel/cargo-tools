@@ -36,10 +36,10 @@ async fn test_update_metadata_success() {
         let metadata = metadata.read().expect("Failed to lock metadata");
 
         // Verify workspace members are present
-        let workspace_members: Vec<String> = metadata
-            .workspace_members
+        let workspace_members: Vec<&str> = metadata
+            .workspace_packages()
             .iter()
-            .map(|id| id.repr.clone())
+            .map(|p| p.name.as_str())
             .collect();
 
         // Expected packages from test-rust-project

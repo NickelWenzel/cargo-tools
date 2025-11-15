@@ -29,8 +29,9 @@ fn spawn_manifest_handler<RuntimeT: Runtime>(
 
 pub async fn update_metadata<RuntimeT: Runtime>(manifest_dir: &str) -> MetadataUpdate {
     // Construct cargo metadata command with manifest path
-    let command =
-        format!("cargo metadata --format-version 1 --manifest-path {manifest_dir}/Cargo.toml");
+    let command = format!(
+        "cargo metadata --format-version 1 --manifest-path {manifest_dir}/Cargo.toml --no-deps"
+    );
 
     // Execute command via runtime
     match RuntimeT::exec(command).await {
