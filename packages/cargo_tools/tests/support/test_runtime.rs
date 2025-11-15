@@ -6,7 +6,11 @@
 use std::{future::Future, pin::Pin};
 
 use async_broadcast::Receiver;
-use cargo_tools::runtime::Runtime;
+use cargo_tools::{
+    cargo_tools::{Settings, SettingsUpdate},
+    runtime::Runtime,
+    state::{State, StateUpdate},
+};
 use cargo_tools_macros::wasm_async_trait;
 
 /// Test runtime implementation for integration testing.
@@ -57,5 +61,25 @@ impl Runtime for TestRuntime {
         // Return a mock receiver for testing
         let (_, rx) = async_broadcast::broadcast(1);
         rx
+    }
+
+    async fn update_state_context(_ctx: String) -> State {
+        // Return default state for testing
+        State::default()
+    }
+
+    async fn update_state(_update: StateUpdate) -> State {
+        // Return default state for testing
+        State::default()
+    }
+
+    async fn update_settings_context(_ctx: String) -> Settings {
+        // Return default settings for testing
+        Settings
+    }
+
+    async fn update_settings(_update: SettingsUpdate) -> Settings {
+        // Return default settings for testing
+        Settings
     }
 }

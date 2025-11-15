@@ -13,7 +13,10 @@ pub trait ConfigurationManager {
     ) -> Self::Configuration;
 }
 
-fn spawn_configuration_handler<ConfigurationManagerT: ConfigurationManager, RuntimeT: Runtime>(
+pub fn spawn_configuration_handler<
+    ConfigurationManagerT: ConfigurationManager,
+    RuntimeT: Runtime,
+>(
     config_tx: async_broadcast::Sender<ConfigurationManagerT::Configuration>,
     mut update_rx: async_broadcast::Receiver<ConfigurationManagerT::ConfigurationUpdate>,
 ) -> RuntimeT::ThreadHandle {

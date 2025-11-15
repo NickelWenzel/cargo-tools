@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use cargo_tools_macros::wasm_async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -91,17 +93,22 @@ pub struct State {
     pub pinned_makefile_tasks: Option<PinnedMakefileTasks>,
 }
 
+pub enum StateHandlerMessage {
+    RootDir(String),
+    State(StateUpdate),
+}
+
 pub struct StateHandler;
 
 #[wasm_async_trait]
 impl ConfigurationManager for StateHandler {
-    type Configuration = State;
+    type Configuration = Arc<RwLock<State>>;
     type ConfigurationUpdate = StateUpdate;
 
-    async fn update_root_dir<RuntimeT: Runtime>(root_dir: String) -> State {
-        RuntimeT::update_state_context(root_dir).await
+    async fn update_root_dir<RuntimeT: Runtime>(root_dir: String) -> Self::Configuration {
+        Arc::new(RwLock::new(RuntimeT::update_state_context(root_dir).await))
     }
-    async fn apply_update<RuntimeT: Runtime>(update: StateUpdate) -> State {
-        RuntimeT::update_state(update).await
+    async fn apply_update<RuntimeT: Runtime>(update: StateUpdate) -> Self::Configuration {
+        Arc::new(RwLock::new(RuntimeT::update_state(update).await))
     }
 }

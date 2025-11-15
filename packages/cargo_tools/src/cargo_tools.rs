@@ -4,10 +4,12 @@ use cargo_metadata::Metadata;
 use cargo_tools_macros::wasm_async_trait;
 
 use crate::{
+    application::{spawn_application, ApplicationHandles},
     configuration_handler::ConfigurationManager,
     environment::{spawn_environment, EnvironmentHandles, MakefileTasks},
     runtime::Runtime,
-    state::{State, StateUpdate},
+    state::State,
+    DEFAULT_BUFFER_SIZE,
 };
 
 #[derive(Debug, Clone)]
@@ -20,14 +22,16 @@ pub struct SettingsHandler;
 
 #[wasm_async_trait]
 impl ConfigurationManager for SettingsHandler {
-    type Configuration = Settings;
+    type Configuration = Arc<RwLock<Settings>>;
     type ConfigurationUpdate = SettingsUpdate;
 
-    async fn update_root_dir<RuntimeT: Runtime>(root_dir: String) -> Settings {
-        RuntimeT::update_settings_context(root_dir).await
+    async fn update_root_dir<RuntimeT: Runtime>(root_dir: String) -> Self::Configuration {
+        Arc::new(RwLock::new(
+            RuntimeT::update_settings_context(root_dir).await,
+        ))
     }
-    async fn apply_update<RuntimeT: Runtime>(update: SettingsUpdate) -> Settings {
-        RuntimeT::update_settings(update).await
+    async fn apply_update<RuntimeT: Runtime>(update: SettingsUpdate) -> Self::Configuration {
+        Arc::new(RwLock::new(RuntimeT::update_settings(update).await))
     }
 }
 
@@ -95,52 +99,29 @@ pub trait UserInterface: Sized {
 
 pub struct CargoToolsHandles<RuntimeT: Runtime> {
     pub environment_handles: EnvironmentHandles<RuntimeT>,
-    pub state_handle: RuntimeT::ThreadHandle,
-    pub settings_handle: RuntimeT::ThreadHandle,
-    pub user_interface_handle: RuntimeT::ThreadHandle,
+    pub application_handles: ApplicationHandles<RuntimeT>,
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn spawn_cargo_tools<RuntimeT, StateHandlerT, SettingsHandlerT, UserInterfaceT>(
-    state_handler: StateHandlerT,
-    settings_handler: SettingsHandlerT,
+pub async fn spawn_cargo_tools<RuntimeT, UserInterfaceT>(
     user_interface: UserInterfaceT,
-    state_update_rx: async_broadcast::Receiver<StateUpdate>,
-    settings_update_rx: async_broadcast::Receiver<SettingsUpdate>,
 ) -> CargoToolsHandles<RuntimeT>
 where
     RuntimeT: Runtime,
-    StateHandlerT: ConfigurationManager<
-        Runtime = RuntimeT,
-        Configuration = Arc<RwLock<State>>,
-        ConfigurationUpdate = StateUpdate,
-    >,
-    SettingsHandlerT: ConfigurationManager<
-        Runtime = RuntimeT,
-        Configuration = Arc<RwLock<Settings>>,
-        ConfigurationUpdate = SettingsUpdate,
-    >,
     UserInterfaceT: UserInterface<Runtime = RuntimeT>,
 {
-    let (_workspace_root_tx, workspace_root_rx) = async_broadcast::broadcast(100);
-    let (metadata_tx, metadata_rx) = async_broadcast::broadcast(100);
-    let (makefile_tasks_tx, makefile_tasks_rx) = async_broadcast::broadcast(100);
+    let (metadata_tx, metadata_rx) = async_broadcast::broadcast(DEFAULT_BUFFER_SIZE);
+    let (makefile_tasks_tx, makefile_tasks_rx) = async_broadcast::broadcast(DEFAULT_BUFFER_SIZE);
     let environment_handles = spawn_environment::<RuntimeT>(metadata_tx, makefile_tasks_tx).await;
 
-    let (state_tx, state_rx) = async_broadcast::broadcast(100);
-    let state_handle = state_handler.spawn(state_tx, workspace_root_rx.clone(), state_update_rx);
-
-    let (settings_tx, settings_rx) = async_broadcast::broadcast(100);
-    let settings_handle =
-        settings_handler.spawn(settings_tx, workspace_root_rx, settings_update_rx);
-
-    let user_interface_handle =
-        user_interface.spawn(metadata_rx, makefile_tasks_rx, state_rx, settings_rx);
+    let application_handles = spawn_application::<RuntimeT, UserInterfaceT>(
+        user_interface,
+        metadata_rx,
+        makefile_tasks_rx,
+    )
+    .await;
 
     CargoToolsHandles {
         environment_handles,
-        state_handle,
-        settings_handle,
-        user_interface_handle,
+        application_handles,
     }
 }
