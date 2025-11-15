@@ -16,6 +16,21 @@ pub struct Settings;
 #[derive(Debug, Clone)]
 pub struct SettingsUpdate;
 
+pub struct SettingsHandler;
+
+#[wasm_async_trait]
+impl ConfigurationManager for SettingsHandler {
+    type Configuration = Settings;
+    type ConfigurationUpdate = SettingsUpdate;
+
+    async fn update_root_dir<RuntimeT: Runtime>(root_dir: String) -> Settings {
+        RuntimeT::update_settings_context(root_dir).await
+    }
+    async fn apply_update<RuntimeT: Runtime>(update: SettingsUpdate) -> Settings {
+        RuntimeT::update_settings(update).await
+    }
+}
+
 #[wasm_async_trait]
 pub trait UserInterface: Sized {
     type Runtime: Runtime;

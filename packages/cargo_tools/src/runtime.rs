@@ -3,6 +3,11 @@ use std::future::Future;
 use async_broadcast::Receiver;
 use cargo_tools_macros::wasm_async_trait;
 
+use crate::{
+    cargo_tools::{Settings, SettingsUpdate},
+    state::{State, StateUpdate},
+};
+
 #[wasm_async_trait]
 pub trait Runtime {
     type ThreadHandle: Future;
@@ -15,4 +20,10 @@ pub trait Runtime {
     async fn log(msg: String);
 
     async fn current_dir_notitifier() -> Receiver<String>;
+
+    async fn update_state_context(ctx: String) -> State;
+    async fn update_state(update: StateUpdate) -> State;
+
+    async fn update_settings_context(ctx: String) -> Settings;
+    async fn update_settings(update: SettingsUpdate) -> Settings;
 }

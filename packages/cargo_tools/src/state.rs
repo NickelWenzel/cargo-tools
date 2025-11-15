@@ -1,4 +1,7 @@
+use cargo_tools_macros::wasm_async_trait;
 use serde::{Deserialize, Serialize};
+
+use crate::{configuration_handler::ConfigurationManager, runtime::Runtime};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SelectedPackage(String);
@@ -86,4 +89,19 @@ pub struct State {
     pub makefile_category_filter: Option<MakefileCategoryFilter>,
     pub is_makefile_category_filter_active: Option<IsMakefileCategoryFilterActive>,
     pub pinned_makefile_tasks: Option<PinnedMakefileTasks>,
+}
+
+pub struct StateHandler;
+
+#[wasm_async_trait]
+impl ConfigurationManager for StateHandler {
+    type Configuration = State;
+    type ConfigurationUpdate = StateUpdate;
+
+    async fn update_root_dir<RuntimeT: Runtime>(root_dir: String) -> State {
+        RuntimeT::update_state_context(root_dir).await
+    }
+    async fn apply_update<RuntimeT: Runtime>(update: StateUpdate) -> State {
+        RuntimeT::update_state(update).await
+    }
 }
