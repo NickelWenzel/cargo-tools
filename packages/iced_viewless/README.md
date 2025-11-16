@@ -14,7 +14,7 @@ A headless application runtime for [iced](https://iced.rs), enabling background 
 
 ```rust
 use iced_futures::Subscription;
-use iced_viewless::{viewless, ViewlessProgram};
+use iced_viewless::{application, ViewlessProgram};
 
 #[derive(Debug, Clone)]
 enum Message {
@@ -49,14 +49,47 @@ impl ViewlessProgram for MyProgram {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    viewless::<MyProgram>().run().await?;
+    application(MyProgram::default())
+        .run(|| ())
+        .await?;
     Ok(())
 }
 ```
 
+### Builder Pattern
+
+The API follows iced's builder pattern with decorator methods:
+
+```rust
+use iced_futures::{Subscription, Executor};
+use iced_viewless::{application, ViewlessProgram};
+
+// Custom subscription
+application(my_program)
+    .subscription(|state| {
+        // Custom subscription logic
+        Subscription::none()
+    })
+    .run(|| initial_state)
+    .await?;
+
+// Custom executor
+application(my_program)
+    .executor::<MyExecutor>()
+    .run(|| initial_state)
+    .await?;
+
+// Combined
+application(my_program)
+    .subscription(my_subscription)
+    .executor::<MyExecutor>()
+    .run(|| initial_state)
+    .await?;
+```
+
 ## Features
 
-- `tokio`: Use tokio runtime (enables timeout support)
+- `tokio`: Use tokio runtime
 - `async-std`: Use async-std runtime
 - `smol`: Use smol runtime
 - `thread-pool`: Use thread pool executor
@@ -75,13 +108,18 @@ cargo build -p iced_viewless --target wasm32-unknown-unknown
 
 ## How It Works
 
-The `iced_viewless` runtime:
+The `iced_viewless` runtime follows iced's architecture:
 
-1. Boots the program to get initial state
-2. Spawns subscriptions as async tasks
-3. Processes messages as they arrive
-4. Updates program state
-5. Exits when `subscription()` returns `Subscription::none()`
+1. Creates an `Application` builder wrapping your `ViewlessProgram`
+2. Calls the boot function to get initial state
+3. Spawns subscriptions as async tasks using the executor
+4. Processes messages as they arrive through the event loop
+5. Updates program state via the `update` method
+6. Exits when `subscription()` returns `Subscription::none()`
+
+The API uses the decorator pattern similar to iced:
+- `subscription()` wraps the program with custom subscription logic
+- `executor()` changes the executor type at compile time
 
 Unlike windowing applications, viewless programs are purely event-driven through subscriptions. When your program returns `Subscription::none()`, the runtime detects no active subscriptions and exits cleanly.
 

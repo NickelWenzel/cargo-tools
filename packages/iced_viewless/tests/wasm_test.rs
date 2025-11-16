@@ -3,7 +3,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use iced_futures::Subscription;
-use iced_viewless::{viewless, ViewlessProgram};
+use iced_viewless::{application, ViewlessProgram};
 use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
@@ -42,10 +42,7 @@ impl ViewlessProgram for WasmProgram {
         if state.completed {
             Subscription::none()
         } else {
-            Subscription::run_with_id(
-                "once",
-                futures::stream::iter(vec![Message::Done]),
-            )
+            Subscription::run_with_id("once", futures::stream::iter(vec![Message::Done]))
         }
     }
 }
@@ -53,12 +50,12 @@ impl ViewlessProgram for WasmProgram {
 #[wasm_bindgen_test]
 async fn wasm_simple_completes() {
     use iced_futures::Executor;
-    
-    viewless::<WasmProgram>()
-        .run_with_executor(
-            iced_futures::backend::wasm::wasm_bindgen::Executor::new()
-                .expect("Failed to create WASM executor")
-        )
+
+    let executor = iced_futures::backend::wasm::wasm_bindgen::Executor::new()
+        .expect("Failed to create WASM executor");
+
+    application(WasmProgram::default())
+        .run_with(|| State { completed: false }, executor)
         .await
         .expect("WASM program should complete successfully");
 }

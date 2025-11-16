@@ -77,40 +77,79 @@
 //! #[tokio::main]
 //! async fn main() -> iced_viewless::Result<()> {
 //!     viewless::<MyProgram>()
-//!         .run()
-//!         .await
+//!
+//! # Examples
+//!
+//! ## Basic Usage
+//!
+//! ```ignore
+//! use iced_viewless::{application, ViewlessProgram, Subscription};
+//!
+//! #[derive(Default)]
+//! struct MyProgram;
+//!
+//! #[derive(Debug, Clone)]
+//! enum Message {
+//!     Tick,
+//! }
+//!
+//! impl ViewlessProgram for MyProgram {
+//!     type State = ();
+//!     type Message = Message;
+//!     type Executor = iced_futures::backend::default::Executor;
+//!
+//!     fn name() -> &'static str {
+//!         "My Viewless App"
+//!     }
+//!
+//!     fn boot(&self) -> Self::State {
+//!         ()
+//!     }
+//!
+//!     fn update(&self, _state: &mut Self::State, _message: Self::Message) {
+//!         // Handle messages
+//!     }
+//!
+//!     fn subscription(&self, _state: &Self::State) -> Subscription<Self::Message> {
+//!         // Return subscriptions
+//!         Subscription::none()
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     application(MyProgram::default())
+//!         .run(|| ())
+//!         .await?;
+//!     Ok(())
 //! }
 //! ```
 //!
-//! ## With Timeout (requires `tokio` feature)
+//! ## With Custom Subscription
 //!
 //! ```ignore
-//! use std::time::Duration;
-//!
-//! viewless::<MyProgram>()
-//!     .timeout(Duration::from_secs(10))
-//!     .run()
+//! application(MyProgram::default())
+//!     .subscription(|state| my_custom_subscription(state))
+//!     .run(|| MyState::default())
 //!     .await?;
 //! ```
 //!
-//! ## Custom Executor
+//! ## With Custom Executor
 //!
 //! ```ignore
-//! let executor = iced_futures::backend::tokio::Executor::new()?;
-//!
-//! viewless::<MyProgram>()
-//!     .run_with_executor(executor)
+//! application(MyProgram::default())
+//!     .executor::<iced_futures::backend::tokio::Executor>()
+//!     .run(|| MyState::default())
 //!     .await?;
 //! ```
 
 pub mod error;
-pub mod event;
+pub mod event_loop;
 pub mod program;
-pub mod runtime;
 pub mod viewless;
 
 pub use error::{Error, Result};
-pub use program::{Instance, ViewlessProgram};
-pub use viewless::{viewless, Viewless};
+pub use program::ViewlessProgram;
+pub use viewless::{application, Application, WithExecutor, WithSubscription};
 
 pub use iced_futures::{Executor, Subscription};

@@ -1,175 +1,195 @@
 //! Builder API for creating and running viewless applications.
 
-use crate::program::{Instance, ViewlessProgram};
+use crate::program::ViewlessProgram;
 use crate::Result;
-use iced_futures::Subscription;
-use std::time::Duration;
+use iced::{application::Update, Task};
+use iced_futures::{Executor, Subscription};
 
-/// A builder for viewless applications.
+/// A builder for viewless applications implementing iced's Program trait.
 ///
-/// This provides a fluent API for configuring and running a viewless application,
-/// similar to `iced::daemon()` but without windowing or rendering.
+/// This provides a fluent API similar to `iced::Application` but for headless execution.
+/// Follows iced's decorator pattern with `raw` field storing the program implementation.
 ///
 /// # Examples
 /// ```ignore
-/// use iced_viewless::{viewless, ViewlessProgram};
+/// use iced_viewless::application;
+/// use iced_core::Program;
 ///
-/// viewless::<MyProgram>()
-///     .settings(Settings::default())
-///     .run()
-///     .await?;
+/// let app = application(my_program)
+///     .subscription(|state| my_subscription(state))
+///     .executor::<MyExecutor>();
+///
+/// app.run(|| MyState::default()).await?;
 /// ```
-pub struct Viewless<P>
-where
-    P: ViewlessProgram,
-{
-    timeout: Option<Duration>,
-    _program: std::marker::PhantomData<P>,
+pub struct Application<P> {
+    raw: P,
 }
 
-impl<P> Viewless<P>
+impl<P: ViewlessProgram> Application<P>
 where
-    P: ViewlessProgram,
+    Self: 'static,
+    P::State: Default,
 {
-    /// Creates a new viewless application builder.
-    pub fn new() -> Self {
-        Self {
-            timeout: None,
-            _program: std::marker::PhantomData,
-        }
+    /// Runs the [`Application`].
+    ///
+    /// The state of the [`Application`] must implement [`Default`].
+    /// If your state does not implement [`Default`], use [`run_with`]
+    /// instead.
+    ///
+    /// [`run_with`]: Self::run_with
+    pub async fn run(self) -> Result<()> {
+        self.raw.run()
     }
 
-    /// Sets an optional timeout for the application.
-    ///
-    /// If set, the application will automatically exit after the specified duration,
-    /// even if subscriptions are still active.
-    ///
-    /// # Arguments
-    /// * `timeout` - Maximum runtime duration
-    pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = Some(timeout);
-        self
-    }
-
-    /// Runs the viewless application with the default executor.
-    ///
-    /// This method:
-    /// 1. Creates an executor
-    /// 2. Boots the program
-    /// 3. Runs until all subscriptions complete
-    ///
-    /// # Returns
-    /// `Ok(())` when the application completes normally, or an error if startup or runtime fails.
-    pub async fn run(self) -> Result<()>
+    /// Runs the [`Application`] with a closure that creates the initial state.
+    pub fn run_with<I>(self, initialize: I) -> Result<()>
     where
-        P: Default,
-        P::Executor: Default,
+        Self: 'static,
+        I: FnOnce() -> (P::State, Task<P::Message>) + 'static,
     {
-        let executor = P::Executor::default();
-        self.run_with_executor(executor).await
+        self.raw.run_with(initialize)
     }
 
-    /// Runs the viewless application with the provided executor.
-    ///
-    /// This method:
-    /// 1. Uses the provided executor
-    /// 2. Boots the program
-    /// 3. Runs until all subscriptions complete or timeout is reached
-    ///
-    /// # Arguments
-    /// * `executor` - The executor to use for running subscriptions
-    ///
-    /// # Returns
-    /// `Ok(())` when the application completes normally, or an error if startup or runtime fails.
-    pub async fn run_with_executor(self, executor: P::Executor) -> Result<()>
+    /// Sets the subscription logic of the [`Application`].
+    pub fn subscription<F>(self, f: F) -> Application<WithSubscription<P, F>>
     where
-        P: Default,
+        F: Fn(&P::State) -> Subscription<P::Message>,
     {
-        let program = P::default();
-        let instance = Instance::new(program);
-
-        #[cfg(feature = "tokio")]
-        if let Some(timeout) = self.timeout {
-            let run_future = crate::runtime::run(executor, instance);
-            return tokio::select! {
-                result = run_future => result,
-                _ = tokio::time::sleep(timeout) => Ok(()),
-            };
+        Application {
+            raw: WithSubscription {
+                program: self.raw,
+                subscription: f,
+            },
         }
-
-        crate::runtime::run(executor, instance).await
     }
 
-    /// Runs a subscription until it completes.
-    ///
-    /// This is a convenience method for running a single subscription
-    /// without needing to implement a full ViewlessProgram.
-    ///
-    /// # Arguments
-    /// * `subscription` - The subscription to track
-    ///
-    /// # Returns
-    /// `Ok(())` when the subscription completes.
-    pub async fn run_subscription<Message>(
-        subscription: impl Fn() -> Subscription<Message> + 'static,
-    ) -> Result<()>
+    pub fn exit_on<F>(self, f: F) -> Application<WithExitOn<P, F>>
     where
-        Message: 'static + Send,
+        F: Fn(&P::State) -> Subscription<()>,
     {
-        struct SubscriptionProgram<S> {
-            subscription: S,
+        Application {
+            raw: WithExitOn {
+                program: self.raw,
+                exit_on: f,
+            },
         }
+    }
 
-        impl<S, M> ViewlessProgram for SubscriptionProgram<S>
-        where
-            M: 'static + Send,
-            S: Fn() -> Subscription<M> + 'static,
-        {
-            type State = ();
-            type Message = M;
-            type Executor = iced_futures::backend::default::Executor;
-
-            fn name() -> &'static str {
-                "Viewless Subscription"
-            }
-
-            fn boot(&self) -> Self::State {}
-
-            fn update(&self, _state: &mut Self::State, _message: Self::Message) {}
-
-            fn subscription(&self, _state: &Self::State) -> Subscription<Self::Message> {
-                (self.subscription)()
-            }
+    /// Sets the executor of the [`Application`].
+    pub fn executor<E>(self) -> Application<WithExecutor<P, E>>
+    where
+        E: Executor,
+    {
+        Application {
+            raw: WithExecutor {
+                program: self.raw,
+                _executor: std::marker::PhantomData,
+            },
         }
-
-        let program = SubscriptionProgram { subscription };
-
-        let instance = Instance::new(program);
-        let executor =
-            match <iced_futures::backend::default::Executor as iced_futures::Executor>::new() {
-                Ok(exec) => exec,
-                Err(e) => return Err(crate::error::Error::ExecutorCreationFailed(e)),
-            };
-        crate::runtime::run(executor, instance).await
     }
 }
 
-impl<P> Default for Viewless<P>
-where
-    P: ViewlessProgram,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Creates a new viewless application builder.
+/// Decorator that adds a custom subscription function to a program.
 ///
-/// This is the primary entry point for creating viewless applications.
+/// Follows iced's `program::with_subscription` pattern.
+pub struct WithSubscription<P, F> {
+    program: P,
+    subscription: F,
+}
+
+impl<P, F> ViewlessProgram for WithSubscription<P, F>
+where
+    P: ViewlessProgram,
+    F: Fn(&P::State) -> Subscription<P::Message>,
+{
+    type State = P::State;
+    type Message = P::Message;
+    type Executor = P::Executor;
+
+    fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+        self.program.update(state, message)
+    }
+
+    fn subscription(&self, state: &Self::State) -> Subscription<Self::Message> {
+        (self.subscription)(state)
+    }
+
+    fn exit_on(&self) -> Subscription<()> {
+        self.program.exit_on()
+    }
+}
+
+/// Decorator that adds a custom subscription function to a program.
+///
+/// Follows iced's `program::with_subscription` pattern.
+pub struct WithExitOn<P, F> {
+    program: P,
+    exit_on: F,
+}
+
+impl<P, F> ViewlessProgram for WithExitOn<P, F>
+where
+    P: ViewlessProgram,
+    F: Fn() -> Subscription<()>,
+{
+    type State = P::State;
+    type Message = P::Message;
+    type Executor = P::Executor;
+
+    fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+        self.program.update(state, message)
+    }
+
+    fn subscription(&self, state: &Self::State) -> Subscription<Self::Message> {
+        self.program.subscription(state)
+    }
+
+    fn exit_on(&self) -> Subscription<()> {
+        (self.exit_on)()
+    }
+}
+
+/// Decorator that changes the executor type of a program.
+///
+/// Follows iced's decorator pattern for executor customization.
+pub struct WithExecutor<P, E> {
+    program: P,
+    _executor: std::marker::PhantomData<E>,
+}
+
+impl<P, E> ViewlessProgram for WithExecutor<P, E>
+where
+    P: ViewlessProgram,
+    E: Executor,
+{
+    type State = P::State;
+    type Message = P::Message;
+    type Executor = E;
+
+    fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+        self.program.update(state, message)
+    }
+
+    fn subscription(&self, state: &Self::State) -> Subscription<Self::Message> {
+        self.program.subscription(state)
+    }
+
+    fn exit_on(&self) -> Subscription<()> {
+        self.program.exit_on()
+    }
+}
+
+/// Creates a new viewless application.
+///
+/// This is the primary entry point for creating viewless applications,
+/// matching iced's `application()` function pattern.
+///
+/// # Arguments
+/// * `program` - A type implementing `ViewlessProgram`
 ///
 /// # Examples
 /// ```ignore
-/// use iced_viewless::{viewless, ViewlessProgram};
+/// use iced_viewless::{application, ViewlessProgram};
 ///
 /// #[derive(Default)]
 /// struct MyProgram;
@@ -178,13 +198,44 @@ where
 ///     // ... implementation ...
 /// }
 ///
-/// viewless::<MyProgram>()
-///     .run()
+/// application(MyProgram::default())
+///     .run(|| ())
 ///     .await?;
 /// ```
-pub fn viewless<P>() -> Viewless<P>
+pub fn application<State, Message>(
+    update: impl Update<State, Message>,
+) -> Application<impl ViewlessProgram<State = State, Message = Message>>
 where
-    P: ViewlessProgram,
+    State: 'static,
+    Message: Send + std::fmt::Debug + 'static,
 {
-    Viewless::new()
+    use std::marker::PhantomData;
+
+    struct Instance<State, Message, Update> {
+        update: Update,
+        _state: PhantomData<State>,
+        _message: PhantomData<Message>,
+    }
+
+    impl<State, Message, Update> ViewlessProgram for Instance<State, Message, Update>
+    where
+        Message: Send + std::fmt::Debug + 'static,
+        Update: self::Update<State, Message>,
+    {
+        type State = State;
+        type Message = Message;
+        type Executor = iced_futures::backend::default::Executor;
+
+        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+            self.update.update(state, message).into()
+        }
+    }
+
+    Application {
+        raw: Instance {
+            update,
+            _state: PhantomData,
+            _message: PhantomData,
+        },
+    }
 }
