@@ -130,6 +130,20 @@
 - **Trust these instructions for build, test, and validation.** Only search the codebase if information here is incomplete or found to be in error.
 - **Always run `npm install` and ensure Rust toolchain is installed before any build or test.**
 - **Use cargo-make commands:** `cargo make compile`, `cargo make lint`, and `cargo make test` for all validation.
+- **Prefer Serena MCP Server tools for code discovery and implementation:**
+  - Use `get_symbols_overview` to explore file structure before reading full content
+  - Use `find_symbol` with targeted name paths to read specific functions, structs, or methods
+  - Use `find_referencing_symbols` to understand symbol relationships and usage
+  - Use `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol` for precise edits
+  - Use `search_for_pattern` when you need flexible text search across the codebase
+  - Only read entire files when absolutely necessary - prefer targeted symbol-based reading
+  - Avoid re-reading content you've already obtained through file reads
+- **Code Comments Policy:**
+  - Only add inline comments when they provide non-obvious context or explain complex logic
+  - Do NOT add comments that merely restate what the code does (e.g., "// Create a variable")
+  - Focus on *why* rather than *what* - explain intent, edge cases, or architectural decisions
+  - Prefer self-documenting code with clear variable/function names over excessive comments
+  - Use rustdoc comments (`///`) for public APIs, but keep them concise and meaningful
 - **For Rust changes:**
   - Modify files in `packages/cargo_tools_vscode/src/` and ensure proper wasm_bindgen exports
   - Place all TypeScript imports in the `vs_code_api` module
