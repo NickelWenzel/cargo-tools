@@ -1,0 +1,23 @@
+[package]
+name = "iced_viewless"
+version = "0.1.0"
+edition = "2021"
+authors = ["Nicolas Wenzel"]
+description = "Headless application runtime for iced, enabling background services without UI"
+license = "MIT"
+repository = "https://github.com/NickelWenzel/cargo-tools"
+keywords = ["iced", "headless", "daemon", "runtime", "async"]
+categories = ["asynchronous", "gui"]
+
+[dependencies]
+iced_core = { version = "0.13.1", default-features = false }
+iced_futures = { version = "0.13.1" }
+futures = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = []
+tokio = ["iced_futures/tokio"]
+async-std = ["iced_futures/async-std"]
+smol = ["iced_futures/smol"]
+thread-pool = ["iced_futures/thread-pool"]
