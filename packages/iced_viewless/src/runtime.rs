@@ -29,15 +29,22 @@ where
 {
     let (sender, mut receiver) = mpsc::unbounded::<P::Message>();
     let mut tracker = Tracker::new();
+    let mut has_active_subscriptions = true;
 
-    loop {
+    while has_active_subscriptions {
         let subscription = instance.subscription();
         let recipes = iced_futures::subscription::into_recipes(subscription);
+
+        has_active_subscriptions = !recipes.is_empty();
 
         let futures = executor.enter(|| tracker.update(recipes.into_iter(), sender.clone()));
 
         for future in futures {
             executor.spawn(future);
+        }
+
+        if !has_active_subscriptions {
+            break;
         }
 
         match receiver.next().await {

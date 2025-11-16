@@ -2,7 +2,7 @@
 
 use crate::program::{Instance, ViewlessProgram};
 use crate::Result;
-use iced_futures::{Executor, Subscription};
+use iced_futures::Subscription;
 use std::time::Duration;
 
 /// A builder for viewless applications.
@@ -145,10 +145,11 @@ where
         let program = SubscriptionProgram { subscription };
 
         let instance = Instance::new(program);
-        let executor = match iced_futures::backend::default::Executor::new() {
-            Ok(exec) => exec,
-            Err(e) => return Err(crate::error::Error::ExecutorCreationFailed(e)),
-        };
+        let executor =
+            match <iced_futures::backend::default::Executor as iced_futures::Executor>::new() {
+                Ok(exec) => exec,
+                Err(e) => return Err(crate::error::Error::ExecutorCreationFailed(e)),
+            };
         crate::runtime::run(executor, instance).await
     }
 }
