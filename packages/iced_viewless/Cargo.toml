@@ -10,21 +10,29 @@ keywords = ["iced", "headless", "daemon", "runtime", "async"]
 categories = ["asynchronous", "gui"]
 
 [dependencies]
+cargo_tools_macros = { workspace = true }
+
 iced = { workspace = true }
 iced_core = { workspace = true }
 iced_futures = { workspace = true }
 iced_runtime = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
+async-trait = { workspace = true }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { workspace = true, optional = true, features = ["time", "macros"] }
+tokio = { workspace = true, optional = true, features = [
+    "sync",
+    "time",
+    "macros",
+] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+iced_viewless = { workspace = true, features = ["tokio"] }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
+tokio-stream = { workspace = true }
 
 [features]
 default = []

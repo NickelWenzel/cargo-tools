@@ -26,14 +26,6 @@ impl ViewlessProgram for WasmProgram {
     type Message = Message;
     type Executor = iced_futures::backend::wasm::wasm_bindgen::Executor;
 
-    fn name() -> &'static str {
-        "wasm_simple"
-    }
-
-    fn boot(&self) -> Self::State {
-        State { completed: false }
-    }
-
     fn update(&self, state: &mut Self::State, _message: Self::Message) {
         state.completed = true;
     }

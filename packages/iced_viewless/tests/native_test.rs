@@ -1,44 +1,53 @@
 //! Native integration test for viewless applications.
 
-use iced_futures::Subscription;
-use iced_viewless::{application, ViewlessProgram};
+use futures::SinkExt;
+use iced::{stream, Subscription, Task};
+use iced_viewless::{application, event_loop::Exit, tokio_context::TokioContext};
 
 #[derive(Debug, Clone)]
-enum Message {
-    Done,
+struct Message;
+
+struct SimpleProgram {
+    tx: Option<tokio::sync::mpsc::Sender<Message>>,
 }
 
-#[derive(Default)]
-struct SimpleProgram;
+impl SimpleProgram {
+    fn new(tx: tokio::sync::mpsc::Sender<Message>) -> (Self, Task<Message>) {
+        (Self { tx: Some(tx) }, Task::done(Message))
+    }
+}
 
-impl ViewlessProgram for SimpleProgram {
-    type State = bool;
-    type Message = Message;
-    type Executor = iced_futures::backend::default::Executor;
+impl SimpleProgram {
+    fn update(&mut self, msg: Message) -> Task<Message> {
+        if let Some(tx) = self.tx.take() {
+            return Task::future(async move { tx.send(msg).await }).map(|_| Message);
+        };
 
-    fn update(&self, state: &mut Self::State, _message: Self::Message) {
-        *state = true;
+        Task::done(Message)
     }
 
-    fn subscription(&self, state: &Self::State) -> Subscription<Self::Message> {
-        if *state {
-            Subscription::none()
-        } else {
-            Subscription::run_with_id("once", futures::stream::iter(vec![Message::Done]))
+    fn exit(&self) -> Subscription<Exit> {
+        if self.tx.is_some() {
+            return Subscription::none();
         }
+        Subscription::run(|| {
+            stream::channel(1, |mut tx| async move {
+                let _ = tx.send(Exit).await;
+            })
+        })
     }
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn native_simple_completes() {
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        tokio::runtime::Handle::current()
-            .block_on(async { application(SimpleProgram::default()).run(|| false).await })
-    }));
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
 
-    match result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => panic!("Program failed: {:?}", e),
-        Err(_) => {}
-    }
+    application(SimpleProgram::update)
+        .executor::<TokioContext>()
+        .exit_on(SimpleProgram::exit)
+        .run_with(|| SimpleProgram::new(tx))
+        .await
+        .unwrap();
+
+    assert!((rx.recv().await).is_some());
 }

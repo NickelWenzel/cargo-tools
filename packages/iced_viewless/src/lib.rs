@@ -146,6 +146,8 @@
 pub mod error;
 pub mod event_loop;
 pub mod program;
+#[cfg(feature = "tokio")]
+pub mod tokio_context;
 pub mod viewless;
 
 pub use error::{Error, Result};

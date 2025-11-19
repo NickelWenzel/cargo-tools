@@ -1321,13 +1321,17 @@ dependencies = [
 name = "iced_viewless"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "cargo_tools_macros",
  "futures",
  "iced",
  "iced_core",
  "iced_futures",
  "iced_runtime",
+ "iced_viewless",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-stream",
  "wasm-bindgen-test",
 ]
 
@@ -2809,6 +2813,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tokio-stream"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eca58d7bba4a75707817a2c44174253f9236b2d5fbd055602e9d5c07c139a047"
+dependencies = [
+ "futures-core",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]

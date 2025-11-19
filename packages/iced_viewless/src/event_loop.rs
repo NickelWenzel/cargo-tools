@@ -1,5 +1,10 @@
-use futures::channel::mpsc::{self, UnboundedSender};
+use futures::{
+    channel::mpsc::{self, UnboundedSender},
+    StreamExt,
+};
 use iced_runtime::Action;
+
+pub struct Exit;
 
 pub struct EventLoop<T> {
     rx: mpsc::UnboundedReceiver<Action<T>>,
@@ -11,18 +16,12 @@ impl<T> EventLoop<T> {
         (tx, Self { rx })
     }
 
-    pub fn run(mut self, mut f: impl FnMut(T)) {
-        loop {
-            match self.rx.try_next() {
-                Ok(message) => match message {
-                    Some(action) => match action {
-                        Action::Output(message) => f(message),
-                        Action::Exit => break,
-                        _ => continue,
-                    },
-                    None => break,
-                },
-                Err(_) => continue,
+    pub async fn run<State>(mut self, mut state: State, mut f: impl FnMut(&mut State, T)) {
+        while let Some(action) = self.rx.next().await {
+            match action {
+                Action::Output(message) => f(&mut state, message),
+                Action::Exit => break,
+                _ => continue,
             }
         }
     }

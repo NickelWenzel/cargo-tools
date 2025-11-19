@@ -1,9 +1,9 @@
 //! Builder API for creating and running viewless applications.
 
-use crate::program::ViewlessProgram;
 use crate::Result;
+use crate::{event_loop::Exit, program::ViewlessProgram};
 use iced::{application::Update, Task};
-use iced_futures::{Executor, Subscription};
+use iced_futures::{Executor, MaybeSend, Subscription};
 
 /// A builder for viewless applications implementing iced's Program trait.
 ///
@@ -28,7 +28,6 @@ pub struct Application<P> {
 impl<P: ViewlessProgram> Application<P>
 where
     Self: 'static,
-    P::State: Default,
 {
     /// Runs the [`Application`].
     ///
@@ -37,17 +36,25 @@ where
     /// instead.
     ///
     /// [`run_with`]: Self::run_with
-    pub async fn run(self) -> Result<()> {
-        self.raw.run()
+    pub async fn run(self) -> Result<()>
+    where
+        P: MaybeSend,
+        P::State: Default + MaybeSend,
+        P::Executor: MaybeSend,
+    {
+        self.raw.run().await
     }
 
     /// Runs the [`Application`] with a closure that creates the initial state.
-    pub fn run_with<I>(self, initialize: I) -> Result<()>
+    pub async fn run_with<I>(self, initialize: I) -> Result<()>
     where
         Self: 'static,
-        I: FnOnce() -> (P::State, Task<P::Message>) + 'static,
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
+        I: FnOnce() -> (P::State, Task<P::Message>) + MaybeSend + 'static,
     {
-        self.raw.run_with(initialize)
+        self.raw.run_with(initialize).await
     }
 
     /// Sets the subscription logic of the [`Application`].
@@ -65,7 +72,7 @@ where
 
     pub fn exit_on<F>(self, f: F) -> Application<WithExitOn<P, F>>
     where
-        F: Fn(&P::State) -> Subscription<()>,
+        F: Fn(&P::State) -> Subscription<Exit>,
     {
         Application {
             raw: WithExitOn {
@@ -114,8 +121,8 @@ where
         (self.subscription)(state)
     }
 
-    fn exit_on(&self) -> Subscription<()> {
-        self.program.exit_on()
+    fn exit_on(&self, state: &Self::State) -> Subscription<Exit> {
+        self.program.exit_on(state)
     }
 }
 
@@ -130,7 +137,7 @@ pub struct WithExitOn<P, F> {
 impl<P, F> ViewlessProgram for WithExitOn<P, F>
 where
     P: ViewlessProgram,
-    F: Fn() -> Subscription<()>,
+    F: Fn(&P::State) -> Subscription<Exit>,
 {
     type State = P::State;
     type Message = P::Message;
@@ -144,8 +151,8 @@ where
         self.program.subscription(state)
     }
 
-    fn exit_on(&self) -> Subscription<()> {
-        (self.exit_on)()
+    fn exit_on(&self, state: &Self::State) -> Subscription<Exit> {
+        (self.exit_on)(state)
     }
 }
 
@@ -174,8 +181,8 @@ where
         self.program.subscription(state)
     }
 
-    fn exit_on(&self) -> Subscription<()> {
-        self.program.exit_on()
+    fn exit_on(&self, state: &Self::State) -> Subscription<Exit> {
+        self.program.exit_on(state)
     }
 }
 
