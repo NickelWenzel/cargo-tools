@@ -1294,6 +1294,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced_headless"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cargo_tools_macros",
+ "futures",
+ "iced",
+ "iced_core",
+ "iced_futures",
+ "iced_headless",
+ "iced_runtime",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "iced_renderer"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1315,24 +1333,6 @@ dependencies = [
  "iced_futures",
  "raw-window-handle",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "iced_viewless"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "cargo_tools_macros",
- "futures",
- "iced",
- "iced_core",
- "iced_futures",
- "iced_runtime",
- "iced_viewless",
- "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
- "wasm-bindgen-test",
 ]
 
 [[package]]

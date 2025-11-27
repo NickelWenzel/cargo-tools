@@ -1,11 +1,13 @@
 [package]
-name = "iced_viewless"
+name = "iced_headless"
 version = "0.1.0"
 edition = "2021"
 authors = ["Nicolas Wenzel"]
 description = "Headless application runtime for iced, enabling background services without UI"
 license = "MIT"
-repository = "https://github.com/NickelWenzel/cargo-tools"
+repository = "https://github.com/NickelWenzel/cargo-tools/tree/master/packages/iced_headless"
+documentation = "https://docs.rs/iced_headless"
+exclude = ["tests/"]
 keywords = ["iced", "headless", "daemon", "runtime", "async"]
 categories = ["asynchronous", "gui"]
 
@@ -30,7 +32,7 @@ tokio = { workspace = true, optional = true, features = [
 wasm-bindgen-test = "0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-iced_viewless = { workspace = true, features = ["tokio"] }
+iced_headless = { workspace = true, features = ["tokio"] }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
 tokio-stream = { workspace = true }
 

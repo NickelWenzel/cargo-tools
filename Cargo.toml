@@ -3,13 +3,13 @@ members = [
     "packages/cargo_tools",
     "packages/cargo_tools_vscode",
     "packages/cargo_tools_macros",
-    "packages/iced_viewless",
+    "packages/iced_headless",
 ]
 default-members = [
     "packages/cargo_tools",
     "packages/cargo_tools_vscode",
     "packages/cargo_tools_macros",
-    "packages/iced_viewless",
+    "packages/iced_headless",
 ]
 
 resolver = "2"
@@ -18,7 +18,7 @@ resolver = "2"
 cargo_tools = { path = "packages/cargo_tools" }
 cargo_tools_vscode = { path = "packages/cargo_tools_vscode" }
 cargo_tools_macros = { path = "packages/cargo_tools_macros" }
-iced_viewless = { path = "packages/iced_viewless" }
+iced_headless = { path = "packages/iced_headless" }
 
 async-broadcast = "0.7.2"
 futures = "0.3.31"

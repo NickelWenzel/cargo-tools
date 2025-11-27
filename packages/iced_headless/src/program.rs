@@ -1,4 +1,4 @@
-//! ViewlessProgram trait for viewless applications.
+//! HeadlessProgram trait for headless applications.
 
 use cargo_tools_macros::wasm_async_trait;
 use iced::Task;
@@ -12,12 +12,12 @@ use crate::{
 
 /// A headless application with no UI.
 ///
-/// This trait defines the lifecycle and behavior of a viewless application,
-/// similar to iced's `ViewlessProgram` trait but without rendering, themes, or windows.
+/// This trait defines the lifecycle and behavior of a headless application,
+/// similar to iced's `Program` trait but without rendering, themes, or windows.
 ///
 /// State is managed externally by the runtime, matching iced 0.13.1's approach.
 #[wasm_async_trait]
-pub trait ViewlessProgram: Sized {
+pub trait HeadlessProgram: Sized {
     /// The state maintained by the program.
     type State;
 
@@ -42,9 +42,9 @@ pub trait ViewlessProgram: Sized {
         Subscription::none()
     }
 
-    /// Runs the [`ViewlessProgram`].
+    /// Runs the [`HeadlessProgram`].
     ///
-    /// The state of the [`ViewlessProgram`] must implement [`Default`].
+    /// The state of the [`HeadlessProgram`] must implement [`Default`].
     /// If your state does not implement [`Default`], use [`run_with`]
     /// instead.
     ///
@@ -59,7 +59,7 @@ pub trait ViewlessProgram: Sized {
             .await
     }
 
-    /// Runs the [`ViewlessProgram`] with the given [`Settings`] and a closure that creates the initial state.
+    /// Runs the [`HeadlessProgram`] with the given [`Settings`] and a closure that creates the initial state.
     async fn run_with<I>(self, initialize: I) -> Result<()>
     where
         Self: 'static,
@@ -70,9 +70,9 @@ pub trait ViewlessProgram: Sized {
         let (to_event_loop_tx, event_loop) = EventLoop::new();
 
         let mut runtime: Runtime<
-            <Self as ViewlessProgram>::Executor,
-            futures::channel::mpsc::UnboundedSender<Action<<Self as ViewlessProgram>::Message>>,
-            Action<<Self as ViewlessProgram>::Message>,
+            <Self as HeadlessProgram>::Executor,
+            futures::channel::mpsc::UnboundedSender<Action<<Self as HeadlessProgram>::Message>>,
+            Action<<Self as HeadlessProgram>::Message>,
         > = {
             let executor = Self::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
@@ -94,19 +94,19 @@ pub trait ViewlessProgram: Sized {
         ));
 
         event_loop
-            .run(state, move |mut state, message| {
-                let task = self.update(&mut state, message);
+            .run(state, move |state, message| {
+                let task = self.update(state, message);
 
                 if let Some(stream) = iced_runtime::task::into_stream(task) {
                     runtime.run(stream);
                 }
 
                 runtime.track(subscription::into_recipes(
-                    runtime.enter(|| self.subscription(&state).map(Action::Output)),
+                    runtime.enter(|| self.subscription(state).map(Action::Output)),
                 ));
 
                 runtime.track(subscription::into_recipes(
-                    runtime.enter(|| self.exit_on(&state).map(|_| Action::Exit)),
+                    runtime.enter(|| self.exit_on(state).map(|_| Action::Exit)),
                 ));
             })
             .await;

@@ -1,8 +1,10 @@
-//! Native integration test for viewless applications.
+#![cfg(not(target_arch = "wasm32"))]
+
+//! Native integration test for headless applications.
 
 use futures::SinkExt;
 use iced::{stream, Subscription, Task};
-use iced_viewless::{application, event_loop::Exit, tokio_context::TokioContext};
+use iced_headless::{application, event_loop::Exit, tokio_context::TokioContext};
 
 #[derive(Debug, Clone)]
 struct Message;

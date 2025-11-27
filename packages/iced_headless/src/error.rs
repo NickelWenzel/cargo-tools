@@ -1,8 +1,8 @@
-//! Error types for the iced_viewless runtime.
+//! Error types for the iced_headless runtime.
 
 use thiserror::Error;
 
-/// Errors that can occur when running a viewless application.
+/// Errors that can occur when running a headless application.
 #[derive(Error, Debug)]
 pub enum Error {
     /// Failed to create the executor for running async tasks.

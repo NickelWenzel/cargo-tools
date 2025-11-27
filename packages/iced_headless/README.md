@@ -1,8 +1,14 @@
-# iced_viewless
+# iced_headless
+
+[![Crates.io](https://img.shields.io/crates/v/iced_headless.svg)](https://crates.io/crates/iced_headless)
+[![Documentation](https://docs.rs/iced_headless/badge.svg)](https://docs.rs/iced_headless)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A headless application runtime for [iced](https://iced.rs), enabling background services and daemon processes without UI or windowing.
 
 ## Features
+
+**Compatible with iced 0.13.1**
 
 - **Headless execution**: Run iced applications without windows or rendering
 - **Subscription-based**: Event-driven architecture using iced's subscription system
@@ -14,7 +20,7 @@ A headless application runtime for [iced](https://iced.rs), enabling background 
 
 ```rust
 use iced_futures::Subscription;
-use iced_viewless::{application, ViewlessProgram};
+use iced_headless::{application, HeadlessProgram};
 
 #[derive(Debug, Clone)]
 enum Message {
@@ -24,7 +30,7 @@ enum Message {
 #[derive(Default)]
 struct MyProgram;
 
-impl ViewlessProgram for MyProgram {
+impl HeadlessProgram for MyProgram {
     type State = ();
     type Message = Message;
     type Executor = iced_futures::backend::default::Executor;
@@ -62,7 +68,7 @@ The API follows iced's builder pattern with decorator methods:
 
 ```rust
 use iced_futures::{Subscription, Executor};
-use iced_viewless::{application, ViewlessProgram};
+use iced_headless::{application, HeadlessProgram};
 
 // Custom subscription
 application(my_program)
@@ -98,17 +104,19 @@ application(my_program)
 
 Run native tests:
 ```bash
-cargo test -p iced_viewless --features tokio
+cargo test -p iced_headless --features tokio
 ```
 
 Build for WASM:
 ```bash
-cargo build -p iced_viewless --target wasm32-unknown-unknown
+cargo build -p iced_headless --target wasm32-unknown-unknown
 ```
+
+**Note**: WASM tests are present but marked as `#[ignore]` due to browser automation limitations in CI environments. The crate compiles successfully for WASM and the API is WASM-compatible.
 
 ## How It Works
 
-The `iced_viewless` runtime follows iced's architecture:
+The `iced_headless` runtime follows iced's architecture:
 
 1. Creates an `Application` builder wrapping your `ViewlessProgram`
 2. Calls the boot function to get initial state
@@ -121,7 +129,7 @@ The API uses the decorator pattern similar to iced:
 - `subscription()` wraps the program with custom subscription logic
 - `executor()` changes the executor type at compile time
 
-Unlike windowing applications, viewless programs are purely event-driven through subscriptions. When your program returns `Subscription::none()`, the runtime detects no active subscriptions and exits cleanly.
+Unlike windowing applications, headless programs are purely event-driven through subscriptions. When your program returns `Subscription::none()`, the runtime detects no active subscriptions and exits cleanly.
 
 ## License
 
