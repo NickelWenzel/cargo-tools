@@ -1,7 +1,6 @@
 //! HeadlessProgram trait for headless applications.
 
 use cargo_tools_macros::wasm_async_trait;
-use futures::task;
 use iced::Task;
 use iced_futures::{subscription, Executor, MaybeSend, Runtime, Subscription};
 use iced_runtime::Action;
