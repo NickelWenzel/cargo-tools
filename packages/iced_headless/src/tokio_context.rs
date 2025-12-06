@@ -1,11 +1,10 @@
 use std::future::Future;
 
-use iced::Executor;
 use iced_futures::MaybeSend;
 
-pub struct TokioContext;
+pub struct Executor;
 
-impl Executor for TokioContext {
+impl iced_futures::Executor for Executor {
     fn new() -> Result<Self, futures::io::Error>
     where
         Self: Sized,

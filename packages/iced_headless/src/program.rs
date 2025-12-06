@@ -25,7 +25,7 @@ pub trait HeadlessProgram: Sized {
     type Message: Send + std::fmt::Debug + 'static;
 
     /// The executor used to spawn asynchronous tasks.
-    type Executor: Executor;
+    type Executor: Executor + MaybeSend;
 
     /// Updates the program state in response to a message.
     fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message>;

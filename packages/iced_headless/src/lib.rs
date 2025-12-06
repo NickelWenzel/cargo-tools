@@ -83,6 +83,7 @@
 //!     .await?;
 //! ```
 
+pub mod default;
 pub mod error;
 pub mod event_loop;
 pub mod headless;

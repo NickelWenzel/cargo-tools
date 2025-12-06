@@ -48,7 +48,6 @@ where
     /// Runs the [`Application`] with a closure that creates the initial state.
     pub async fn run_with<I>(self, initialize: I) -> Result<()>
     where
-        Self: 'static,
         P: MaybeSend,
         P::State: MaybeSend,
         P::Executor: MaybeSend,
@@ -60,6 +59,9 @@ where
     /// Sets the subscription logic of the [`Application`].
     pub fn subscription<F>(self, f: F) -> Application<WithSubscription<P, F>>
     where
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
         F: Fn(&P::State) -> Subscription<P::Message>,
     {
         Application {
@@ -72,6 +74,9 @@ where
 
     pub fn exit_on<F>(self, f: F) -> Application<WithExitOn<P, F>>
     where
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
         F: Fn(&P::State) -> Subscription<Exit>,
     {
         Application {
@@ -85,7 +90,10 @@ where
     /// Sets the executor of the [`Application`].
     pub fn executor<E>(self) -> Application<WithExecutor<P, E>>
     where
-        E: Executor,
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
+        E: Executor + MaybeSend,
     {
         Application {
             raw: WithExecutor {
@@ -167,7 +175,7 @@ pub struct WithExecutor<P, E> {
 impl<P, E> HeadlessProgram for WithExecutor<P, E>
 where
     P: HeadlessProgram,
-    E: Executor,
+    E: Executor + MaybeSend,
 {
     type State = P::State;
     type Message = P::Message;
@@ -231,7 +239,7 @@ where
     {
         type State = State;
         type Message = Message;
-        type Executor = iced_futures::backend::default::Executor;
+        type Executor = crate::default::Executor;
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.update.update(state, message).into()
