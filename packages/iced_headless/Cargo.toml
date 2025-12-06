@@ -9,7 +9,7 @@ repository = "https://github.com/NickelWenzel/cargo-tools/tree/master/packages/i
 documentation = "https://docs.rs/iced_headless"
 exclude = ["tests/"]
 keywords = ["iced", "headless", "daemon", "runtime", "async"]
-categories = ["asynchronous", "gui"]
+categories = ["asynchronous"]
 
 [dependencies]
 cargo_tools_macros = { workspace = true }
@@ -21,6 +21,7 @@ iced_runtime = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+log = { workspace = true }
 
 tokio = { workspace = true, optional = true, features = [
     "sync",
@@ -29,7 +30,8 @@ tokio = { workspace = true, optional = true, features = [
 ] }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3"
+wasm-bindgen-test = { workspace = true }
+console_log = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 iced_headless = { workspace = true, features = ["tokio"] }
