@@ -1,6 +1,7 @@
 //! HeadlessProgram trait for headless applications.
 
 use cargo_tools_macros::wasm_async_trait;
+use futures::task;
 use iced::Task;
 use iced_futures::{subscription, Executor, MaybeSend, Runtime, Subscription};
 use iced_runtime::Action;
@@ -49,18 +50,17 @@ pub trait HeadlessProgram: Sized {
     /// instead.
     ///
     /// [`run_with`]: Self::run_with
-    async fn run(self) -> Result<()>
+    fn run(self) -> Result<()>
     where
         Self: 'static,
         Self::State: MaybeSend + Default,
         Self::Executor: MaybeSend,
     {
         self.run_with(|| (Self::State::default(), Task::none()))
-            .await
     }
 
     /// Runs the [`HeadlessProgram`] with the given [`Settings`] and a closure that creates the initial state.
-    async fn run_with<I>(self, initialize: I) -> Result<()>
+    fn run_with<I>(self, initialize: I) -> Result<()>
     where
         Self: 'static,
         Self::State: MaybeSend,
@@ -69,11 +69,7 @@ pub trait HeadlessProgram: Sized {
     {
         let (to_event_loop_tx, event_loop) = EventLoop::new();
 
-        let mut runtime: Runtime<
-            <Self as HeadlessProgram>::Executor,
-            futures::channel::mpsc::UnboundedSender<Action<<Self as HeadlessProgram>::Message>>,
-            Action<<Self as HeadlessProgram>::Message>,
-        > = {
+        let mut runtime = {
             let executor = Self::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
             Runtime::new(executor, to_event_loop_tx)
@@ -93,23 +89,27 @@ pub trait HeadlessProgram: Sized {
             runtime.enter(|| self.exit_on(&state).map(|_| Action::Exit)),
         ));
 
-        event_loop
-            .run(state, move |state, message| {
-                let task = self.update(state, message);
+        let instance = event_loop.run(state, move |state, message| {
+            let task = self.update(state, message);
 
-                if let Some(stream) = iced_runtime::task::into_stream(task) {
-                    runtime.run(stream);
-                }
+            if let Some(stream) = iced_runtime::task::into_stream(task) {
+                runtime.run(stream);
+            }
 
-                runtime.track(subscription::into_recipes(
-                    runtime.enter(|| self.subscription(state).map(Action::Output)),
-                ));
+            runtime.track(subscription::into_recipes(
+                runtime.enter(|| self.subscription(state).map(Action::Output)),
+            ));
 
-                runtime.track(subscription::into_recipes(
-                    runtime.enter(|| self.exit_on(state).map(|_| Action::Exit)),
-                ));
-            })
-            .await;
+            runtime.track(subscription::into_recipes(
+                runtime.enter(|| self.exit_on(state).map(|_| Action::Exit)),
+            ));
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        futures::executor::block_on(instance);
+
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(instance);
 
         Ok(())
     }

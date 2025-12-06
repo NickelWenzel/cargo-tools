@@ -36,24 +36,24 @@ where
     /// instead.
     ///
     /// [`run_with`]: Self::run_with
-    pub async fn run(self) -> Result<()>
+    pub fn run(self) -> Result<()>
     where
         P: MaybeSend,
         P::State: Default + MaybeSend,
         P::Executor: MaybeSend,
     {
-        self.raw.run().await
+        self.raw.run()
     }
 
     /// Runs the [`Application`] with a closure that creates the initial state.
-    pub async fn run_with<I>(self, initialize: I) -> Result<()>
+    pub fn run_with<I>(self, initialize: I) -> Result<()>
     where
         P: MaybeSend,
         P::State: MaybeSend,
         P::Executor: MaybeSend,
         I: FnOnce() -> (P::State, Task<P::Message>) + MaybeSend + 'static,
     {
-        self.raw.run_with(initialize).await
+        self.raw.run_with(initialize)
     }
 
     /// Sets the subscription logic of the [`Application`].

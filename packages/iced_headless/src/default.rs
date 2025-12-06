@@ -5,10 +5,10 @@
 //!   - `iced_futures::backend::default::Executor` otherwise`
 #[cfg(not(target_arch = "wasm32"))]
 mod platform {
-    #[cfg(feature = "tokio")]
-    pub use crate::tokio_context::*;
+    // #[cfg(feature = "tokio")]
+    // pub use crate::tokio_context::*;
 
-    #[cfg(not(feature = "tokio"))]
+    // #[cfg(not(feature = "tokio"))]
     pub use iced_futures::backend::default::*;
 }
 
