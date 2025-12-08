@@ -5,16 +5,26 @@
 //!   - `iced_futures::backend::default::Executor` otherwise`
 #[cfg(not(target_arch = "wasm32"))]
 mod platform {
-    // #[cfg(feature = "tokio")]
-    // pub use crate::tokio_context::*;
+    pub(crate) use futures::executor::block_on;
 
-    // #[cfg(not(feature = "tokio"))]
-    pub use iced_futures::backend::default::*;
+    pub mod async_context {
+        // Avoid enetering tokio runtime twice in async contexts
+        #[cfg(feature = "tokio")]
+        pub use crate::tokio_context::*;
+
+        #[cfg(not(feature = "tokio"))]
+        pub use iced_futures::backend::default::*;
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
 mod platform {
-    pub use iced_futures::backend::default::*;
+    pub(crate) use wasm_bindgen_futures::spawn_local as block_on;
+
+    pub mod async_context {
+        pub use iced_futures::backend::default::*;
+    }
 }
 
-pub use platform::*;
+pub use iced_futures::backend::default::*;
+pub(crate) use platform::*;

@@ -1,6 +1,7 @@
 use iced::{stream, Subscription, Task};
-use iced_headless::{application, event_loop::Exit};
+use iced_headless::{application, event_loop::Exit, headless::async_application};
 use log::info;
+use tracing_test::traced_test;
 use wasm_bindgen_test::*;
 
 use futures::SinkExt;
@@ -28,7 +29,7 @@ impl SimpleProgram {
     fn update(&mut self, _: Message) -> Task<Message> {
         info!("In update");
         self.already_updated = true;
-        Task::done(Message)
+        Task::none()
     }
 
     fn exit(&self) -> Subscription<Exit> {
@@ -48,14 +49,26 @@ impl SimpleProgram {
 }
 
 #[wasm_bindgen_test(unsupported = test)]
-fn wasm_simple_completes() {
-    #[cfg(target_arch = "wasm32")]
-    console_log::init_with_level(log::Level::Debug).unwrap();
-
+#[traced_test]
+fn sync_app_completes() {
     info!("InTest");
-    application(SimpleProgram::update)
+    let result = application(SimpleProgram::update)
+        .exit_on(SimpleProgram::exit)
+        .run_with(SimpleProgram::new);
+
+    assert!(result.is_ok());
+    info!("EndTest");
+}
+
+#[wasm_bindgen_test(unsupported = tokio::test)]
+#[traced_test]
+async fn async_app_completes() {
+    info!("InTest");
+    let result = async_application(SimpleProgram::update)
         .exit_on(SimpleProgram::exit)
         .run_with(SimpleProgram::new)
-        .unwrap();
+        .await;
+
+    assert!(result.is_ok());
     info!("EndTest");
 }

@@ -1,6 +1,6 @@
 //! Builder API for creating and running headless applications.
 
-use crate::Result;
+use crate::{default, Result};
 use crate::{event_loop::Exit, program::HeadlessProgram};
 use iced::{application::Update, Task};
 use iced_futures::{Executor, MaybeSend, Subscription};
@@ -42,7 +42,8 @@ where
         P::State: Default + MaybeSend,
         P::Executor: MaybeSend,
     {
-        self.raw.run()
+        default::block_on(self.raw.run()?);
+        Ok(())
     }
 
     /// Runs the [`Application`] with a closure that creates the initial state.
@@ -53,7 +54,8 @@ where
         P::Executor: MaybeSend,
         I: FnOnce() -> (P::State, Task<P::Message>) + MaybeSend + 'static,
     {
-        self.raw.run_with(initialize)
+        default::block_on(self.raw.run_with(initialize)?);
+        Ok(())
     }
 
     /// Sets the subscription logic of the [`Application`].
@@ -101,6 +103,90 @@ where
                 _executor: std::marker::PhantomData,
             },
         }
+    }
+}
+
+/// A builder for headless async applications which are run within an async context implementing iced's Program trait.
+///
+/// This provides a fluent API similar to `iced::Application` but for headless execution.
+/// Follows iced's decorator pattern with `raw` field storing the program implementation.
+///
+/// # Examples
+/// ```ignore
+/// use iced_headless::application;
+/// use iced_core::Program;
+///
+/// let app = application(my_program)
+///     .subscription(|state| my_subscription(state))
+///     .executor::<MyExecutor>();
+///
+/// app.run(|| MyState::default()).await?;
+/// ```
+pub struct AsyncApplication<P>(Application<P>);
+
+impl<P: HeadlessProgram> AsyncApplication<P>
+where
+    Self: 'static,
+{
+    /// Runs the [`AsyncApplication`].
+    ///
+    /// The state of the [`AsyncApplication`] must implement [`Default`].
+    /// If your state does not implement [`Default`], use [`run_with`]
+    /// instead.
+    ///
+    /// [`run_with`]: Self::run_with
+    pub async fn run(self) -> Result<()>
+    where
+        P: MaybeSend,
+        P::State: Default + MaybeSend,
+        P::Executor: MaybeSend,
+    {
+        self.0.raw.run()?.await;
+        Ok(())
+    }
+
+    /// Runs the [`AsyncApplication`] with a closure that creates the initial state.
+    pub async fn run_with<I>(self, initialize: I) -> Result<()>
+    where
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
+        I: FnOnce() -> (P::State, Task<P::Message>) + MaybeSend + 'static,
+    {
+        self.0.raw.run_with(initialize)?.await;
+        Ok(())
+    }
+
+    /// Sets the subscription logic of the [`AsyncApplication`].
+    pub fn subscription<F>(self, f: F) -> AsyncApplication<WithSubscription<P, F>>
+    where
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
+        F: Fn(&P::State) -> Subscription<P::Message>,
+    {
+        AsyncApplication(self.0.subscription(f))
+    }
+
+    pub fn exit_on<F>(self, f: F) -> AsyncApplication<WithExitOn<P, F>>
+    where
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
+        F: Fn(&P::State) -> Subscription<Exit>,
+    {
+        AsyncApplication(self.0.exit_on(f))
+    }
+
+    /// Sets the executor of the [`AsyncApplication`].
+    pub fn executor<E>(self) -> AsyncApplication<WithExecutor<P, E>>
+    where
+        P: MaybeSend,
+        P::State: MaybeSend,
+        P::Executor: MaybeSend,
+        E: Executor + MaybeSend,
+    {
+        AsyncApplication(self.0.executor())
     }
 }
 
@@ -214,8 +300,7 @@ where
 /// }
 ///
 /// application(MyProgram::default())
-///     .run(|| ())
-///     .await?;
+///     .run(|| ())?;
 /// ```
 pub fn application<State, Message>(
     update: impl Update<State, Message>,
@@ -239,7 +324,7 @@ where
     {
         type State = State;
         type Message = Message;
-        type Executor = crate::default::Executor;
+        type Executor = default::Executor;
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.update.update(state, message).into()
@@ -253,4 +338,37 @@ where
             _message: PhantomData,
         },
     }
+}
+
+/// Creates a new headless async application.
+///
+/// This is the primary entry point for creating headless applications,
+/// matching iced's `application()` function pattern.
+///
+/// # Arguments
+/// * `program` - A type implementing `HeadlessProgram`
+///
+/// # Examples
+/// ```ignore
+/// use iced_headless::{application, HeadlessProgram};
+///
+/// #[derive(Default)]
+/// struct MyProgram;
+///
+/// impl HeadlessProgram for MyProgram {
+///     // ... implementation ...
+/// }
+///
+/// async_application(MyProgram::default())
+///     .run(|| ())
+///     .await?;
+/// ```
+pub fn async_application<State, Message>(
+    update: impl Update<State, Message> + 'static + MaybeSend,
+) -> AsyncApplication<impl HeadlessProgram<State = State, Message = Message>>
+where
+    State: 'static + MaybeSend,
+    Message: Send + std::fmt::Debug + 'static,
+{
+    AsyncApplication(application(update)).executor::<default::async_context::Executor>()
 }

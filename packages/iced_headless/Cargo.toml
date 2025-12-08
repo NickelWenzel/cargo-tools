@@ -15,12 +15,10 @@ categories = ["asynchronous"]
 cargo_tools_macros = { workspace = true }
 
 iced = { workspace = true }
-iced_core = { workspace = true }
 iced_futures = { workspace = true }
 iced_runtime = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
-async-trait = { workspace = true }
 log = { workspace = true }
 
 tokio = { workspace = true, optional = true, features = [
@@ -35,6 +33,8 @@ wasm-bindgen-futures = { workspace = true }
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 console_log = { workspace = true }
+tracing = { workspace = true }
+tracing-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 iced_headless = { workspace = true, features = ["tokio"] }

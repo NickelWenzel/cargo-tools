@@ -1,6 +1,7 @@
 //! HeadlessProgram trait for headless applications.
 
-use cargo_tools_macros::wasm_async_trait;
+use std::future::Future;
+
 use iced::Task;
 use iced_futures::{subscription, Executor, MaybeSend, Runtime, Subscription};
 use iced_runtime::Action;
@@ -16,13 +17,12 @@ use crate::{
 /// similar to iced's `Program` trait but without rendering, themes, or windows.
 ///
 /// State is managed externally by the runtime, matching iced 0.13.1's approach.
-#[wasm_async_trait]
 pub trait HeadlessProgram: Sized {
     /// The state maintained by the program.
     type State;
 
     /// The type of messages handled by the program.
-    type Message: Send + std::fmt::Debug + 'static;
+    type Message: MaybeSend + std::fmt::Debug + 'static;
 
     /// The executor used to spawn asynchronous tasks.
     type Executor: Executor + MaybeSend;
@@ -49,7 +49,7 @@ pub trait HeadlessProgram: Sized {
     /// instead.
     ///
     /// [`run_with`]: Self::run_with
-    fn run(self) -> Result<()>
+    fn run(self) -> Result<impl Future<Output = ()>>
     where
         Self: 'static,
         Self::State: MaybeSend + Default,
@@ -59,7 +59,7 @@ pub trait HeadlessProgram: Sized {
     }
 
     /// Runs the [`HeadlessProgram`] with the given [`Settings`] and a closure that creates the initial state.
-    fn run_with<I>(self, initialize: I) -> Result<()>
+    fn run_with<I>(self, initialize: I) -> Result<impl Future<Output = ()>>
     where
         Self: 'static,
         Self::State: MaybeSend,
@@ -88,7 +88,7 @@ pub trait HeadlessProgram: Sized {
             runtime.enter(|| self.exit_on(&state).map(|_| Action::Exit)),
         ));
 
-        let instance = event_loop.run(state, move |state, message| {
+        Ok(event_loop.run(state, move |state, message| {
             let task = self.update(state, message);
 
             if let Some(stream) = iced_runtime::task::into_stream(task) {
@@ -102,14 +102,6 @@ pub trait HeadlessProgram: Sized {
             runtime.track(subscription::into_recipes(
                 runtime.enter(|| self.exit_on(state).map(|_| Action::Exit)),
             ));
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        futures::executor::block_on(instance);
-
-        #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(instance);
-
-        Ok(())
+        }))
     }
 }

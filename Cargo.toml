@@ -39,6 +39,8 @@ iced = { version = "0.13.1", default-features = false }
 iced_core = { version = "0.13.1", default-features = false }
 iced_futures = { version = "0.13.1" }
 iced_runtime = { version = "0.13.1" }
-tokio = { version = "1.0", features = ["rt", "time", "macros"] }
+tokio = { version = "1.0", features = ["rt-multi-thread", "time", "macros"] }
 tokio-stream = "0.1.17"
 log = "0.4.29"
+tracing = "0.1.43"
+tracing-test = "0.2.5"

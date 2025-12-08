@@ -13,6 +13,6 @@ impl iced_futures::Executor for Executor {
     }
 
     fn spawn(&self, future: impl Future<Output = ()> + MaybeSend + 'static) {
-        tokio::spawn(future);
+        tokio::task::spawn(future);
     }
 }
