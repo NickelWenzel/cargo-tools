@@ -2,7 +2,7 @@
 
 use crate::{default, Result};
 use crate::{event_loop::Exit, program::HeadlessProgram};
-use iced::{application::Update, Task};
+use iced::{application::UpdateFn, Task};
 use iced_futures::{Executor, MaybeSend, Subscription};
 
 /// A builder for headless applications implementing iced's Program trait.
@@ -303,7 +303,7 @@ where
 ///     .run(|| ())?;
 /// ```
 pub fn application<State, Message>(
-    update: impl Update<State, Message>,
+    update: impl UpdateFn<State, Message>,
 ) -> Application<impl HeadlessProgram<State = State, Message = Message>>
 where
     State: 'static,
@@ -320,14 +320,14 @@ where
     impl<State, Message, Update> HeadlessProgram for Instance<State, Message, Update>
     where
         Message: Send + std::fmt::Debug + 'static,
-        Update: self::Update<State, Message>,
+        Update: self::UpdateFn<State, Message>,
     {
         type State = State;
         type Message = Message;
         type Executor = default::Executor;
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
-            self.update.update(state, message).into()
+            self.update.update(state, message)
         }
     }
 
@@ -364,7 +364,7 @@ where
 ///     .await?;
 /// ```
 pub fn async_application<State, Message>(
-    update: impl Update<State, Message> + 'static + MaybeSend,
+    update: impl UpdateFn<State, Message> + 'static + MaybeSend,
 ) -> AsyncApplication<impl HeadlessProgram<State = State, Message = Message>>
 where
     State: 'static + MaybeSend,

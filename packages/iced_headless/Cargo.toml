@@ -12,8 +12,6 @@ keywords = ["iced", "headless", "daemon", "runtime", "async"]
 categories = ["asynchronous"]
 
 [dependencies]
-cargo_tools_macros = { workspace = true }
-
 iced = { workspace = true }
 iced_futures = { workspace = true }
 iced_runtime = { workspace = true }
@@ -42,8 +40,7 @@ tokio = { workspace = true, features = ["rt", "macros", "time"] }
 tokio-stream = { workspace = true }
 
 [features]
-default = []
-tokio = ["dep:tokio", "iced_futures/tokio"]
-async-std = ["iced_futures/async-std"]
-smol = ["iced_futures/smol"]
-thread-pool = ["iced_futures/thread-pool"]
+default = ["thread-pool"]
+tokio = ["dep:tokio", "iced/tokio"]
+smol = ["iced/smol"]
+thread-pool = ["iced/thread-pool"]

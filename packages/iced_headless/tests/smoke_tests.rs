@@ -4,7 +4,7 @@ use log::info;
 use tracing_test::traced_test;
 use wasm_bindgen_test::*;
 
-use futures::SinkExt;
+use futures::{channel::mpsc::Sender, SinkExt};
 
 #[derive(Debug, Clone)]
 struct Message;
@@ -37,7 +37,7 @@ impl SimpleProgram {
         if self.already_updated {
             info!("In exit: send exit signal");
             Subscription::run(|| {
-                stream::channel(1, |mut tx| async move {
+                stream::channel(1, |mut tx: Sender<Exit>| async move {
                     let _ = tx.send(Exit).await;
                 })
             })
