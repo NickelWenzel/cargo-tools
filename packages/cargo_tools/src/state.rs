@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
-use cargo_tools_macros::wasm_async_trait;
 use serde::{Deserialize, Serialize};
+use wasm_async_trait::wasm_async_trait;
 
 use crate::{configuration_handler::ConfigurationManager, runtime::Runtime};
 

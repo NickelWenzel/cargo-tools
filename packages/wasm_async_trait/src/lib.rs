@@ -15,7 +15,7 @@ use syn::{parse_macro_input, Item};
 /// # Examples
 ///
 /// ```rust,ignore
-/// use cargo_tools_macros::wasm_async_trait;
+/// use wasm_async_trait::wasm_async_trait;
 ///
 /// #[wasm_async_trait]
 /// pub trait MyTrait {

@@ -11,7 +11,7 @@ use cargo_tools::{
     runtime::Runtime,
     state::{State, StateUpdate},
 };
-use cargo_tools_macros::wasm_async_trait;
+use wasm_async_trait::wasm_async_trait;
 
 /// Test runtime implementation for integration testing.
 ///

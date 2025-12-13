@@ -1,7 +1,13 @@
 [package]
-name = "cargo_tools_macros"
+name = "wasm_async_trait"
 version = "0.1.0"
 edition = "2021"
+authors = ["Nicolas Wenzel"]
+description = "Automatically applies the correct async_trait variant for WASM and native targets"
+license = "MIT"
+repository = "https://github.com/NickelWenzel/cargo-tools"
+keywords = ["wasm", "async", "trait", "macro", "async-trait"]
+categories = ["wasm", "asynchronous", "development-tools"]
 
 [lib]
 proc-macro = true

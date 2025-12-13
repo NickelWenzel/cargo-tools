@@ -446,7 +446,6 @@ dependencies = [
  "async-broadcast",
  "async-trait",
  "cargo_metadata",
- "cargo_tools_macros",
  "cmd_lib",
  "futures",
  "serde",
@@ -455,19 +454,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-test",
-]
-
-[[package]]
-name = "cargo_tools_macros"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "iced_headless",
- "quote",
- "syn",
- "tokio",
- "trybuild",
- "wasm-bindgen-test",
+ "wasm_async_trait",
 ]
 
 [[package]]
@@ -477,13 +464,13 @@ dependencies = [
  "async-trait",
  "cargo_metadata",
  "cargo_tools",
- "cargo_tools_macros",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
  "thiserror 2.0.17",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm_async_trait",
 ]
 
 [[package]]
@@ -2917,6 +2904,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "wasm_async_trait"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "iced_headless",
+ "quote",
+ "syn",
+ "tokio",
+ "trybuild",
+ "wasm-bindgen-test",
 ]
 
 [[package]]

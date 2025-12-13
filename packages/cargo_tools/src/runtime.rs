@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use async_broadcast::Receiver;
-use cargo_tools_macros::wasm_async_trait;
+use wasm_async_trait::wasm_async_trait;
 
 use crate::{
     cargo_tools::{Settings, SettingsUpdate},

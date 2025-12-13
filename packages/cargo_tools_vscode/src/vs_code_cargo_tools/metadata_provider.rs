@@ -1,6 +1,6 @@
 use cargo_metadata::{Metadata, MetadataCommand};
-use cargo_tools_macros::wasm_async_trait;
 use thiserror::Error;
+use wasm_async_trait::wasm_async_trait;
 
 use crate::vs_code_api::{execute_async, JsValueExt};
 

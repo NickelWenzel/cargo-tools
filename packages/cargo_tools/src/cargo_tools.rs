@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use cargo_metadata::Metadata;
-use cargo_tools_macros::wasm_async_trait;
+use wasm_async_trait::wasm_async_trait;
 
 use crate::{
     application::{spawn_application, ApplicationHandles},

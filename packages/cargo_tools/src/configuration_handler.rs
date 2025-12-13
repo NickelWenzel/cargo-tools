@@ -1,4 +1,4 @@
-use cargo_tools_macros::wasm_async_trait;
+use wasm_async_trait::wasm_async_trait;
 
 use crate::runtime::Runtime;
 

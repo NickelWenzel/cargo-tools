@@ -6,7 +6,7 @@ publish = false
 version = "0.0.0"
 
 [dependencies]
-cargo_tools_macros = { workspace = true }
+wasm_async_trait = { workspace = true }
 
 async-broadcast = { workspace = true }
 futures = { workspace = true }
