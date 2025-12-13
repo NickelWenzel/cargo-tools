@@ -12,4 +12,9 @@ quote = { workspace = true }
 async-trait = { workspace = true }
 
 [dev-dependencies]
-trybuild = "1.0"
+trybuild = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+iced_headless = { workspace = true, features = ["tokio"] }
+tokio = { workspace = true, features = ["rt", "macros"] }

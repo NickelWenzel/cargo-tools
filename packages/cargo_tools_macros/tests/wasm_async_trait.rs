@@ -1,4 +1,5 @@
 use cargo_tools_macros::wasm_async_trait;
+use wasm_bindgen_test::wasm_bindgen_test;
 
 #[wasm_async_trait]
 trait TestTrait {
@@ -14,10 +15,9 @@ impl TestTrait for TestImpl {
     }
 }
 
-#[test]
-fn test_trait_compiles() {
-    // This test verifies that the macro generates valid code
-    // The actual async_trait expansion is tested by the async-trait crate
+#[wasm_bindgen_test(unsupported = tokio::test)]
+async fn test_trait() {
+    assert!(TestImpl.test_method().await == Ok("test".to_string()));
 }
 
 // Test that it works with generic parameters
@@ -38,9 +38,9 @@ where
     }
 }
 
-#[test]
-fn test_generic_trait_compiles() {
-    // This test verifies that the macro works with generic parameters
+#[wasm_bindgen_test(unsupported = tokio::test)]
+async fn test_generic_trait() {
+    assert!(GenericImpl.generic_method(1).await == Ok(1));
 }
 
 // Test with associated types
@@ -64,9 +64,9 @@ impl AssociatedTypeTrait for AssociatedTypeImpl {
     }
 }
 
-#[test]
-fn test_associated_type_trait_compiles() {
-    // This test verifies that the macro works with associated types
+#[wasm_bindgen_test(unsupported = tokio::test)]
+async fn test_associated_type_trait() {
+    assert!(AssociatedTypeImpl.process().await == Ok("processed".to_string()));
 }
 
 // Test with multiple methods
@@ -94,9 +94,11 @@ impl MultiMethodTrait for MultiMethodImpl {
     }
 }
 
-#[test]
-fn test_multi_method_trait_compiles() {
-    // This test verifies that the macro works with multiple methods
+#[wasm_bindgen_test(unsupported = tokio::test)]
+async fn test_multi_method_trait() {
+    assert!(MultiMethodImpl.method_one().await == Ok(42));
+    assert!(MultiMethodImpl.method_two(42).await == Ok("Value: 42".to_string()));
+    assert!(MultiMethodImpl.sync_method() == 100);
 }
 
 // Test with where clauses
@@ -120,7 +122,7 @@ where
     }
 }
 
-#[test]
-fn test_where_clause_trait_compiles() {
-    // This test verifies that the macro works with where clauses
+#[wasm_bindgen_test(unsupported = tokio::test)]
+async fn test_where_clause_trait() {
+    assert!(WhereClauseImpl.process(10).await == Ok(10));
 }

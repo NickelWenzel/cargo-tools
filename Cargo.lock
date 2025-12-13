@@ -462,9 +462,12 @@ name = "cargo_tools_macros"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "iced_headless",
  "quote",
  "syn",
+ "tokio",
  "trybuild",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
