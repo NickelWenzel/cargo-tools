@@ -1,10 +1,4 @@
-use std::sync::{Arc, RwLock};
-
 use serde::{Deserialize, Serialize};
-use wasm_async_trait::wasm_async_trait;
-
-use crate::{configuration_handler::ConfigurationManager, runtime::Runtime};
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SelectedPackage(String);
 
@@ -94,21 +88,5 @@ pub struct State {
 }
 
 pub enum StateHandlerMessage {
-    RootDir(String),
     State(StateUpdate),
-}
-
-pub struct StateHandler;
-
-#[wasm_async_trait]
-impl ConfigurationManager for StateHandler {
-    type Configuration = Arc<RwLock<State>>;
-    type ConfigurationUpdate = StateUpdate;
-
-    async fn update_root_dir<RuntimeT: Runtime>(root_dir: String) -> Self::Configuration {
-        Arc::new(RwLock::new(RuntimeT::update_state_context(root_dir).await))
-    }
-    async fn apply_update<RuntimeT: Runtime>(update: StateUpdate) -> Self::Configuration {
-        Arc::new(RwLock::new(RuntimeT::update_state(update).await))
-    }
 }

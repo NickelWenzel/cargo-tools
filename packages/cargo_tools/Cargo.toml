@@ -6,6 +6,7 @@ publish = false
 version = "0.0.0"
 
 [dependencies]
+iced_headless = { workspace = true }
 wasm_async_trait = { workspace = true }
 
 async-broadcast = { workspace = true }

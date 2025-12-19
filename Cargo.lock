@@ -448,6 +448,7 @@ dependencies = [
  "cargo_metadata",
  "cmd_lib",
  "futures",
+ "iced_headless",
  "serde",
  "thiserror 2.0.17",
  "tokio",

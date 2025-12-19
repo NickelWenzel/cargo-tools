@@ -1,12 +1,15 @@
 use std::future::Future;
 
-use async_broadcast::Receiver;
+use futures::channel::mpsc::Receiver;
 use wasm_async_trait::wasm_async_trait;
 
-use crate::{
-    cargo_tools::{Settings, SettingsUpdate},
-    state::{State, StateUpdate},
-};
+use crate::cargo_tools::state::{State, StateUpdate};
+
+#[derive(Debug, Clone)]
+pub struct Settings;
+
+#[derive(Debug, Clone)]
+pub struct SettingsUpdate;
 
 #[wasm_async_trait]
 pub trait Runtime {
@@ -19,7 +22,7 @@ pub trait Runtime {
     async fn exec(command: String) -> Result<String, String>;
     async fn log(msg: String);
 
-    async fn current_dir_notitifier() -> Receiver<String>;
+    fn current_dir_notitifier() -> Receiver<String>;
 
     async fn update_state_context(ctx: String) -> State;
     async fn update_state(update: StateUpdate) -> State;

@@ -95,4 +95,4 @@ pub use error::{Error, Result};
 pub use headless::{application, async_application, Application, WithExecutor, WithSubscription};
 pub use program::HeadlessProgram;
 
-pub use iced::{Subscription, Task};
+pub use iced::{stream, Subscription, Task};
