@@ -1,48 +1,79 @@
-use std::sync::{Arc, RwLock};
+use std::{iter, sync::Arc};
 
 use cargo_metadata::{Metadata, MetadataCommand};
-use futures::{SinkExt, Stream, StreamExt};
-use iced_headless::{stream, Subscription, Task};
+use futures::StreamExt;
+use iced_headless::{Subscription, Task};
 
-use crate::{runtime::Runtime, DEFAULT_BUFFER_SIZE};
+use crate::runtime::Runtime;
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
-    New(Arc<RwLock<Metadata>>),
+    New(Arc<Metadata>),
     NoCargoToml,
     FailedToRetrieve,
 }
 pub enum MetadataHandlerMessage {
+    RootDirChanged(String),
+    ManifestChanged,
     MetadataUpdate(MetadataUpdate),
 }
 
 use MetadataHandlerMessage as Msg;
 
-pub struct MetadataHandler;
+pub struct MetadataHandler {
+    root_manifest: String,
+    member_manifests: Vec<String>,
+}
 
 impl MetadataHandler {
-    pub fn subscription<RuntimeT: Runtime + 'static>(&self) -> Subscription<Msg> {
-        Subscription::run(metadata_update::<RuntimeT>).map(Msg::MetadataUpdate)
+    pub fn update<RuntimeT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
+        match msg {
+            Msg::RootDirChanged(root_dir) => {
+                self.root_manifest = format!("{root_dir}/Cargo.toml");
+                Task::future(update_metadata::<RuntimeT>(self.root_manifest.clone()))
+                    .map(Msg::MetadataUpdate)
+            }
+            Msg::ManifestChanged => {
+                Task::future(update_metadata::<RuntimeT>(self.root_manifest.clone()))
+                    .map(Msg::MetadataUpdate)
+            }
+            Msg::MetadataUpdate(update) => {
+                match update {
+                    MetadataUpdate::New(metadata) => Task::future(async move {
+                        let file_changed = iter::once(metadata.workspace_root.to_string())
+                            .chain(to_manifest_files(&metadata))
+                            .map(RuntimeT::file_changed_notifier);
+                        futures::stream::select_all(file_changed).next().await;
+                    })
+                    .map(|()| Msg::ManifestChanged),
+                    MetadataUpdate::NoCargoToml => {
+                        // Reset
+                        self.member_manifests = Vec::new();
+                        Task::none()
+                    }
+                    // Leave files to watch unchanged
+                    MetadataUpdate::FailedToRetrieve => Task::none(),
+                }
+            }
+        }
+    }
+
+    pub fn subscription<RuntimeT: Runtime>(&self) -> Subscription<Msg> {
+        Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirChanged)
     }
 }
 
-fn metadata_update<RuntimeT: Runtime>() -> impl Stream<Item = MetadataUpdate> {
-    stream::channel(DEFAULT_BUFFER_SIZE, async |mut metadata_update_tx| {
-        let mut manifest_dir_rx = RuntimeT::current_dir_notitifier();
-        while let Some(manifest_dir) = manifest_dir_rx.next().await {
-            let metadata_update = update_metadata::<RuntimeT>(manifest_dir).await;
-            if metadata_update_tx.send(metadata_update).await.is_err() {
-                RuntimeT::log("Failed to notify update metadata update".to_string()).await;
-            }
-        }
-    })
+fn to_manifest_files(metadata: &Metadata) -> impl Iterator<Item = String> + use<'_> {
+    metadata
+        .workspace_packages()
+        .into_iter()
+        .map(|p| p.manifest_path.to_string())
 }
 
-pub async fn update_metadata<RuntimeT: Runtime>(manifest_dir: String) -> MetadataUpdate {
+pub async fn update_metadata<RuntimeT: Runtime>(manifest_file: String) -> MetadataUpdate {
     // Construct cargo metadata command with manifest path
-    let command = format!(
-        "cargo metadata --format-version 1 --manifest-path {manifest_dir}/Cargo.toml --no-deps"
-    );
+    let command =
+        format!("cargo metadata --format-version 1 --manifest-path {manifest_file} --no-deps");
 
     // Execute command via runtime
     match RuntimeT::exec(command).await {
@@ -62,7 +93,7 @@ async fn extract_raw_metadata<RuntimeT: Runtime>(raw_metadata: &str) -> Metadata
 
     // Parse JSON output into Metadata
     match MetadataCommand::parse(metadata) {
-        Ok(metadata) => MetadataUpdate::New(Arc::new(RwLock::new(metadata))),
+        Ok(metadata) => MetadataUpdate::New(Arc::new(metadata)),
         Err(e) => {
             RuntimeT::log(format!("Failed to parse cargo metadata: {e}")).await;
             MetadataUpdate::NoCargoToml

@@ -13,30 +13,36 @@ use crate::{
 };
 
 pub enum CargoToolsMessage {
-    ConfigurationHandler(MetadataHandlerMessage),
+    MetadataHandler(MetadataHandlerMessage),
     MakefileHandler(MakefileHandlerMessage),
 }
 
 use CargoToolsMessage as Msg;
 
 pub struct CargoTools {
-    config_handler: MetadataHandler,
+    metadata_handler: MetadataHandler,
     makefile_handler: MakefileHandler,
 }
 
 impl CargoTools {
-    pub fn update(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<RuntimeT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
-            Msg::ConfigurationHandler(msg) => todo!(),
-            Msg::MakefileHandler(msg) => todo!(),
+            Msg::MetadataHandler(msg) => self
+                .metadata_handler
+                .update::<RuntimeT>(msg)
+                .map(Msg::MetadataHandler),
+            Msg::MakefileHandler(msg) => self
+                .makefile_handler
+                .update::<RuntimeT>(msg)
+                .map(Msg::MakefileHandler),
         }
     }
 
-    pub fn subscription<RuntimeT: Runtime + 'static>(&self) -> Subscription<Msg> {
+    pub fn subscription<RuntimeT: Runtime>(&self) -> Subscription<Msg> {
         let config_sub = self
-            .config_handler
+            .metadata_handler
             .subscription::<RuntimeT>()
-            .map(Msg::ConfigurationHandler);
+            .map(Msg::MetadataHandler);
 
         let makefile_sub = self
             .makefile_handler

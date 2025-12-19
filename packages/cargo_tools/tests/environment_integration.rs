@@ -4,9 +4,9 @@
 //! using the test-rust-project as test data.
 
 mod support;
-
-use cargo_tools::environment::{
-    update_makefile_tasks, update_metadata, MakefileTasksUpdate, MetadataUpdate,
+use cargo_tools::cargo_tools::{
+    makefile_handler::{update_makefile_tasks, MakefileTasksUpdate},
+    metadata_handler::{update_metadata, MetadataUpdate},
 };
 use support::TestRuntime;
 
@@ -17,12 +17,15 @@ async fn test_update_metadata_success() {
     // Use canonicalized absolute path to avoid working directory issues with cmd_lib
     // Note: update_metadata expects manifest directory, not the full Cargo.toml path
     let base_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let manifest_dir = base_path
-        .join("../../test-rust-project")
+    let manifest = base_path
+        .join("../../test-rust-project/Cargo.toml")
         .canonicalize()
-        .expect("Failed to canonicalize test project path");
+        .expect("Failed to canonicalize test project path")
+        .to_str()
+        .unwrap()
+        .to_string();
 
-    let result = update_metadata::<TestRuntime>(manifest_dir.to_str().unwrap()).await;
+    let result = update_metadata::<TestRuntime>(manifest).await;
 
     // Verify success variant
     assert!(
@@ -33,8 +36,6 @@ async fn test_update_metadata_success() {
 
     // Extract and verify metadata contents
     if let MetadataUpdate::New(metadata) = result {
-        let metadata = metadata.read().expect("Failed to lock metadata");
-
         // Verify workspace members are present
         let workspace_members: Vec<&str> = metadata
             .workspace_packages()
@@ -56,7 +57,9 @@ async fn test_update_metadata_success() {
 
         for expected in &expected_members {
             assert!(
-                workspace_members.iter().any(|m| m.contains(expected)),
+                workspace_members
+                    .iter()
+                    .any(|m: &&str| m.contains(expected)),
                 "Expected workspace member '{}' not found in: {:?}",
                 expected,
                 workspace_members
@@ -74,16 +77,17 @@ async fn test_update_metadata_success() {
 #[tracing_test::traced_test]
 async fn test_update_makefile_tasks_success() {
     // Use compile-time relative path to test data (workspace root)
-    let test_project_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project");
+    let test_project_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../test-rust-project/Makefile.toml"
+    )
+    .to_string();
 
     let result = update_makefile_tasks::<TestRuntime>(test_project_path).await;
 
     // The result depends on whether cargo-make is installed
     match result {
         MakefileTasksUpdate::New(tasks) => {
-            // cargo-make is available, verify tasks
-            let tasks = tasks.read().expect("Failed to lock tasks");
-
             // Expected tasks from test-rust-project/Makefile.toml
             let expected_tasks = vec![
                 "check-workspace",
@@ -138,7 +142,7 @@ async fn test_update_makefile_tasks_success() {
 #[tokio::test]
 #[tracing_test::traced_test]
 async fn test_update_metadata_no_cargo_toml() {
-    let nonexistent_path = "/nonexistent/path/that/does/not/exist";
+    let nonexistent_path = "/nonexistent/path/that/does/not/exist".to_string();
 
     let result = update_metadata::<TestRuntime>(nonexistent_path).await;
 
@@ -159,7 +163,8 @@ async fn test_update_metadata_no_cargo_toml() {
 async fn test_update_makefile_tasks_no_cargo_make() {
     // This test relies on cargo-make potentially being unavailable or
     // the version check failing naturally in the test environment
-    let test_project_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project");
+    let test_project_path =
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project").to_string();
 
     let result = update_makefile_tasks::<TestRuntime>(test_project_path).await;
 
@@ -187,7 +192,7 @@ async fn test_update_makefile_tasks_no_cargo_make() {
 async fn test_update_makefile_tasks_no_makefile() {
     // Use a subdirectory that doesn't have a Makefile.toml
     let path_without_makefile =
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project/core");
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project/core").to_string();
 
     let result = update_makefile_tasks::<TestRuntime>(path_without_makefile).await;
 
@@ -195,7 +200,6 @@ async fn test_update_makefile_tasks_no_makefile() {
     // so we expect MakefileTasksUpdate::New with tasks
     match result {
         MakefileTasksUpdate::New(tasks) => {
-            let tasks = tasks.read().unwrap();
             assert!(!tasks.is_empty(), "Expected built-in cargo-make tasks");
         }
         _ => panic!(

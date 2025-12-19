@@ -3,14 +3,11 @@
 //! This module provides a concrete Runtime implementation that bridges to the
 //! tracing logging framework, enabling log verification in tests via tracing-test.
 
-use std::{future::Future, pin::Pin};
-
-use async_broadcast::Receiver;
 use cargo_tools::{
-    cargo_tools::{Settings, SettingsUpdate},
-    runtime::Runtime,
-    state::{State, StateUpdate},
+    cargo_tools::state::{State, StateUpdate},
+    runtime::{Runtime, Settings, SettingsUpdate},
 };
+use futures::channel::mpsc::Receiver;
 use wasm_async_trait::wasm_async_trait;
 
 /// Test runtime implementation for integration testing.
@@ -35,16 +32,6 @@ pub struct TestRuntime;
 
 #[wasm_async_trait]
 impl Runtime for TestRuntime {
-    type ThreadHandle = Pin<Box<dyn Future<Output = ()> + Send>>;
-
-    fn spawn<Result, F>(_f: F) -> Self::ThreadHandle
-    where
-        Self::ThreadHandle: Future<Output = Result>,
-    {
-        // For testing, we don't actually spawn threads
-        Box::pin(async {})
-    }
-
     async fn exec(command: String) -> Result<String, String> {
         // Execute command using sh -c wrapper to allow dynamic command strings
         // This is necessary because cmd_lib's run_fun! macro requires literal syntax
@@ -57,10 +44,14 @@ impl Runtime for TestRuntime {
         tracing::info!("{}", msg);
     }
 
-    async fn current_dir_notitifier() -> Receiver<String> {
+    fn current_dir_notitifier() -> Receiver<String> {
         // Return a mock receiver for testing
-        let (_, rx) = async_broadcast::broadcast(1);
+        let (_, rx) = futures::channel::mpsc::channel(1);
         rx
+    }
+
+    fn file_changed_notifier(_file: String) -> Receiver<()> {
+        todo!()
     }
 
     async fn update_state_context(_ctx: String) -> State {

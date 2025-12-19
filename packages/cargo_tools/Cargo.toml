@@ -9,12 +9,10 @@ version = "0.0.0"
 iced_headless = { workspace = true }
 wasm_async_trait = { workspace = true }
 
-async-broadcast = { workspace = true }
 futures = { workspace = true }
 cargo_metadata = { workspace = true }
 serde = { workspace = true }
 async-trait = { workspace = true }
-thiserror = { workspace = true }
 
 [dev-dependencies]
 cmd_lib = "2.0"
