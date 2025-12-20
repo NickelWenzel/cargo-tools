@@ -12,7 +12,9 @@ wasm_async_trait = { workspace = true }
 futures = { workspace = true }
 cargo_metadata = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 async-trait = { workspace = true }
+once_cell = "1.19"
 
 [dev-dependencies]
 cmd_lib = "2.0"

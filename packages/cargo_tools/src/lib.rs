@@ -2,6 +2,7 @@ pub mod app;
 
 pub mod context;
 pub mod runtime;
+pub mod contributes;
 
 /// Default buffer size for broadcast channels used throughout the crate.
 /// This ensures consistent sizing for state, settings, metadata, and makefile task broadcasts.
