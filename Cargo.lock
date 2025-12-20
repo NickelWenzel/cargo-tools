@@ -453,6 +453,7 @@ dependencies = [
  "async-trait",
  "cargo_metadata",
  "cargo_tools",
+ "futures",
  "once_cell",
  "serde",
  "serde-wasm-bindgen",
