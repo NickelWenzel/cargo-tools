@@ -12,20 +12,20 @@ pub enum MetadataUpdate {
     NoCargoToml,
     FailedToRetrieve,
 }
-pub enum MetadataHandlerMessage {
+pub enum CargoSettingsMessage {
     RootDirChanged(String),
     ManifestChanged,
     MetadataUpdate(MetadataUpdate),
 }
 
-use MetadataHandlerMessage as Msg;
+use CargoSettingsMessage as Msg;
 
-pub struct MetadataHandler {
+pub struct CargoSettings {
     root_manifest: String,
     member_manifests: Vec<String>,
 }
 
-impl MetadataHandler {
+impl CargoSettings {
     pub fn update<RuntimeT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
             Msg::RootDirChanged(root_dir) => {

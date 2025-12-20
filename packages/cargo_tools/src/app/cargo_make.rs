@@ -1,9 +1,15 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
+use wasm_async_trait::wasm_async_trait;
 
-use crate::runtime::Runtime;
+use crate::{app::state::State, context::Context, runtime::Runtime};
+
+#[wasm_async_trait]
+pub trait CargoMakeUi {
+    async fn update(tasks: Arc<Mutex<MakefileTasks>>, state: Arc<Mutex<State>>);
+}
 
 #[derive(Debug, Clone)]
 pub struct MakefileTask {
@@ -16,46 +22,69 @@ pub type MakefileTasks = Vec<MakefileTask>;
 
 #[derive(Debug, Clone)]
 pub enum MakefileTasksUpdate {
-    New(Arc<MakefileTasks>),
+    New(MakefileTasks),
     NoMakefile,
     FailedToRetrieve,
 }
 
-pub enum MakefileHandlerMessage {
-    RootDirChanged(String),
-    MakefileChanged,
+pub enum CargoMakeMessage {
+    RootDirUpdate(String),
+    StateUpdate(State),
+    MakefileUpdate,
     MakefileTasksUpdate(MakefileTasksUpdate),
 }
-use MakefileHandlerMessage as Msg;
 
-pub struct MakefileHandler {
+use CargoMakeMessage as Msg;
+
+pub struct CargoMake {
     makefile: String,
+    tasks: Arc<Mutex<MakefileTasks>>,
+    state: Arc<Mutex<State>>,
 }
 
-impl MakefileHandler {
-    pub fn update<RuntimeT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
+impl CargoMake {
+    pub fn update<RT: Runtime, UI: CargoMakeUi>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
-            Msg::RootDirChanged(root_dir) => {
+            Msg::RootDirUpdate(root_dir) => {
                 self.makefile = format!("{root_dir}/Makefile.toml");
-                Task::future(update_makefile_tasks::<RuntimeT>(self.makefile.clone()))
+                Task::future(update_makefile_tasks::<RT>(self.makefile.clone()))
                     .map(Msg::MakefileTasksUpdate)
             }
-            Msg::MakefileChanged => {
-                Task::future(update_makefile_tasks::<RuntimeT>(self.makefile.clone()))
-                    .map(Msg::MakefileTasksUpdate)
-            }
-            Msg::MakefileTasksUpdate(_) => {
+            Msg::MakefileUpdate => Task::future(update_makefile_tasks::<RT>(self.makefile.clone()))
+                .map(Msg::MakefileTasksUpdate),
+            Msg::MakefileTasksUpdate(tasks_update) => {
                 let makefile = self.makefile.clone();
-                Task::future(async move {
-                    RuntimeT::file_changed_notifier(makefile).next().await;
+                let makefile = Task::future(async move {
+                    RT::file_changed_notifier(makefile).next().await;
                 })
-                .map(|()| Msg::MakefileChanged)
+                .map(|()| Msg::MakefileUpdate);
+
+                match tasks_update {
+                    MakefileTasksUpdate::New(tasks) => *self.tasks.lock().unwrap() = tasks,
+                    MakefileTasksUpdate::NoMakefile => *self.tasks.lock().unwrap() = Vec::new(),
+                    MakefileTasksUpdate::FailedToRetrieve => {}
+                }
+                let ui = self.update_ui::<UI>();
+
+                Task::batch([makefile, ui])
+            }
+            CargoMakeMessage::StateUpdate(state) => {
+                *self.state.lock().unwrap() = state;
+                self.update_ui::<UI>()
             }
         }
     }
 
-    pub fn subscription<RuntimeT: Runtime>(&self) -> Subscription<Msg> {
-        Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirChanged)
+    fn update_ui<UI: CargoMakeUi>(&self) -> Task<Msg> {
+        let (tasks, state) = (self.tasks.clone(), self.state.clone());
+        Task::future(UI::update(tasks, state)).then(|()| Task::none())
+    }
+
+    pub fn subscription<RuntimeT: Runtime, ContextT: Context>(&self) -> Subscription<Msg> {
+        let root_dir = Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate);
+        let state = Subscription::run(ContextT::state_receiver).map(Msg::StateUpdate);
+
+        Subscription::batch([root_dir, state])
     }
 }
 
@@ -117,5 +146,5 @@ async fn parse_makefile_output<RuntimeT: Runtime>(output: &str) -> MakefileTasks
     }
 
     RuntimeT::log(format!("Discovered {} cargo-make tasks", tasks.len())).await;
-    MakefileTasksUpdate::New(Arc::new(tasks))
+    MakefileTasksUpdate::New(tasks)
 }
