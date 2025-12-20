@@ -1,5 +1,6 @@
 pub mod cargo_tools;
 
+pub mod context;
 pub mod runtime;
 
 /// Default buffer size for broadcast channels used throughout the crate.
