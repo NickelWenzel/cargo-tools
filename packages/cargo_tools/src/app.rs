@@ -1,3 +1,4 @@
+pub mod context_handler;
 pub mod makefile_handler;
 pub mod metadata_handler;
 pub mod state;
@@ -5,26 +6,26 @@ pub mod state;
 use iced_headless::{Subscription, Task};
 
 use crate::{
-    cargo_tools::{
+    app::{
         makefile_handler::{MakefileHandler, MakefileHandlerMessage},
         metadata_handler::{MetadataHandler, MetadataHandlerMessage},
     },
     runtime::Runtime,
 };
 
-pub enum CargoToolsMessage {
+pub enum AppMessage {
     MetadataHandler(MetadataHandlerMessage),
     MakefileHandler(MakefileHandlerMessage),
 }
 
-use CargoToolsMessage as Msg;
+use AppMessage as Msg;
 
-pub struct CargoTools {
+pub struct App {
     metadata_handler: MetadataHandler,
     makefile_handler: MakefileHandler,
 }
 
-impl CargoTools {
+impl App {
     pub fn update<RuntimeT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
             Msg::MetadataHandler(msg) => self
