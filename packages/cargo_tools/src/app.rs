@@ -33,28 +33,28 @@ pub struct App {
 }
 
 impl App {
-    pub fn update<AppServicesT: AppServices>(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<Services: AppServices>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
             Msg::MetadataHandler(msg) => self
                 .metadata_handler
-                .update::<AppServicesT::RuntimeT, AppServicesT::CargoSettingsUiT>(msg)
+                .update::<Services::RuntimeT, Services::CargoSettingsUiT, Services::ContextT>(msg)
                 .map(Msg::MetadataHandler),
             Msg::MakefileHandler(msg) => self
                 .makefile_handler
-                .update::<AppServicesT::RuntimeT, AppServicesT::CargoMakeUiT>(msg)
+                .update::<Services::RuntimeT, Services::CargoMakeUiT, Services::ContextT>(msg)
                 .map(Msg::MakefileHandler),
         }
     }
 
-    pub fn subscription<AppServicesT: AppServices>(&self) -> Subscription<Msg> {
+    pub fn subscription<Services: AppServices>(&self) -> Subscription<Msg> {
         let config_sub = self
             .metadata_handler
-            .subscription::<AppServicesT::RuntimeT, AppServicesT::ContextT>()
+            .subscription::<Services::RuntimeT, Services::ContextT>()
             .map(Msg::MetadataHandler);
 
         let makefile_sub = self
             .makefile_handler
-            .subscription::<AppServicesT::RuntimeT, AppServicesT::ContextT>()
+            .subscription::<Services::RuntimeT, Services::ContextT>()
             .map(Msg::MakefileHandler);
 
         Subscription::batch([config_sub, makefile_sub])

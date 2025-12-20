@@ -4,12 +4,8 @@ import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
 import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
-import { CargoTools, StateManager } from './wasm/cargo_tools_vscode';
 
 let extensionManager: CargoExtensionManager | undefined;
-let cargoTools: CargoTools | undefined;
-let stateManager: StateManager | undefined;
-
 /**
  * Global extension context - accessible throughout the extension
  */
@@ -32,9 +28,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 		if (!workspaceFolder) {
 			throw new Error('No workspace folder found');
 		}
-
-		stateManager = new StateManager();
-		cargoTools = await CargoTools.create(workspaceFolder.uri.fsPath, stateManager);
 
 		const folders = vscode.workspace.workspaceFolders;
 

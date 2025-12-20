@@ -32,8 +32,8 @@
 //! They serve as documentation and can be validated through integration tests
 //! or manual testing in the VS Code extension.
 
+use async_broadcast::{broadcast, Receiver, Sender};
 use cargo_tools::runtime::Runtime;
-use futures::channel::mpsc::{self, Receiver, Sender};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -44,9 +44,12 @@ use crate::vs_code_api::{self, JsValueExt};
 
 const CHANNEL_CAPACITY: usize = 100;
 
-type FileWatcherEntry = (u32, Vec<Sender<()>>);
+type FileWatcherEntry = (u32, Sender<()>);
 
-static CURRENT_DIR_SENDERS: Lazy<Mutex<Vec<Sender<String>>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static CURRENT_DIR_TX: Lazy<Mutex<Sender<String>>> = Lazy::new(|| {
+    let (tx, _) = broadcast(CHANNEL_CAPACITY);
+    Mutex::new(tx)
+});
 
 static FILE_WATCHERS: Lazy<Mutex<HashMap<String, FileWatcherEntry>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -69,10 +72,8 @@ impl Runtime for VsCodeRuntime {
     }
 
     fn current_dir_notitifier() -> Receiver<String> {
-        let (sender, receiver) = mpsc::channel(CHANNEL_CAPACITY);
-
-        let mut senders = CURRENT_DIR_SENDERS.lock().unwrap();
-        senders.push(sender);
+        let sender = CURRENT_DIR_TX.lock().unwrap();
+        let receiver = sender.new_receiver();
 
         let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
         if handle.is_none() {
@@ -83,42 +84,35 @@ impl Runtime for VsCodeRuntime {
     }
 
     fn file_changed_notifier(file: String) -> Receiver<()> {
-        let (sender, receiver) = mpsc::channel(CHANNEL_CAPACITY);
-
         let mut watchers = FILE_WATCHERS.lock().unwrap();
         let entry = watchers.entry(file.clone()).or_insert_with(|| {
             let handle = vs_code_api::watch_file(&file);
-            (handle, Vec::new())
+            let (sender, _) = broadcast(CHANNEL_CAPACITY);
+            (handle, sender)
         });
-        entry.1.push(sender);
-
-        receiver
+        entry.1.new_receiver()
     }
 }
 
 /// Called by TypeScript when the current directory changes.
 #[wasm_bindgen]
-pub fn on_current_dir_changed(dir: String) {
-    let mut senders = CURRENT_DIR_SENDERS.lock().unwrap();
-    senders.retain_mut(|sender| sender.try_send(dir.clone()).is_ok());
+pub async fn on_current_dir_changed(dir: String) {
+    let sender = CURRENT_DIR_TX.lock().unwrap().clone();
+    let _ = sender.broadcast(dir).await;
 
     let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
     if let Some(h) = *handle {
         vs_code_api::unwatch_current_dir(h);
         *handle = None;
     }
-
-    senders.clear();
 }
 
 /// Called by TypeScript when a watched file changes.
 #[wasm_bindgen]
 pub fn on_file_changed(path: String) {
     let mut watchers = FILE_WATCHERS.lock().unwrap();
-    if let Some((handle, senders)) = watchers.remove(&path) {
-        for sender in senders.iter() {
-            let _ = sender.clone().try_send(());
-        }
+    if let Some((handle, sender)) = watchers.remove(&path) {
+        let _ = sender.try_broadcast(());
         vs_code_api::unwatch_file(handle);
     }
 }
@@ -133,31 +127,20 @@ mod tests {
 
     #[test]
     fn test_on_current_dir_changed_distributes_to_all_receivers() {
-        CURRENT_DIR_SENDERS.lock().unwrap().clear();
         *CURRENT_DIR_HANDLE.lock().unwrap() = Some(42);
 
-        let (sender1, mut receiver1) = mpsc::channel::<String>(CHANNEL_CAPACITY);
-        let (sender2, mut receiver2) = mpsc::channel::<String>(CHANNEL_CAPACITY);
-
-        {
-            let mut senders = CURRENT_DIR_SENDERS.lock().unwrap();
-            senders.push(sender1);
-            senders.push(sender2);
-        }
+        let (mut receiver1, mut receiver2) = {
+            let sender = CURRENT_DIR_TX.lock().unwrap();
+            (sender.new_receiver(), sender.new_receiver())
+        };
 
         on_current_dir_changed("/test/path".to_string());
 
-        let msg1 = receiver1.try_next().unwrap();
-        let msg2 = receiver2.try_next().unwrap();
+        let msg1 = receiver1.try_recv();
+        let msg2 = receiver2.try_recv();
 
-        assert_eq!(msg1, Some("/test/path".to_string()));
-        assert_eq!(msg2, Some("/test/path".to_string()));
-
-        let senders_count = CURRENT_DIR_SENDERS.lock().unwrap().len();
-        assert_eq!(
-            senders_count, 0,
-            "All senders should be cleared after event"
-        );
+        assert_eq!(msg1, Ok("/test/path".to_string()));
+        assert_eq!(msg2, Ok("/test/path".to_string()));
 
         let handle = *CURRENT_DIR_HANDLE.lock().unwrap();
         assert_eq!(handle, None, "Watcher handle should be cleared after event");
@@ -165,30 +148,19 @@ mod tests {
 
     #[test]
     fn test_on_current_dir_changed_cleans_up_after_event() {
-        CURRENT_DIR_SENDERS.lock().unwrap().clear();
         *CURRENT_DIR_HANDLE.lock().unwrap() = Some(42);
 
-        let (sender1, mut receiver1) = mpsc::channel::<String>(CHANNEL_CAPACITY);
-        let (sender2, receiver2) = mpsc::channel::<String>(CHANNEL_CAPACITY);
-
-        {
-            let mut senders = CURRENT_DIR_SENDERS.lock().unwrap();
-            senders.push(sender1);
-            senders.push(sender2);
-        }
+        let sender = CURRENT_DIR_TX.lock().unwrap();
+        let mut receiver1 = sender.new_receiver();
+        let receiver2 = sender.new_receiver();
+        drop(sender);
 
         drop(receiver2);
 
         on_current_dir_changed("/test/path".to_string());
 
-        let msg = receiver1.try_next().unwrap();
-        assert_eq!(msg, Some("/test/path".to_string()));
-
-        let senders_count = CURRENT_DIR_SENDERS.lock().unwrap().len();
-        assert_eq!(
-            senders_count, 0,
-            "All senders should be cleared after event"
-        );
+        let msg = receiver1.try_recv();
+        assert_eq!(msg, Ok("/test/path".to_string()));
 
         let handle = *CURRENT_DIR_HANDLE.lock().unwrap();
         assert_eq!(handle, None, "Watcher handle should be cleared after event");
@@ -198,19 +170,21 @@ mod tests {
     fn test_on_file_changed_distributes_to_correct_watchers() {
         FILE_WATCHERS.lock().unwrap().clear();
 
-        let (sender1, mut receiver1) = mpsc::channel::<()>(CHANNEL_CAPACITY);
-        let (sender2, mut receiver2) = mpsc::channel::<()>(CHANNEL_CAPACITY);
+        let (sender1, _) = broadcast::<()>(CHANNEL_CAPACITY);
+        let mut receiver1 = sender1.new_receiver();
+        let (sender2, _) = broadcast::<()>(CHANNEL_CAPACITY);
+        let mut receiver2 = sender2.new_receiver();
 
         {
             let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file1.txt".to_string(), (1, vec![sender1]));
-            watchers.insert("/path/file2.txt".to_string(), (2, vec![sender2]));
+            watchers.insert("/path/file1.txt".to_string(), (1, sender1));
+            watchers.insert("/path/file2.txt".to_string(), (2, sender2));
         }
 
         on_file_changed("/path/file1.txt".to_string());
 
-        assert_eq!(receiver1.try_next().unwrap(), Some(()));
-        assert!(receiver2.try_next().is_err(), "Should not receive event");
+        assert_eq!(receiver1.try_recv(), Ok(()));
+        assert!(receiver2.try_recv().is_err(), "Should not receive event");
 
         let watchers_count = FILE_WATCHERS.lock().unwrap().len();
         assert_eq!(
@@ -223,18 +197,19 @@ mod tests {
     fn test_on_file_changed_handles_multiple_watchers_same_file() {
         FILE_WATCHERS.lock().unwrap().clear();
 
-        let (sender1, mut receiver1) = mpsc::channel::<()>(CHANNEL_CAPACITY);
-        let (sender2, mut receiver2) = mpsc::channel::<()>(CHANNEL_CAPACITY);
+        let (sender, _) = broadcast::<()>(CHANNEL_CAPACITY);
+        let mut receiver1 = sender.new_receiver();
+        let mut receiver2 = sender.new_receiver();
 
         {
             let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file.txt".to_string(), (1, vec![sender1, sender2]));
+            watchers.insert("/path/file.txt".to_string(), (1, sender));
         }
 
         on_file_changed("/path/file.txt".to_string());
 
-        assert_eq!(receiver1.try_next().unwrap(), Some(()));
-        assert_eq!(receiver2.try_next().unwrap(), Some(()));
+        assert_eq!(receiver1.try_recv(), Ok(()));
+        assert_eq!(receiver2.try_recv(), Ok(()));
 
         let watchers_count = FILE_WATCHERS.lock().unwrap().len();
         assert_eq!(watchers_count, 0, "Watcher should be removed after event");
@@ -244,19 +219,20 @@ mod tests {
     fn test_on_file_changed_delivers_to_all_including_dead() {
         FILE_WATCHERS.lock().unwrap().clear();
 
-        let (sender1, mut receiver1) = mpsc::channel::<()>(CHANNEL_CAPACITY);
-        let (sender2, receiver2) = mpsc::channel::<()>(CHANNEL_CAPACITY);
+        let (sender, _) = broadcast::<()>(CHANNEL_CAPACITY);
+        let mut receiver1 = sender.new_receiver();
+        let receiver2 = sender.new_receiver();
 
         {
             let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file.txt".to_string(), (1, vec![sender1, sender2]));
+            watchers.insert("/path/file.txt".to_string(), (1, sender));
         }
 
         drop(receiver2);
 
         on_file_changed("/path/file.txt".to_string());
 
-        assert_eq!(receiver1.try_next().unwrap(), Some(()));
+        assert_eq!(receiver1.try_recv(), Ok(()));
 
         let watchers_count = FILE_WATCHERS.lock().unwrap().len();
         assert_eq!(watchers_count, 0, "Watcher should be removed after event");
@@ -264,21 +240,16 @@ mod tests {
 
     #[test]
     fn test_channel_capacity_is_bounded() {
-        CURRENT_DIR_SENDERS.lock().unwrap().clear();
-
-        let (sender, mut receiver) = mpsc::channel::<String>(CHANNEL_CAPACITY);
-
-        {
-            let mut senders = CURRENT_DIR_SENDERS.lock().unwrap();
-            senders.push(sender);
-        }
+        let sender = CURRENT_DIR_TX.lock().unwrap();
+        let mut receiver = sender.new_receiver();
+        drop(sender);
 
         for i in 0..CHANNEL_CAPACITY + 10 {
             on_current_dir_changed(format!("/path/{}", i));
         }
 
         let mut received_count = 0;
-        while receiver.try_next().is_ok() {
+        while receiver.try_recv().is_ok() {
             received_count += 1;
         }
 

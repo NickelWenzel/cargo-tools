@@ -9,15 +9,6 @@ extern "C" {
     pub async fn execute_async(command: &str) -> Result<JsString, JsValue>;
 }
 
-#[wasm_bindgen(raw_module = "../stateManager.ts")]
-extern "C" {
-    #[wasm_bindgen]
-    pub fn get_state(key: &str) -> Option<JsValue>;
-
-    #[wasm_bindgen(catch)]
-    pub async fn update_state(key: String, value: JsValue) -> Result<(), JsValue>;
-}
-
 #[wasm_bindgen(raw_module = "../runtime.ts")]
 extern "C" {
     /// Start watching the current directory for changes.
@@ -33,6 +24,19 @@ extern "C" {
 
     /// Stop watching a specific file.
     pub fn unwatch_file(handle: u32);
+}
+
+#[wasm_bindgen(raw_module = "../context.ts")]
+extern "C" {
+    /// Get a state value from VS Code workspace state storage.
+    pub fn get_state(key: &str) -> JsValue;
+
+    /// Set a state value in VS Code workspace state storage.
+    #[wasm_bindgen(catch)]
+    pub async fn set_state(key: &str, value: JsValue) -> Result<(), JsValue>;
+
+    /// Get the full VS Code configuration as JSON.
+    pub fn get_configuration() -> JsValue;
 }
 
 #[wasm_bindgen]

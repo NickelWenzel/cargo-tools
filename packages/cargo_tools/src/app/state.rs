@@ -65,9 +65,10 @@ pub enum StateUpdate {
     MakefileCategoryFilter(MakefileCategoryFilter),
     IsMakefileCategoryFilterActive(IsMakefileCategoryFilterActive),
     PinnedMakefileTasks(PinnedMakefileTasks),
+    Tick,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct State {
     pub selected_package: Option<SelectedPackage>,
     pub selected_build_target: Option<SelectedBuildTarget>,

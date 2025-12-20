@@ -6,8 +6,8 @@ use iced_headless::{Subscription, Task};
 use wasm_async_trait::wasm_async_trait;
 
 use crate::{
-    app::state::State,
-    context::{Configuration, Context},
+    app::state::{State, StateUpdate},
+    context::Context,
     runtime::Runtime,
 };
 
@@ -25,7 +25,6 @@ pub enum MetadataUpdate {
 pub enum CargoSettingsMessage {
     RootDirUpdate(String),
     StateUpdate(State),
-    ConfigurationUpdate(Configuration),
     ManifestUpdate,
     MetadataUpdate(MetadataUpdate),
 }
@@ -37,17 +36,15 @@ pub struct CargoSettings {
     workspace_manifests: Vec<String>,
     metadata: Arc<Mutex<MetadataUpdate>>,
     state: Arc<Mutex<State>>,
-    settings: Arc<Mutex<Configuration>>,
 }
 
 impl CargoSettings {
-    pub fn update<RT: Runtime, UI: CargoSettingsUi>(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<RT: Runtime, UI: CargoSettingsUi, CTX: Context>(
+        &mut self,
+        msg: Msg,
+    ) -> Task<Msg> {
         match msg {
-            Msg::RootDirUpdate(root_dir) => {
-                self.root_manifest = format!("{root_dir}/Cargo.toml");
-                Task::future(parse_metadata::<RT>(self.root_manifest.clone()))
-                    .map(Msg::MetadataUpdate)
-            }
+            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT, CTX>(root_dir),
             Msg::ManifestUpdate => Task::future(parse_metadata::<RT>(self.root_manifest.clone()))
                 .map(Msg::MetadataUpdate),
             Msg::MetadataUpdate(update) => self.update_metadata::<RT, UI>(update),
@@ -55,11 +52,19 @@ impl CargoSettings {
                 *self.state.lock().unwrap() = state;
                 self.update_ui::<UI>()
             }
-            Msg::ConfigurationUpdate(settings) => {
-                *self.settings.lock().unwrap() = settings;
-                self.update_ui::<UI>()
-            }
         }
+    }
+
+    fn update_root_dir<RT: Runtime, CTX: Context>(&mut self, root_dir: String) -> Task<Msg> {
+        self.root_manifest = format!("{root_dir}/Cargo.toml");
+        let update =
+            Task::future(parse_metadata::<RT>(self.root_manifest.clone())).map(Msg::MetadataUpdate);
+        let prefix = Task::future(async move {
+            CTX::update_prefix(root_dir.clone()).await;
+        })
+        .discard::<Msg>();
+        let tick_state = Task::future(CTX::update_state(StateUpdate::Tick)).discard::<Msg>();
+        Task::batch([update, prefix, tick_state])
     }
 
     fn update_metadata<RT: Runtime, UI: CargoSettingsUi>(
@@ -92,16 +97,14 @@ impl CargoSettings {
 
     fn update_ui<UI: CargoSettingsUi>(&self) -> Task<Msg> {
         let (metadata, state) = (self.metadata.clone(), self.state.clone());
-        Task::future(UI::update(metadata, state)).then(|()| Task::none())
+        Task::future(UI::update(metadata, state)).discard::<Msg>()
     }
 
     pub fn subscription<RuntimeT: Runtime, ContextT: Context>(&self) -> Subscription<Msg> {
         let root_dir = Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate);
         let state = Subscription::run(ContextT::state_receiver).map(Msg::StateUpdate);
-        let configuration =
-            Subscription::run(ContextT::configuration_receiver).map(Msg::ConfigurationUpdate);
 
-        Subscription::batch([root_dir, state, configuration])
+        Subscription::batch([root_dir, state])
     }
 
     fn manifests(&self) -> Vec<String> {

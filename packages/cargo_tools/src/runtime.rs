@@ -1,4 +1,4 @@
-use futures::channel::mpsc::Receiver;
+use async_broadcast::Receiver;
 use wasm_async_trait::wasm_async_trait;
 
 #[wasm_async_trait]

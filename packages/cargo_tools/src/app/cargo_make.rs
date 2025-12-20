@@ -43,12 +43,9 @@ pub struct CargoMake {
 }
 
 impl CargoMake {
-    pub fn update<RT: Runtime, UI: CargoMakeUi>(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<RT: Runtime, UI: CargoMakeUi, CTX: Context>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
-            Msg::RootDirUpdate(root_dir) => {
-                self.makefile = format!("{root_dir}/Makefile.toml");
-                Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
-            }
+            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT, CTX>(root_dir),
             Msg::MakefileUpdate => {
                 Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
             }
@@ -58,6 +55,17 @@ impl CargoMake {
                 self.update_ui::<UI>()
             }
         }
+    }
+
+    fn update_root_dir<RT: Runtime, CTX: Context>(&mut self, root_dir: String) -> Task<Msg> {
+        self.makefile = format!("{root_dir}/Makefile.toml");
+        let update =
+            Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate);
+        let prefix = Task::future(async move {
+            CTX::update_prefix(root_dir.clone()).await;
+        })
+        .discard::<Msg>();
+        Task::batch([update, prefix])
     }
 
     fn update_tasks<RT: Runtime, UI: CargoMakeUi>(
@@ -83,43 +91,40 @@ impl CargoMake {
 
     fn update_ui<UI: CargoMakeUi>(&self) -> Task<Msg> {
         let (tasks, state) = (self.tasks.clone(), self.state.clone());
-        Task::future(UI::update(tasks, state)).then(|()| Task::none())
+        Task::future(UI::update(tasks, state)).discard::<Msg>()
     }
 
-    pub fn subscription<RuntimeT: Runtime, ContextT: Context>(&self) -> Subscription<Msg> {
-        let root_dir = Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate);
-        let state = Subscription::run(ContextT::state_receiver).map(Msg::StateUpdate);
+    pub fn subscription<RT: Runtime, CTX: Context>(&self) -> Subscription<Msg> {
+        let root_dir = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
+        let state = Subscription::run(CTX::state_receiver).map(Msg::StateUpdate);
 
         Subscription::batch([root_dir, state])
     }
 }
 
-pub async fn parse_tasks<RuntimeT: Runtime>(makefile: String) -> MakefileTasksUpdate {
+pub async fn parse_tasks<RT: Runtime>(makefile: String) -> MakefileTasksUpdate {
     // Check if cargo-make is available
-    if RuntimeT::exec("cargo make --version".to_string())
-        .await
-        .is_err()
-    {
-        RuntimeT::log("cargo-make not available, skipping task discovery".to_string()).await;
+    if RT::exec("cargo make --version".to_string()).await.is_err() {
+        RT::log("cargo-make not available, skipping task discovery".to_string()).await;
         return MakefileTasksUpdate::NoMakefile;
     }
 
     // Execute cargo-make to list all tasks
-    match RuntimeT::exec(format!(
+    match RT::exec(format!(
         "cargo make --list-all-steps --makefile {makefile} --output-format markdown-single-page"
     ))
     .await
     {
-        Ok(output) => parse_makefile_output::<RuntimeT>(&output).await,
+        Ok(output) => parse_makefile_output::<RT>(&output).await,
         Err(e) => {
-            RuntimeT::log(format!("Failed to list cargo-make tasks: {e}")).await;
+            RT::log(format!("Failed to list cargo-make tasks: {e}")).await;
             MakefileTasksUpdate::NoMakefile
         }
     }
 }
 
 /// Parse cargo-make task list output into structured task data
-async fn parse_makefile_output<RuntimeT: Runtime>(output: &str) -> MakefileTasksUpdate {
+async fn parse_makefile_output<RT: Runtime>(output: &str) -> MakefileTasksUpdate {
     let mut tasks = Vec::new();
     let lines: Vec<&str> = output.lines().collect();
     let mut current_category = String::new();
@@ -151,6 +156,6 @@ async fn parse_makefile_output<RuntimeT: Runtime>(output: &str) -> MakefileTasks
         }
     }
 
-    RuntimeT::log(format!("Discovered {} cargo-make tasks", tasks.len())).await;
+    RT::log(format!("Discovered {} cargo-make tasks", tasks.len())).await;
     MakefileTasksUpdate::New(tasks)
 }
