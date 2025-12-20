@@ -7,7 +7,7 @@ use wasm_async_trait::wasm_async_trait;
 
 use crate::{
     app::state::State,
-    context::{Context, Settings},
+    context::{Configuration, Context},
     runtime::Runtime,
 };
 
@@ -25,7 +25,7 @@ pub enum MetadataUpdate {
 pub enum CargoSettingsMessage {
     RootDirUpdate(String),
     StateUpdate(State),
-    SettingsUpdate(Settings),
+    ConfigurationUpdate(Configuration),
     ManifestUpdate,
     MetadataUpdate(MetadataUpdate),
 }
@@ -37,7 +37,7 @@ pub struct CargoSettings {
     workspace_manifests: Vec<String>,
     metadata: Arc<Mutex<MetadataUpdate>>,
     state: Arc<Mutex<State>>,
-    settings: Arc<Mutex<Settings>>,
+    settings: Arc<Mutex<Configuration>>,
 }
 
 impl CargoSettings {
@@ -55,7 +55,7 @@ impl CargoSettings {
                 *self.state.lock().unwrap() = state;
                 self.update_ui::<UI>()
             }
-            Msg::SettingsUpdate(settings) => {
+            Msg::ConfigurationUpdate(settings) => {
                 *self.settings.lock().unwrap() = settings;
                 self.update_ui::<UI>()
             }
@@ -98,9 +98,10 @@ impl CargoSettings {
     pub fn subscription<RuntimeT: Runtime, ContextT: Context>(&self) -> Subscription<Msg> {
         let root_dir = Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate);
         let state = Subscription::run(ContextT::state_receiver).map(Msg::StateUpdate);
-        let settings = Subscription::run(ContextT::settings_receiver).map(Msg::SettingsUpdate);
+        let configuration =
+            Subscription::run(ContextT::configuration_receiver).map(Msg::ConfigurationUpdate);
 
-        Subscription::batch([root_dir, state, settings])
+        Subscription::batch([root_dir, state, configuration])
     }
 
     fn manifests(&self) -> Vec<String> {

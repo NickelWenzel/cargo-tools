@@ -86,7 +86,3 @@ pub struct State {
     pub is_makefile_category_filter_active: Option<IsMakefileCategoryFilterActive>,
     pub pinned_makefile_tasks: Option<PinnedMakefileTasks>,
 }
-
-pub enum StateHandlerMessage {
-    State(StateUpdate),
-}
