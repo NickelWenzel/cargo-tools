@@ -45,10 +45,10 @@ impl CargoSettings {
         match msg {
             Msg::RootDirUpdate(root_dir) => {
                 self.root_manifest = format!("{root_dir}/Cargo.toml");
-                Task::future(update_metadata::<RT>(self.root_manifest.clone()))
+                Task::future(parse_metadata::<RT>(self.root_manifest.clone()))
                     .map(Msg::MetadataUpdate)
             }
-            Msg::ManifestUpdate => Task::future(update_metadata::<RT>(self.root_manifest.clone()))
+            Msg::ManifestUpdate => Task::future(parse_metadata::<RT>(self.root_manifest.clone()))
                 .map(Msg::MetadataUpdate),
             Msg::MetadataUpdate(update) => self.update_metadata::<RT, UI>(update),
             Msg::StateUpdate(state) => {
@@ -118,7 +118,7 @@ fn workspace_manifests(metadata: &Metadata) -> Vec<String> {
         .collect()
 }
 
-pub async fn update_metadata<RuntimeT: Runtime>(manifest_file: String) -> MetadataUpdate {
+pub async fn parse_metadata<RuntimeT: Runtime>(manifest_file: String) -> MetadataUpdate {
     // Construct cargo metadata command with manifest path
     let command =
         format!("cargo metadata --format-version 1 --manifest-path {manifest_file} --no-deps");

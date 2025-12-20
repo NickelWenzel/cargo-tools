@@ -47,11 +47,11 @@ impl CargoMake {
         match msg {
             Msg::RootDirUpdate(root_dir) => {
                 self.makefile = format!("{root_dir}/Makefile.toml");
-                Task::future(update_makefile_tasks::<RT>(self.makefile.clone()))
-                    .map(Msg::MakefileTasksUpdate)
+                Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
             }
-            Msg::MakefileUpdate => Task::future(update_makefile_tasks::<RT>(self.makefile.clone()))
-                .map(Msg::MakefileTasksUpdate),
+            Msg::MakefileUpdate => {
+                Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
+            }
             Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT, UI>(tasks_update),
             Msg::StateUpdate(state) => {
                 *self.state.lock().unwrap() = state;
@@ -94,7 +94,7 @@ impl CargoMake {
     }
 }
 
-pub async fn update_makefile_tasks<RuntimeT: Runtime>(makefile: String) -> MakefileTasksUpdate {
+pub async fn parse_tasks<RuntimeT: Runtime>(makefile: String) -> MakefileTasksUpdate {
     // Check if cargo-make is available
     if RuntimeT::exec("cargo make --version".to_string())
         .await
