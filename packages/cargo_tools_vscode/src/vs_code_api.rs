@@ -18,6 +18,23 @@ extern "C" {
     pub async fn update_state(key: String, value: JsValue) -> Result<(), JsValue>;
 }
 
+#[wasm_bindgen(raw_module = "../runtime.ts")]
+extern "C" {
+    /// Start watching the current directory for changes.
+    /// Returns a handle that can be used to stop watching.
+    pub fn watch_current_dir() -> u32;
+
+    /// Stop watching the current directory.
+    pub fn unwatch_current_dir(handle: u32);
+
+    /// Start watching a specific file for changes.
+    /// Returns a handle that can be used to stop watching.
+    pub fn watch_file(path: &str) -> u32;
+
+    /// Stop watching a specific file.
+    pub fn unwatch_file(handle: u32);
+}
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -48,11 +65,11 @@ pub fn set_makefile_context(has_makefile: bool) {
 }
 
 pub trait JsValueExt {
-    fn as_error_string(self) -> String;
+    fn to_error_string(self) -> String;
 }
 
 impl JsValueExt for JsValue {
-    fn as_error_string(self) -> String {
+    fn to_error_string(self) -> String {
         self.as_string().unwrap_or(format!("{self:?}"))
     }
 }
