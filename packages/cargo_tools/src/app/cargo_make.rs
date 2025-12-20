@@ -52,27 +52,33 @@ impl CargoMake {
             }
             Msg::MakefileUpdate => Task::future(update_makefile_tasks::<RT>(self.makefile.clone()))
                 .map(Msg::MakefileTasksUpdate),
-            Msg::MakefileTasksUpdate(tasks_update) => {
-                let makefile = self.makefile.clone();
-                let makefile = Task::future(async move {
-                    RT::file_changed_notifier(makefile).next().await;
-                })
-                .map(|()| Msg::MakefileUpdate);
-
-                match tasks_update {
-                    MakefileTasksUpdate::New(tasks) => *self.tasks.lock().unwrap() = tasks,
-                    MakefileTasksUpdate::NoMakefile => *self.tasks.lock().unwrap() = Vec::new(),
-                    MakefileTasksUpdate::FailedToRetrieve => {}
-                }
-                let ui = self.update_ui::<UI>();
-
-                Task::batch([makefile, ui])
-            }
-            CargoMakeMessage::StateUpdate(state) => {
+            Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT, UI>(tasks_update),
+            Msg::StateUpdate(state) => {
                 *self.state.lock().unwrap() = state;
                 self.update_ui::<UI>()
             }
         }
+    }
+
+    fn update_tasks<RT: Runtime, UI: CargoMakeUi>(
+        &mut self,
+        tasks_update: MakefileTasksUpdate,
+    ) -> Task<Msg> {
+        match tasks_update {
+            MakefileTasksUpdate::New(tasks) => *self.tasks.lock().unwrap() = tasks,
+            MakefileTasksUpdate::NoMakefile => *self.tasks.lock().unwrap() = Vec::new(),
+            MakefileTasksUpdate::FailedToRetrieve => {}
+        }
+
+        let makefile = self.makefile.clone();
+        let makefile = Task::future(async move {
+            RT::file_changed_notifier(makefile).next().await;
+        })
+        .map(|()| Msg::MakefileUpdate);
+
+        let ui = self.update_ui::<UI>();
+
+        Task::batch([makefile, ui])
     }
 
     fn update_ui<UI: CargoMakeUi>(&self) -> Task<Msg> {

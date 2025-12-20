@@ -1,12 +1,6 @@
 use futures::channel::mpsc::Receiver;
 use wasm_async_trait::wasm_async_trait;
 
-#[derive(Debug, Clone)]
-pub struct Settings;
-
-#[derive(Debug, Clone)]
-pub struct SettingsUpdate;
-
 #[wasm_async_trait]
 pub trait Runtime: 'static {
     async fn exec(command: String) -> Result<String, String>;

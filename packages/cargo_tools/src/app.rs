@@ -7,7 +7,7 @@ use iced_headless::{Subscription, Task};
 use crate::{
     app::{
         cargo_make::{CargoMake, CargoMakeMessage, CargoMakeUi},
-        cargo_settings::{CargoSettings, CargoSettingsMessage},
+        cargo_settings::{CargoSettings, CargoSettingsMessage, CargoSettingsUi},
     },
     context::Context,
     runtime::Runtime,
@@ -24,6 +24,7 @@ pub trait AppServices {
     type RuntimeT: Runtime;
     type ContextT: Context;
     type CargoMakeUiT: CargoMakeUi;
+    type CargoSettingsUiT: CargoSettingsUi;
 }
 
 pub struct App {
@@ -36,7 +37,7 @@ impl App {
         match msg {
             Msg::MetadataHandler(msg) => self
                 .metadata_handler
-                .update::<AppServicesT::RuntimeT>(msg)
+                .update::<AppServicesT::RuntimeT, AppServicesT::CargoSettingsUiT>(msg)
                 .map(Msg::MetadataHandler),
             Msg::MakefileHandler(msg) => self
                 .makefile_handler
@@ -48,7 +49,7 @@ impl App {
     pub fn subscription<AppServicesT: AppServices>(&self) -> Subscription<Msg> {
         let config_sub = self
             .metadata_handler
-            .subscription::<AppServicesT::RuntimeT>()
+            .subscription::<AppServicesT::RuntimeT, AppServicesT::ContextT>()
             .map(Msg::MetadataHandler);
 
         let makefile_sub = self

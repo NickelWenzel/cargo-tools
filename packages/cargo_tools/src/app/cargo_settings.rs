@@ -1,20 +1,32 @@
-use std::{iter, sync::Arc};
+use std::sync::{Arc, Mutex};
 
 use cargo_metadata::{Metadata, MetadataCommand};
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
+use wasm_async_trait::wasm_async_trait;
 
-use crate::runtime::Runtime;
+use crate::{
+    app::state::State,
+    context::{Context, Settings},
+    runtime::Runtime,
+};
+
+#[wasm_async_trait]
+pub trait CargoSettingsUi {
+    async fn update(metadata: Arc<Mutex<MetadataUpdate>>, state: Arc<Mutex<State>>);
+}
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
-    New(Arc<Metadata>),
+    New(Metadata),
     NoCargoToml,
     FailedToRetrieve,
 }
 pub enum CargoSettingsMessage {
-    RootDirChanged(String),
-    ManifestChanged,
+    RootDirUpdate(String),
+    StateUpdate(State),
+    SettingsUpdate(Settings),
+    ManifestUpdate,
     MetadataUpdate(MetadataUpdate),
 }
 
@@ -22,52 +34,88 @@ use CargoSettingsMessage as Msg;
 
 pub struct CargoSettings {
     root_manifest: String,
-    member_manifests: Vec<String>,
+    workspace_manifests: Vec<String>,
+    metadata: Arc<Mutex<MetadataUpdate>>,
+    state: Arc<Mutex<State>>,
+    settings: Arc<Mutex<Settings>>,
 }
 
 impl CargoSettings {
-    pub fn update<RuntimeT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<RT: Runtime, UI: CargoSettingsUi>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
-            Msg::RootDirChanged(root_dir) => {
+            Msg::RootDirUpdate(root_dir) => {
                 self.root_manifest = format!("{root_dir}/Cargo.toml");
-                Task::future(update_metadata::<RuntimeT>(self.root_manifest.clone()))
+                Task::future(update_metadata::<RT>(self.root_manifest.clone()))
                     .map(Msg::MetadataUpdate)
             }
-            Msg::ManifestChanged => {
-                Task::future(update_metadata::<RuntimeT>(self.root_manifest.clone()))
-                    .map(Msg::MetadataUpdate)
+            Msg::ManifestUpdate => Task::future(update_metadata::<RT>(self.root_manifest.clone()))
+                .map(Msg::MetadataUpdate),
+            Msg::MetadataUpdate(update) => self.update_metadata::<RT, UI>(update),
+            Msg::StateUpdate(state) => {
+                *self.state.lock().unwrap() = state;
+                self.update_ui::<UI>()
             }
-            Msg::MetadataUpdate(update) => {
-                match update {
-                    MetadataUpdate::New(metadata) => Task::future(async move {
-                        let file_changed = iter::once(metadata.workspace_root.to_string())
-                            .chain(to_manifest_files(&metadata))
-                            .map(RuntimeT::file_changed_notifier);
-                        futures::stream::select_all(file_changed).next().await;
-                    })
-                    .map(|()| Msg::ManifestChanged),
-                    MetadataUpdate::NoCargoToml => {
-                        // Reset
-                        self.member_manifests = Vec::new();
-                        Task::none()
-                    }
-                    // Leave files to watch unchanged
-                    MetadataUpdate::FailedToRetrieve => Task::none(),
-                }
+            Msg::SettingsUpdate(settings) => {
+                *self.settings.lock().unwrap() = settings;
+                self.update_ui::<UI>()
             }
         }
     }
 
-    pub fn subscription<RuntimeT: Runtime>(&self) -> Subscription<Msg> {
-        Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirChanged)
+    fn update_metadata<RT: Runtime, UI: CargoSettingsUi>(
+        &mut self,
+        metadata_update: MetadataUpdate,
+    ) -> Task<Msg> {
+        match &metadata_update {
+            MetadataUpdate::New(metadata) => {
+                self.workspace_manifests = workspace_manifests(metadata);
+            }
+            MetadataUpdate::NoCargoToml => {
+                self.workspace_manifests = Vec::new();
+            }
+            MetadataUpdate::FailedToRetrieve => {}
+        }
+
+        *self.metadata.lock().unwrap() = metadata_update;
+
+        let manifests_changed = self.manifests();
+        let manifests = Task::future(async move {
+            let notifiers = manifests_changed.into_iter().map(RT::file_changed_notifier);
+            futures::stream::select_all(notifiers).next().await;
+        })
+        .map(|()| Msg::ManifestUpdate);
+
+        let ui = self.update_ui::<UI>();
+
+        Task::batch([manifests, ui])
+    }
+
+    fn update_ui<UI: CargoSettingsUi>(&self) -> Task<Msg> {
+        let (metadata, state) = (self.metadata.clone(), self.state.clone());
+        Task::future(UI::update(metadata, state)).then(|()| Task::none())
+    }
+
+    pub fn subscription<RuntimeT: Runtime, ContextT: Context>(&self) -> Subscription<Msg> {
+        let root_dir = Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate);
+        let state = Subscription::run(ContextT::state_receiver).map(Msg::StateUpdate);
+        let settings = Subscription::run(ContextT::settings_receiver).map(Msg::SettingsUpdate);
+
+        Subscription::batch([root_dir, state, settings])
+    }
+
+    fn manifests(&self) -> Vec<String> {
+        let mut manifests = self.workspace_manifests.clone();
+        manifests.push(self.root_manifest.clone());
+        manifests
     }
 }
 
-fn to_manifest_files(metadata: &Metadata) -> impl Iterator<Item = String> + use<'_> {
+fn workspace_manifests(metadata: &Metadata) -> Vec<String> {
     metadata
         .workspace_packages()
         .into_iter()
         .map(|p| p.manifest_path.to_string())
+        .collect()
 }
 
 pub async fn update_metadata<RuntimeT: Runtime>(manifest_file: String) -> MetadataUpdate {
@@ -93,7 +141,7 @@ async fn extract_raw_metadata<RuntimeT: Runtime>(raw_metadata: &str) -> Metadata
 
     // Parse JSON output into Metadata
     match MetadataCommand::parse(metadata) {
-        Ok(metadata) => MetadataUpdate::New(Arc::new(metadata)),
+        Ok(metadata) => MetadataUpdate::New(metadata),
         Err(e) => {
             RuntimeT::log(format!("Failed to parse cargo metadata: {e}")).await;
             MetadataUpdate::NoCargoToml
