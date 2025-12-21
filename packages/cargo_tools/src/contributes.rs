@@ -68,7 +68,8 @@ mod configuration {
         pub type_: ConfigPropertyType,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub default: Option<serde_json::Value>,
-        pub description: String,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        pub description: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub items: Option<Box<ConfigurationProperty>>,
         #[serde(

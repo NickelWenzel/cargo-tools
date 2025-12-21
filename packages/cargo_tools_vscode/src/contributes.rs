@@ -227,6 +227,360 @@ pub mod data {
                 icon: Some("$(trash)".to_string()),
                 enablement: None,
             },
+            Command {
+                command: "cargo-tools.makefile.runTask".to_string(),
+                title: "Run Makefile Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.makefile.selectAndRunTask".to_string(),
+                title: "Run Makefile Task...".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.makefile.setTaskFilter".to_string(),
+                title: "Filter Tasks".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(filter)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.makefile.editTaskFilter".to_string(),
+                title: "Edit Task Filter".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(edit)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.makefile.clearTaskFilter".to_string(),
+                title: "Clear Task Filter".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(clear-all)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.makefile.showCategoryFilter".to_string(),
+                title: "Filter Categories".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(symbol-class)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.makefile.clearCategoryFilter".to_string(),
+                title: "Clear Category Filter".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(clear-all)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.add".to_string(),
+                title: "Add Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(add)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.remove".to_string(),
+                title: "Remove Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(remove)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.execute".to_string(),
+                title: "Execute Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.makefile.pinTask".to_string(),
+                title: "Pin Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(pin)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.execute1".to_string(),
+                title: "Execute 1st Pinned Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.execute2".to_string(),
+                title: "Execute 2nd Pinned Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.execute3".to_string(),
+                title: "Execute 3rd Pinned Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.execute4".to_string(),
+                title: "Execute 4th Pinned Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.pinnedMakefileTasks.execute5".to_string(),
+                title: "Execute 5th Pinned Task".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Command {
+                command: "cargo-tools.projectStatus.build".to_string(),
+                title: "Build".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(tools)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectStatus.run".to_string(),
+                title: "Run".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectStatus.debug".to_string(),
+                title: "Debug".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(debug-alt)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectStatus.test".to_string(),
+                title: "Test".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(beaker)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectStatus.bench".to_string(),
+                title: "Benchmark".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(dashboard)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.selectPackage".to_string(),
+                title: "Select Package".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(check)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.unselectPackage".to_string(),
+                title: "Unselect Package".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(close)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.setBuildTarget".to_string(),
+                title: "Set as Build Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(tools)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.unsetBuildTarget".to_string(),
+                title: "Unset Build Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(close)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.setRunTarget".to_string(),
+                title: "Set as Run Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.unsetRunTarget".to_string(),
+                title: "Unset Run Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(close)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.setBenchmarkTarget".to_string(),
+                title: "Set as Benchmark Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(dashboard)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.unsetBenchmarkTarget".to_string(),
+                title: "Unset Benchmark Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(close)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.buildPackage".to_string(),
+                title: "Build Package".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(tools)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.testPackage".to_string(),
+                title: "Test Package".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(beaker)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.cleanPackage".to_string(),
+                title: "Clean Package".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(trash)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.buildWorkspace".to_string(),
+                title: "Build Workspace".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(tools)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.testWorkspace".to_string(),
+                title: "Test Workspace".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(beaker)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.cleanWorkspace".to_string(),
+                title: "Clean Workspace".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(trash)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.buildTarget".to_string(),
+                title: "Build Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(tools)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.runTarget".to_string(),
+                title: "Run Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(play)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.debugTarget".to_string(),
+                title: "Debug Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(debug-alt)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.benchTarget".to_string(),
+                title: "Benchmark Target".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(dashboard)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
+                title: "Filter Workspace Members".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(filter)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.editWorkspaceMemberFilter".to_string(),
+                title: "Edit Member Filter".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(edit)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.clearWorkspaceMemberFilter".to_string(),
+                title: "Clear Member Filter".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(clear-all)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
+                title: "Filter Target Types".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(symbol-class)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.clearTargetTypeFilter".to_string(),
+                title: "Clear Type Filter".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(clear-all)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.clearAllFilters".to_string(),
+                title: "Clear All Filters".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(clear-all)".to_string()),
+                enablement: None,
+            },
+            Command {
+                command: "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping".to_string(),
+                title: "Toggle Workspace Member Grouping".to_string(),
+                category: Some("Cargo Tools".to_string()),
+                icon: Some("$(group-by-ref-type)".to_string()),
+                enablement: None,
+            },
         ]
     }
 
@@ -296,9 +650,396 @@ pub mod data {
                     when: Some("view == cargoToolsProjectStatus".to_string()),
                     group: Some("navigation".to_string()),
                 },
+                MenuItem {
+                    command: "cargo-tools.buildDocs".to_string(),
+                    when: Some("view == cargoToolsProjectStatus".to_string()),
+                    group: Some("navigation".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.installPlatformTarget".to_string(),
+                    when: Some("view == cargoToolsProjectStatus".to_string()),
+                    group: Some("navigation".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
+                    when: Some("view == cargoToolsProjectOutline".to_string()),
+                    group: Some("navigation@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
+                    when: Some("view == cargoToolsProjectOutline".to_string()),
+                    group: Some("navigation@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.clearAllFilters".to_string(),
+                    when: Some("view == cargoToolsProjectOutline".to_string()),
+                    group: Some("navigation@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping".to_string(),
+                    when: Some("view == cargoToolsProjectOutline".to_string()),
+                    group: Some("navigation@4".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.makefile.setTaskFilter".to_string(),
+                    when: Some("view == cargoToolsMakefile".to_string()),
+                    group: Some("navigation@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.makefile.showCategoryFilter".to_string(),
+                    when: Some("view == cargoToolsMakefile".to_string()),
+                    group: Some("navigation@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.makefile.clearTaskFilter".to_string(),
+                    when: Some("view == cargoToolsMakefile".to_string()),
+                    group: Some("navigation@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.pinnedMakefileTasks.add".to_string(),
+                    when: Some("view == cargoToolsPinnedMakefileTasks".to_string()),
+                    group: Some("navigation@1".to_string()),
+                },
             ],
-            view_item_context: vec![],
-            command_palette: vec![],
+            view_item_context: vec![
+                MenuItem {
+                    command: "cargo-tools.projectOutline.selectPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember.*canBeSelectedPackage/".to_string()),
+                    group: Some("selection@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unselectPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember.*isSelectedPackage/".to_string()),
+                    group: Some("selection@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setBuildTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedBuildTarget/".to_string()),
+                    group: Some("build@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unsetBuildTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedBuildTarget/".to_string()),
+                    group: Some("build@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setRunTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedRunTarget/".to_string()),
+                    group: Some("run@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unsetRunTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedRunTarget/".to_string()),
+                    group: Some("run@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setBenchmarkTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedBenchmarkTarget/".to_string()),
+                    group: Some("benchmark@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unsetBenchmarkTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedBenchmarkTarget/".to_string()),
+                    group: Some("benchmark@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
+                    group: Some("actions@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.testPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
+                    group: Some("actions@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.cleanPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
+                    group: Some("actions@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildWorkspace".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
+                    group: Some("actions@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.testWorkspace".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
+                    group: Some("actions@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.cleanWorkspace".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
+                    group: Some("actions@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/".to_string()),
+                    group: Some("actions@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.runTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/".to_string()),
+                    group: Some("actions@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.debugTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsDebug/".to_string()),
+                    group: Some("actions@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.benchTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/".to_string()),
+                    group: Some("actions@4".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
+                    group: Some("inline@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.testPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
+                    group: Some("inline@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.cleanPackage".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
+                    group: Some("inline@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildWorkspace".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
+                    group: Some("inline@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.testWorkspace".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
+                    group: Some("inline@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.cleanWorkspace".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
+                    group: Some("inline@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/".to_string()),
+                    group: Some("inline@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.runTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/".to_string()),
+                    group: Some("inline@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.debugTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsDebug/".to_string()),
+                    group: Some("inline@3".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.benchTarget".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/".to_string()),
+                    group: Some("inline@4".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectStatus.build".to_string(),
+                    when: Some("view == cargoToolsProjectStatus && viewItem == buildTargetSelection".to_string()),
+                    group: Some("inline".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectStatus.run".to_string(),
+                    when: Some("view == cargoToolsProjectStatus && viewItem == runTargetSelection".to_string()),
+                    group: Some("inline@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectStatus.debug".to_string(),
+                    when: Some("view == cargoToolsProjectStatus && viewItem == runTargetSelection".to_string()),
+                    group: Some("inline@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectStatus.test".to_string(),
+                    when: Some("view == cargoToolsProjectStatus && viewItem == packageSelection".to_string()),
+                    group: Some("inline".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectStatus.bench".to_string(),
+                    when: Some("view == cargoToolsProjectStatus && viewItem == benchmarkTargetSelection".to_string()),
+                    group: Some("inline".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == memberFilter".to_string()),
+                    group: Some("inline".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.clearWorkspaceMemberFilter".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == memberFilter".to_string()),
+                    group: Some("modify@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == typeFilter".to_string()),
+                    group: Some("inline".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.clearTargetTypeFilter".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem == typeFilter".to_string()),
+                    group: Some("modify@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.clearAllFilters".to_string(),
+                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /memberFilter|typeFilter/".to_string()),
+                    group: Some("modify@2".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.makefile.runTask".to_string(),
+                    when: Some("view == cargoToolsMakefile && viewItem == makefileTask".to_string()),
+                    group: Some("inline@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.makefile.pinTask".to_string(),
+                    when: Some("view == cargoToolsMakefile && viewItem == makefileTask".to_string()),
+                    group: Some("context@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.pinnedMakefileTasks.execute".to_string(),
+                    when: Some("view == cargoToolsPinnedMakefileTasks && viewItem == pinned-task".to_string()),
+                    group: Some("inline@1".to_string()),
+                },
+                MenuItem {
+                    command: "cargo-tools.pinnedMakefileTasks.remove".to_string(),
+                    when: Some("view == cargoToolsPinnedMakefileTasks && viewItem == pinned-task".to_string()),
+                    group: Some("context@1".to_string()),
+                },
+            ],
+            command_palette: vec![
+                MenuItem {
+                    command: "cargo-tools.projectOutline.selectPackage".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unselectPackage".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setBuildTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unsetBuildTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setRunTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unsetRunTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setBenchmarkTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.unsetBenchmarkTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildPackage".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.testPackage".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.buildTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.runTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.benchTarget".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.editWorkspaceMemberFilter".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.clearWorkspaceMemberFilter".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.clearTargetTypeFilter".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.clearAllFilters".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.makefile.runTask".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.makefile.pinTask".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.pinnedMakefileTasks.add".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.pinnedMakefileTasks.remove".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+                MenuItem {
+                    command: "cargo-tools.pinnedMakefileTasks.execute".to_string(),
+                    when: Some("never".to_string()),
+                    group: None,
+                },
+            ],
         }
     }
 
@@ -309,7 +1050,7 @@ pub mod data {
             ConfigurationProperty {
                 type_: ConfigPropertyType::String,
                 default: Some(serde_json::json!("cargo")),
-                description: "Command to invoke instead of 'cargo'. This can be a custom wrapper or alternative cargo implementation.".to_string(),
+                description: Some("Command to invoke instead of 'cargo'. This can be a custom wrapper or alternative cargo implementation. If the value contains whitespace, it will be split where the first part is the command and the remaining parts are treated as additional arguments.".to_string()),
                 items: None,
                 additional_properties: None,
             },
@@ -319,8 +1060,136 @@ pub mod data {
             ConfigurationProperty {
                 type_: ConfigPropertyType::Boolean,
                 default: Some(serde_json::json!(false)),
-                description: "Use rust-analyzer settings for cargo command and environment."
-                    .to_string(),
+                description: Some("Use rust-analyzer settings for cargo command and environment. When enabled, reads rust-analyzer.cargo.extraArgs, rust-analyzer.cargo.extraEnv, rust-analyzer.runnables.extraArgs, and rust-analyzer.runnables.extraTestBinaryArgs to configure this extension.".to_string()),
+                items: None,
+                additional_properties: None,
+            },
+        );
+        properties.insert(
+            "cargoTools.updateRustAnalyzerTarget".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::Boolean,
+                default: Some(serde_json::json!(false)),
+                description: Some("Automatically update rust-analyzer.cargo.target setting when Platform Selection changes. When enabled, changing the platform target will also set rust-analyzer's cargo target configuration.".to_string()),
+                items: None,
+                additional_properties: None,
+            },
+        );
+        properties.insert(
+            "cargoTools.extraEnv".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::Object,
+                default: Some(serde_json::json!({})),
+                description: Some(
+                    "Additional environment variables to set when running any cargo command"
+                        .to_string(),
+                ),
+                items: None,
+                additional_properties: Some(Box::new(ConfigurationProperty {
+                    type_: ConfigPropertyType::String,
+                    default: None,
+                    description: None,
+                    items: None,
+                    additional_properties: None,
+                })),
+            },
+        );
+        properties.insert(
+            "cargoTools.buildArgs".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::Array,
+                default: Some(serde_json::json!([])),
+                description: Some("Additional arguments to pass to cargo build".to_string()),
+                items: Some(Box::new(ConfigurationProperty {
+                    type_: ConfigPropertyType::String,
+                    default: None,
+                    description: None,
+                    items: None,
+                    additional_properties: None,
+                })),
+                additional_properties: None,
+            },
+        );
+        properties.insert(
+            "cargoTools.run.extraArgs".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::Array,
+                default: Some(serde_json::json!([])),
+                description: Some("Additional arguments to append to each invocation of running or debugging a target".to_string()),
+                items: Some(Box::new(ConfigurationProperty {
+                    type_: ConfigPropertyType::String,
+                    default: None,
+                    description: None,
+                    items: None,
+                    additional_properties: None,
+                })),
+                additional_properties: None,
+            },
+        );
+        properties.insert(
+            "cargoTools.run.extraEnv".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::Object,
+                default: Some(serde_json::json!({})),
+                description: Some("Additional environment variables to set when running or debugging a target, merged with extraEnv".to_string()),
+                items: None,
+                additional_properties: Some(Box::new(ConfigurationProperty {
+                    type_: ConfigPropertyType::String,
+                    default: None,
+                    description: None,
+                    items: None,
+                    additional_properties: None,
+                })),
+            },
+        );
+        properties.insert(
+            "cargoTools.test.extraArgs".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::Array,
+                default: Some(serde_json::json!([])),
+                description: Some("Additional arguments to append to each invocation of running tests or benchmarks".to_string()),
+                items: Some(Box::new(ConfigurationProperty {
+                    type_: ConfigPropertyType::String,
+                    default: None,
+                    description: None,
+                    items: None,
+                    additional_properties: None,
+                })),
+                additional_properties: None,
+            },
+        );
+        properties.insert(
+            "cargoTools.test.extraEnv".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::Object,
+                default: Some(serde_json::json!({})),
+                description: Some("Additional environment variables to set when running tests or benchmarks, merged with extraEnv".to_string()),
+                items: None,
+                additional_properties: Some(Box::new(ConfigurationProperty {
+                    type_: ConfigPropertyType::String,
+                    default: None,
+                    description: None,
+                    items: None,
+                    additional_properties: None,
+                })),
+            },
+        );
+        properties.insert(
+            "cargoTools.runCommandOverride".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::String,
+                default: Some(serde_json::json!("")),
+                description: Some("Override command for 'cargo run'. If empty, 'cargo run' will be used. Use this to customize the run command (e.g., 'cargo watch -x run' or custom scripts).".to_string()),
+                items: None,
+                additional_properties: None,
+            },
+        );
+        properties.insert(
+            "cargoTools.testCommandOverride".to_string(),
+            ConfigurationProperty {
+                type_: ConfigPropertyType::String,
+                default: Some(serde_json::json!("")),
+                description: Some("Override command for 'cargo test'. If empty, 'cargo test' will be used. Use this to customize the test command (e.g., 'cargo nextest run' or custom scripts).".to_string()),
                 items: None,
                 additional_properties: None,
             },
@@ -354,6 +1223,26 @@ pub mod data {
             TaskProperty {
                 type_: "string".to_string(),
                 description: Some("The target to build".to_string()),
+                items: None,
+            },
+        );
+        cargo_props.insert(
+            "features".to_string(),
+            TaskProperty {
+                type_: "array".to_string(),
+                description: Some("Features to enable".to_string()),
+                items: Some(Box::new(TaskProperty {
+                    type_: "string".to_string(),
+                    description: None,
+                    items: None,
+                })),
+            },
+        );
+        cargo_props.insert(
+            "allFeatures".to_string(),
+            TaskProperty {
+                type_: "boolean".to_string(),
+                description: Some("Enable all features".to_string()),
                 items: None,
             },
         );
@@ -398,6 +1287,41 @@ pub mod data {
                 command: "cargo-tools.projectStatus.debug".to_string(),
                 key: "shift+f5".to_string(),
                 when: Some("cargoTools:workspaceHasCargo".to_string()),
+            },
+            Keybinding {
+                command: "cargo-tools.pinnedMakefileTasks.execute1".to_string(),
+                key: "ctrl+alt+1".to_string(),
+                when: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Keybinding {
+                command: "cargo-tools.pinnedMakefileTasks.execute2".to_string(),
+                key: "ctrl+alt+2".to_string(),
+                when: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Keybinding {
+                command: "cargo-tools.pinnedMakefileTasks.execute3".to_string(),
+                key: "ctrl+alt+3".to_string(),
+                when: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Keybinding {
+                command: "cargo-tools.pinnedMakefileTasks.execute4".to_string(),
+                key: "ctrl+alt+4".to_string(),
+                when: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
+            },
+            Keybinding {
+                command: "cargo-tools.pinnedMakefileTasks.execute5".to_string(),
+                key: "ctrl+alt+5".to_string(),
+                when: Some(
+                    "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string(),
+                ),
             },
         ]
     }
@@ -501,12 +1425,14 @@ mod tests {
     fn contributes_matches_package_json() {
         let package_json = include_str!("../../../package.json");
         let package: serde_json::Value = serde_json::from_str(package_json).unwrap();
-        
-        let package_contributes: Contributes = serde_json::from_value(package["contributes"].clone())
-            .expect("Failed to deserialize contributes from package.json");
+
+        let package_contributes: Contributes =
+            serde_json::from_value(package["contributes"].clone())
+                .expect("Failed to deserialize contributes from package.json");
 
         assert_eq!(
-            &package_contributes, &*data::CONTRIBUTES,
+            &package_contributes,
+            &*data::CONTRIBUTES,
             "Contributes struct does not match package.json"
         );
     }
@@ -522,8 +1448,8 @@ mod tests {
                 key
             );
             assert!(
-                !prop.description.is_empty(),
-                "Property {} should have a description",
+                prop.description.as_ref().map_or(false, |d| !d.is_empty()),
+                "Property {} should have a non-empty description",
                 key
             );
         }
