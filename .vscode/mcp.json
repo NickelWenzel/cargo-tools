@@ -10,10 +10,11 @@
                 "--transport",
                 "stdio",
                 "--context",
-                "ide-assistant",
+                "ide",
                 "--project",
                 "${workspaceFolder}"
-            ]
+            ],
+            "cwd": "${workspaceFolder}"
         }
     }
 }
