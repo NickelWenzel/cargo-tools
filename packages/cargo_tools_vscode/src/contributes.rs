@@ -4,7 +4,9 @@
 //! It builds upon the base types from `cargo_tools::contributes` and adds the complete
 //! `Contributes` struct with static data.
 
-use cargo_tools::contributes::{Command, Configuration, Keybinding};
+use cargo_tools::contributes::{
+    Command, Configuration, Icon, Keybinding, MenuGroup, MenuGroupType, TaskType, ViewId,
+};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -44,7 +46,7 @@ mod view {
     /// A VS Code view contribution.
     #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct View {
-        pub id: String,
+        pub id: ViewId,
         pub name: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub when: Option<String>,
@@ -87,7 +89,67 @@ mod menu {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub when: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub group: Option<String>,
+        pub group: Option<MenuGroup>,
+    }
+
+    impl MenuItem {
+        /// Create a menu item for a view title.
+        pub fn for_view_title(
+            command: impl Into<String>,
+            view: impl Into<String>,
+            group: MenuGroup,
+        ) -> Self {
+            Self {
+                command: command.into(),
+                when: Some(format!("view == {}", view.into())),
+                group: Some(group),
+            }
+        }
+
+        /// Create a menu item for a view item context.
+        pub fn for_view_item_context(
+            command: impl Into<String>,
+            view: impl Into<String>,
+            view_item: impl Into<String>,
+            group: MenuGroup,
+        ) -> Self {
+            Self {
+                command: command.into(),
+                when: Some(format!(
+                    "view == {} && viewItem == {}",
+                    view.into(),
+                    view_item.into()
+                )),
+                group: Some(group),
+            }
+        }
+
+        /// Create a menu item for view item context with regex matching.
+        pub fn for_view_item_context_regex(
+            command: impl Into<String>,
+            view: impl Into<String>,
+            view_item_regex: impl Into<String>,
+            group: MenuGroup,
+        ) -> Self {
+            Self {
+                command: command.into(),
+                when: Some(format!(
+                    "view == {} && viewItem =~ /{}/",
+                    view.into(),
+                    view_item_regex.into()
+                )),
+                group: Some(group),
+            }
+        }
+
+        /// Create a menu item hidden from command palette.
+        pub fn hide_from_palette(command: impl Into<String>) -> Self {
+            Self {
+                command: command.into(),
+                when: Some("never".to_string()),
+                group: None,
+            }
+        }
     }
 }
 
@@ -98,9 +160,57 @@ mod task_definition {
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub struct TaskDefinition {
         #[serde(rename = "type")]
-        pub type_: String,
+        pub type_: TaskType,
         pub required: Vec<String>,
         pub properties: HashMap<String, TaskProperty>,
+    }
+
+    impl TaskDefinition {
+        /// Create a Cargo task definition with standard properties.
+        pub fn cargo() -> Self {
+            let mut properties = HashMap::new();
+            properties.insert(
+                "command".to_string(),
+                TaskProperty::string(Some("The cargo command to run".to_string())),
+            );
+            properties.insert(
+                "profile".to_string(),
+                TaskProperty::string(Some("The build profile to use".to_string())),
+            );
+            properties.insert(
+                "target".to_string(),
+                TaskProperty::string(Some("The target to build".to_string())),
+            );
+            properties.insert(
+                "features".to_string(),
+                TaskProperty::array_of_strings(Some("Features to enable".to_string())),
+            );
+            properties.insert(
+                "allFeatures".to_string(),
+                TaskProperty::boolean(Some("Enable all features".to_string())),
+            );
+
+            Self {
+                type_: TaskType::Cargo,
+                required: vec!["command".to_string()],
+                properties,
+            }
+        }
+
+        /// Create a cargo-make task definition.
+        pub fn cargo_make() -> Self {
+            let mut properties = HashMap::new();
+            properties.insert(
+                "task".to_string(),
+                TaskProperty::string(Some("The cargo-make task to run".to_string())),
+            );
+
+            Self {
+                type_: TaskType::CargoMake,
+                required: vec!["task".to_string()],
+                properties,
+            }
+        }
     }
 
     /// A task property definition.
@@ -112,6 +222,39 @@ mod task_definition {
         pub description: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub items: Option<Box<TaskProperty>>,
+    }
+
+    impl TaskProperty {
+        /// Create a string property.
+        pub fn string(description: Option<String>) -> Self {
+            Self {
+                type_: "string".to_string(),
+                description,
+                items: None,
+            }
+        }
+
+        /// Create a boolean property.
+        pub fn boolean(description: Option<String>) -> Self {
+            Self {
+                type_: "boolean".to_string(),
+                description,
+                items: None,
+            }
+        }
+
+        /// Create an array property with string items.
+        pub fn array_of_strings(description: Option<String>) -> Self {
+            Self {
+                type_: "array".to_string(),
+                description,
+                items: Some(Box::new(TaskProperty {
+                    type_: "string".to_string(),
+                    description: None,
+                    items: None,
+                })),
+            }
+        }
     }
 }
 
@@ -136,145 +279,290 @@ pub mod data {
 
     pub fn all_commands() -> Vec<Command> {
         vec![
-            Command::new("testRust", "Test Rust bindgen", "$(gear)", None),
-            Command::new("selectProfile", "Select Build Profile", "$(gear)", None),
-            Command::new("selectPackage", "Select Package", "$(package)", None),
-            Command::new("selectBuildTarget", "Select Build Target", "$(tools)", None),
-            Command::new("selectRunTarget", "Select Run Target", "$(play)", None),
-            Command::new("selectBenchmarkTarget", "Select Benchmark Target", "$(dashboard)", None),
-            Command::new("selectPlatformTarget", "Select Platform Target", "$(desktop-download)", None),
-            Command::new("installPlatformTarget", "Install Platform Target", "$(cloud-download)", None),
-            Command::new("setRustAnalyzerCheckTargets", "Set rust-analyzer check targets", "$(checklist)", None),
-            Command::new("buildDocs", "Build Documentation", "$(book)", None),
-            Command::new("selectFeatures", "Select Features", "$(extensions)", None),
-            Command::new("refresh", "Refresh", "$(refresh)", None),
-            Command::new("clean", "Clean Build Artifacts", "$(trash)", None),
+            Command::new("testRust", "Test Rust bindgen", Icon::Gear, None),
+            Command::new("selectProfile", "Select Build Profile", Icon::Gear, None),
+            Command::new("selectPackage", "Select Package", Icon::Package, None),
+            Command::new(
+                "selectBuildTarget",
+                "Select Build Target",
+                Icon::Tools,
+                None,
+            ),
+            Command::new("selectRunTarget", "Select Run Target", Icon::Play, None),
+            Command::new(
+                "selectBenchmarkTarget",
+                "Select Benchmark Target",
+                Icon::Dashboard,
+                None,
+            ),
+            Command::new(
+                "selectPlatformTarget",
+                "Select Platform Target",
+                Icon::DesktopDownload,
+                None,
+            ),
+            Command::new(
+                "installPlatformTarget",
+                "Install Platform Target",
+                Icon::CloudDownload,
+                None,
+            ),
+            Command::new(
+                "setRustAnalyzerCheckTargets",
+                "Set rust-analyzer check targets",
+                Icon::Checklist,
+                None,
+            ),
+            Command::new("buildDocs", "Build Documentation", Icon::Book, None),
+            Command::new("selectFeatures", "Select Features", Icon::Extensions, None),
+            Command::new("refresh", "Refresh", Icon::Refresh, None),
+            Command::new("clean", "Clean Build Artifacts", Icon::Trash, None),
             Command::new(
                 "makefile.runTask",
                 "Run Makefile Task",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "makefile.selectAndRunTask",
                 "Run Makefile Task...",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "makefile.setTaskFilter",
                 "Filter Tasks",
-                "$(filter)",
+                Icon::Filter,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "makefile.editTaskFilter",
                 "Edit Task Filter",
-                "$(edit)",
+                Icon::Edit,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "makefile.clearTaskFilter",
                 "Clear Task Filter",
-                "$(clear-all)",
+                Icon::ClearAll,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "makefile.showCategoryFilter",
                 "Filter Categories",
-                "$(symbol-class)",
+                Icon::SymbolClass,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "makefile.clearCategoryFilter",
                 "Clear Category Filter",
-                "$(clear-all)",
+                Icon::ClearAll,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.add",
                 "Add Task",
-                "$(add)",
+                Icon::Add,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.remove",
                 "Remove Task",
-                "$(remove)",
+                Icon::Remove,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.execute",
                 "Execute Task",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "makefile.pinTask",
                 "Pin Task",
-                "$(pin)",
+                Icon::Pin,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.execute1",
                 "Execute 1st Pinned Task",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.execute2",
                 "Execute 2nd Pinned Task",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.execute3",
                 "Execute 3rd Pinned Task",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.execute4",
                 "Execute 4th Pinned Task",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
             Command::new(
                 "pinnedMakefileTasks.execute5",
                 "Execute 5th Pinned Task",
-                "$(play)",
+                Icon::Play,
                 Some("cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile".to_string()),
             ),
-            Command::new("projectStatus.build", "Build", "$(tools)", None),
-            Command::new("projectStatus.run", "Run", "$(play)", None),
-            Command::new("projectStatus.debug", "Debug", "$(debug-alt)", None),
-            Command::new("projectStatus.test", "Test", "$(beaker)", None),
-            Command::new("projectStatus.bench", "Benchmark", "$(dashboard)", None),
-            Command::new("projectOutline.selectPackage", "Select Package", "$(check)", None),
-            Command::new("projectOutline.unselectPackage", "Unselect Package", "$(close)", None),
-            Command::new("projectOutline.setBuildTarget", "Set as Build Target", "$(tools)", None),
-            Command::new("projectOutline.unsetBuildTarget", "Unset Build Target", "$(close)", None),
-            Command::new("projectOutline.setRunTarget", "Set as Run Target", "$(play)", None),
-            Command::new("projectOutline.unsetRunTarget", "Unset Run Target", "$(close)", None),
-            Command::new("projectOutline.setBenchmarkTarget", "Set as Benchmark Target", "$(dashboard)", None),
-            Command::new("projectOutline.unsetBenchmarkTarget", "Unset Benchmark Target", "$(close)", None),
-            Command::new("projectOutline.buildPackage", "Build Package", "$(tools)", None),
-            Command::new("projectOutline.testPackage", "Test Package", "$(beaker)", None),
-            Command::new("projectOutline.cleanPackage", "Clean Package", "$(trash)", None),
-            Command::new("projectOutline.buildWorkspace", "Build Workspace", "$(tools)", None),
-            Command::new("projectOutline.testWorkspace", "Test Workspace", "$(beaker)", None),
-            Command::new("projectOutline.cleanWorkspace", "Clean Workspace", "$(trash)", None),
-            Command::new("projectOutline.buildTarget", "Build Target", "$(tools)", None),
-            Command::new("projectOutline.runTarget", "Run Target", "$(play)", None),
-            Command::new("projectOutline.debugTarget", "Debug Target", "$(debug-alt)", None),
-            Command::new("projectOutline.benchTarget", "Benchmark Target", "$(dashboard)", None),
-            Command::new("projectOutline.setWorkspaceMemberFilter", "Filter Workspace Members", "$(filter)", None),
-            Command::new("projectOutline.editWorkspaceMemberFilter", "Edit Member Filter", "$(edit)", None),
-            Command::new("projectOutline.clearWorkspaceMemberFilter", "Clear Member Filter", "$(clear-all)", None),
-            Command::new("projectOutline.showTargetTypeFilter", "Filter Target Types", "$(symbol-class)", None),
-            Command::new("projectOutline.clearTargetTypeFilter", "Clear Type Filter", "$(clear-all)", None),
-            Command::new("projectOutline.clearAllFilters", "Clear All Filters", "$(clear-all)", None),
-            Command::new("projectOutline.toggleWorkspaceMemberGrouping", "Toggle Workspace Member Grouping", "$(group-by-ref-type)", None),
+            Command::new("projectStatus.build", "Build", Icon::Tools, None),
+            Command::new("projectStatus.run", "Run", Icon::Play, None),
+            Command::new("projectStatus.debug", "Debug", Icon::DebugAlt, None),
+            Command::new("projectStatus.test", "Test", Icon::Beaker, None),
+            Command::new("projectStatus.bench", "Benchmark", Icon::Dashboard, None),
+            Command::new(
+                "projectOutline.selectPackage",
+                "Select Package",
+                Icon::Check,
+                None,
+            ),
+            Command::new(
+                "projectOutline.unselectPackage",
+                "Unselect Package",
+                Icon::Close,
+                None,
+            ),
+            Command::new(
+                "projectOutline.setBuildTarget",
+                "Set as Build Target",
+                Icon::Tools,
+                None,
+            ),
+            Command::new(
+                "projectOutline.unsetBuildTarget",
+                "Unset Build Target",
+                Icon::Close,
+                None,
+            ),
+            Command::new(
+                "projectOutline.setRunTarget",
+                "Set as Run Target",
+                Icon::Play,
+                None,
+            ),
+            Command::new(
+                "projectOutline.unsetRunTarget",
+                "Unset Run Target",
+                Icon::Close,
+                None,
+            ),
+            Command::new(
+                "projectOutline.setBenchmarkTarget",
+                "Set as Benchmark Target",
+                Icon::Dashboard,
+                None,
+            ),
+            Command::new(
+                "projectOutline.unsetBenchmarkTarget",
+                "Unset Benchmark Target",
+                Icon::Close,
+                None,
+            ),
+            Command::new(
+                "projectOutline.buildPackage",
+                "Build Package",
+                Icon::Tools,
+                None,
+            ),
+            Command::new(
+                "projectOutline.testPackage",
+                "Test Package",
+                Icon::Beaker,
+                None,
+            ),
+            Command::new(
+                "projectOutline.cleanPackage",
+                "Clean Package",
+                Icon::Trash,
+                None,
+            ),
+            Command::new(
+                "projectOutline.buildWorkspace",
+                "Build Workspace",
+                Icon::Tools,
+                None,
+            ),
+            Command::new(
+                "projectOutline.testWorkspace",
+                "Test Workspace",
+                Icon::Beaker,
+                None,
+            ),
+            Command::new(
+                "projectOutline.cleanWorkspace",
+                "Clean Workspace",
+                Icon::Trash,
+                None,
+            ),
+            Command::new(
+                "projectOutline.buildTarget",
+                "Build Target",
+                Icon::Tools,
+                None,
+            ),
+            Command::new("projectOutline.runTarget", "Run Target", Icon::Play, None),
+            Command::new(
+                "projectOutline.debugTarget",
+                "Debug Target",
+                Icon::DebugAlt,
+                None,
+            ),
+            Command::new(
+                "projectOutline.benchTarget",
+                "Benchmark Target",
+                Icon::Dashboard,
+                None,
+            ),
+            Command::new(
+                "projectOutline.setWorkspaceMemberFilter",
+                "Filter Workspace Members",
+                Icon::Filter,
+                None,
+            ),
+            Command::new(
+                "projectOutline.editWorkspaceMemberFilter",
+                "Edit Member Filter",
+                Icon::Edit,
+                None,
+            ),
+            Command::new(
+                "projectOutline.clearWorkspaceMemberFilter",
+                "Clear Member Filter",
+                Icon::ClearAll,
+                None,
+            ),
+            Command::new(
+                "projectOutline.showTargetTypeFilter",
+                "Filter Target Types",
+                Icon::SymbolClass,
+                None,
+            ),
+            Command::new(
+                "projectOutline.clearTargetTypeFilter",
+                "Clear Type Filter",
+                Icon::ClearAll,
+                None,
+            ),
+            Command::new(
+                "projectOutline.clearAllFilters",
+                "Clear All Filters",
+                Icon::ClearAll,
+                None,
+            ),
+            Command::new(
+                "projectOutline.toggleWorkspaceMemberGrouping",
+                "Toggle Workspace Member Grouping",
+                Icon::GroupByRefType,
+                None,
+            ),
         ]
     }
 
@@ -291,26 +579,26 @@ pub mod data {
     pub fn all_views() -> Views {
         Views {
             explorer: vec![View {
-                id: "cargoToolsExplorer".to_string(),
+                id: ViewId::CargoToolsExplorer,
                 name: "Cargo Tools".to_string(),
                 icon: "$(package)".to_string(),
                 when: Some("cargoTools:workspaceHasCargo".to_string()),
             }],
             cargo_tools: vec![
                 View {
-                    id: "cargoToolsProjectStatus".to_string(),
+                    id: ViewId::CargoToolsProjectStatus,
                     name: "Project Status".to_string(),
                     icon: "$(package)".to_string(),
                     when: Some("cargoTools:workspaceHasCargo".to_string()),
                 },
                 View {
-                    id: "cargoToolsProjectOutline".to_string(),
+                    id: ViewId::CargoToolsProjectOutline,
                     name: "Project Outline".to_string(),
                     icon: "$(package)".to_string(),
                     when: Some("cargoTools:workspaceHasCargo".to_string()),
                 },
                 View {
-                    id: "cargoToolsMakefile".to_string(),
+                    id: ViewId::CargoToolsMakefile,
                     name: "Makefile".to_string(),
                     icon: "$(tools)".to_string(),
                     when: Some(
@@ -319,7 +607,7 @@ pub mod data {
                     ),
                 },
                 View {
-                    id: "cargoToolsPinnedMakefileTasks".to_string(),
+                    id: ViewId::CargoToolsPinnedMakefileTasks,
                     name: "Pinned Makefile Tasks".to_string(),
                     icon: "$(pin)".to_string(),
                     when: Some(
@@ -332,407 +620,375 @@ pub mod data {
     }
 
     pub fn all_menus() -> Menus {
+        use MenuGroupType::*;
+
         Menus {
             view_title: vec![
-                MenuItem {
-                    command: "cargo-tools.refresh".to_string(),
-                    when: Some("view == cargoToolsProjectStatus".to_string()),
-                    group: Some("navigation".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.clean".to_string(),
-                    when: Some("view == cargoToolsProjectStatus".to_string()),
-                    group: Some("navigation".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.buildDocs".to_string(),
-                    when: Some("view == cargoToolsProjectStatus".to_string()),
-                    group: Some("navigation".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.installPlatformTarget".to_string(),
-                    when: Some("view == cargoToolsProjectStatus".to_string()),
-                    group: Some("navigation".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
-                    when: Some("view == cargoToolsProjectOutline".to_string()),
-                    group: Some("navigation@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
-                    when: Some("view == cargoToolsProjectOutline".to_string()),
-                    group: Some("navigation@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.clearAllFilters".to_string(),
-                    when: Some("view == cargoToolsProjectOutline".to_string()),
-                    group: Some("navigation@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping".to_string(),
-                    when: Some("view == cargoToolsProjectOutline".to_string()),
-                    group: Some("navigation@4".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.makefile.setTaskFilter".to_string(),
-                    when: Some("view == cargoToolsMakefile".to_string()),
-                    group: Some("navigation@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.makefile.showCategoryFilter".to_string(),
-                    when: Some("view == cargoToolsMakefile".to_string()),
-                    group: Some("navigation@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.makefile.clearTaskFilter".to_string(),
-                    when: Some("view == cargoToolsMakefile".to_string()),
-                    group: Some("navigation@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.pinnedMakefileTasks.add".to_string(),
-                    when: Some("view == cargoToolsPinnedMakefileTasks".to_string()),
-                    group: Some("navigation@1".to_string()),
-                },
+                // Project Status view
+                MenuItem::for_view_title(
+                    "cargo-tools.refresh",
+                    "cargoToolsProjectStatus",
+                    MenuGroup::new(Navigation),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.clean",
+                    "cargoToolsProjectStatus",
+                    MenuGroup::new(Navigation),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.buildDocs",
+                    "cargoToolsProjectStatus",
+                    MenuGroup::new(Navigation),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.installPlatformTarget",
+                    "cargoToolsProjectStatus",
+                    MenuGroup::new(Navigation),
+                ),
+                // Project Outline view
+                MenuItem::for_view_title(
+                    "cargo-tools.projectOutline.setWorkspaceMemberFilter",
+                    "cargoToolsProjectOutline",
+                    MenuGroup::with_position(Navigation, 1),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.projectOutline.showTargetTypeFilter",
+                    "cargoToolsProjectOutline",
+                    MenuGroup::with_position(Navigation, 2),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.projectOutline.clearAllFilters",
+                    "cargoToolsProjectOutline",
+                    MenuGroup::with_position(Navigation, 3),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
+                    "cargoToolsProjectOutline",
+                    MenuGroup::with_position(Navigation, 4),
+                ),
+                // Makefile view
+                MenuItem::for_view_title(
+                    "cargo-tools.makefile.setTaskFilter",
+                    "cargoToolsMakefile",
+                    MenuGroup::with_position(Navigation, 1),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.makefile.showCategoryFilter",
+                    "cargoToolsMakefile",
+                    MenuGroup::with_position(Navigation, 2),
+                ),
+                MenuItem::for_view_title(
+                    "cargo-tools.makefile.clearTaskFilter",
+                    "cargoToolsMakefile",
+                    MenuGroup::with_position(Navigation, 3),
+                ),
+                // Pinned Makefile Tasks view
+                MenuItem::for_view_title(
+                    "cargo-tools.pinnedMakefileTasks.add",
+                    "cargoToolsPinnedMakefileTasks",
+                    MenuGroup::with_position(Navigation, 1),
+                ),
             ],
             view_item_context: vec![
-                MenuItem {
-                    command: "cargo-tools.projectOutline.selectPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember.*canBeSelectedPackage/".to_string()),
-                    group: Some("selection@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unselectPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember.*isSelectedPackage/".to_string()),
-                    group: Some("selection@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setBuildTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedBuildTarget/".to_string()),
-                    group: Some("build@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unsetBuildTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedBuildTarget/".to_string()),
-                    group: Some("build@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setRunTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedRunTarget/".to_string()),
-                    group: Some("run@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unsetRunTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedRunTarget/".to_string()),
-                    group: Some("run@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setBenchmarkTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*canBeSelectedBenchmarkTarget/".to_string()),
-                    group: Some("benchmark@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unsetBenchmarkTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*isSelectedBenchmarkTarget/".to_string()),
-                    group: Some("benchmark@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
-                    group: Some("actions@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.testPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
-                    group: Some("actions@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.cleanPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
-                    group: Some("actions@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildWorkspace".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
-                    group: Some("actions@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.testWorkspace".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
-                    group: Some("actions@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.cleanWorkspace".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
-                    group: Some("actions@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/".to_string()),
-                    group: Some("actions@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.runTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/".to_string()),
-                    group: Some("actions@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.debugTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsDebug/".to_string()),
-                    group: Some("actions@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.benchTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/".to_string()),
-                    group: Some("actions@4".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
-                    group: Some("inline@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.testPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
-                    group: Some("inline@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.cleanPackage".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /workspaceMember/".to_string()),
-                    group: Some("inline@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildWorkspace".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
-                    group: Some("inline@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.testWorkspace".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
-                    group: Some("inline@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.cleanWorkspace".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == project".to_string()),
-                    group: Some("inline@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBuild/".to_string()),
-                    group: Some("inline@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.runTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsRun/".to_string()),
-                    group: Some("inline@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.debugTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsDebug/".to_string()),
-                    group: Some("inline@3".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.benchTarget".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /cargoTarget.*supportsBench/".to_string()),
-                    group: Some("inline@4".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectStatus.build".to_string(),
-                    when: Some("view == cargoToolsProjectStatus && viewItem == buildTargetSelection".to_string()),
-                    group: Some("inline".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectStatus.run".to_string(),
-                    when: Some("view == cargoToolsProjectStatus && viewItem == runTargetSelection".to_string()),
-                    group: Some("inline@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectStatus.debug".to_string(),
-                    when: Some("view == cargoToolsProjectStatus && viewItem == runTargetSelection".to_string()),
-                    group: Some("inline@2".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectStatus.test".to_string(),
-                    when: Some("view == cargoToolsProjectStatus && viewItem == packageSelection".to_string()),
-                    group: Some("inline".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectStatus.bench".to_string(),
-                    when: Some("view == cargoToolsProjectStatus && viewItem == benchmarkTargetSelection".to_string()),
-                    group: Some("inline".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == memberFilter".to_string()),
-                    group: Some("inline".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.clearWorkspaceMemberFilter".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == memberFilter".to_string()),
-                    group: Some("modify@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == typeFilter".to_string()),
-                    group: Some("inline".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.clearTargetTypeFilter".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem == typeFilter".to_string()),
-                    group: Some("modify@1".to_string()),
-                },
+                // Package selection
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.selectPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember.*canBeSelectedPackage",
+                    MenuGroup::with_position(Selection, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.unselectPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember.*isSelectedPackage",
+                    MenuGroup::with_position(Selection, 2),
+                ),
+                // Build target selection
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.setBuildTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*canBeSelectedBuildTarget",
+                    MenuGroup::with_position(Build, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.unsetBuildTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*isSelectedBuildTarget",
+                    MenuGroup::with_position(Build, 2),
+                ),
+                // Run target selection
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.setRunTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*canBeSelectedRunTarget",
+                    MenuGroup::with_position(Run, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.unsetRunTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*isSelectedRunTarget",
+                    MenuGroup::with_position(Run, 2),
+                ),
+                // Benchmark target selection
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.setBenchmarkTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*canBeSelectedBenchmarkTarget",
+                    MenuGroup::with_position(Benchmark, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.unsetBenchmarkTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*isSelectedBenchmarkTarget",
+                    MenuGroup::with_position(Benchmark, 2),
+                ),
+                // Package actions (context menu)
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.buildPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember",
+                    MenuGroup::with_position(Actions, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.testPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember",
+                    MenuGroup::with_position(Actions, 2),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.cleanPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember",
+                    MenuGroup::with_position(Actions, 3),
+                ),
+                // Workspace actions (context menu)
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.buildWorkspace",
+                    "cargoToolsProjectOutline",
+                    "project",
+                    MenuGroup::with_position(Actions, 1),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.testWorkspace",
+                    "cargoToolsProjectOutline",
+                    "project",
+                    MenuGroup::with_position(Actions, 2),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.cleanWorkspace",
+                    "cargoToolsProjectOutline",
+                    "project",
+                    MenuGroup::with_position(Actions, 3),
+                ),
+                // Target actions (context menu)
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.buildTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsBuild",
+                    MenuGroup::with_position(Actions, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.runTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsRun",
+                    MenuGroup::with_position(Actions, 2),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.debugTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsDebug",
+                    MenuGroup::with_position(Actions, 3),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.benchTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsBench",
+                    MenuGroup::with_position(Actions, 4),
+                ),
+                // Package inline actions
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.buildPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember",
+                    MenuGroup::with_position(Inline, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.testPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember",
+                    MenuGroup::with_position(Inline, 2),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.cleanPackage",
+                    "cargoToolsProjectOutline",
+                    "workspaceMember",
+                    MenuGroup::with_position(Inline, 3),
+                ),
+                // Workspace inline actions
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.buildWorkspace",
+                    "cargoToolsProjectOutline",
+                    "project",
+                    MenuGroup::with_position(Inline, 1),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.testWorkspace",
+                    "cargoToolsProjectOutline",
+                    "project",
+                    MenuGroup::with_position(Inline, 2),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.cleanWorkspace",
+                    "cargoToolsProjectOutline",
+                    "project",
+                    MenuGroup::with_position(Inline, 3),
+                ),
+                // Target inline actions
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.buildTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsBuild",
+                    MenuGroup::with_position(Inline, 1),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.runTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsRun",
+                    MenuGroup::with_position(Inline, 2),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.debugTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsDebug",
+                    MenuGroup::with_position(Inline, 3),
+                ),
+                MenuItem::for_view_item_context_regex(
+                    "cargo-tools.projectOutline.benchTarget",
+                    "cargoToolsProjectOutline",
+                    "cargoTarget.*supportsBench",
+                    MenuGroup::with_position(Inline, 4),
+                ),
+                // Project Status inline actions
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectStatus.build",
+                    "cargoToolsProjectStatus",
+                    "buildTargetSelection",
+                    MenuGroup::new(Inline),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectStatus.run",
+                    "cargoToolsProjectStatus",
+                    "runTargetSelection",
+                    MenuGroup::with_position(Inline, 1),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectStatus.debug",
+                    "cargoToolsProjectStatus",
+                    "runTargetSelection",
+                    MenuGroup::with_position(Inline, 2),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectStatus.test",
+                    "cargoToolsProjectStatus",
+                    "packageSelection",
+                    MenuGroup::new(Inline),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectStatus.bench",
+                    "cargoToolsProjectStatus",
+                    "benchmarkTargetSelection",
+                    MenuGroup::new(Inline),
+                ),
+                // Filter inline/modify actions
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.setWorkspaceMemberFilter",
+                    "cargoToolsProjectOutline",
+                    "memberFilter",
+                    MenuGroup::new(Inline),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
+                    "cargoToolsProjectOutline",
+                    "memberFilter",
+                    MenuGroup::with_position(Modify, 1),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.showTargetTypeFilter",
+                    "cargoToolsProjectOutline",
+                    "typeFilter",
+                    MenuGroup::new(Inline),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.projectOutline.clearTargetTypeFilter",
+                    "cargoToolsProjectOutline",
+                    "typeFilter",
+                    MenuGroup::with_position(Modify, 1),
+                ),
                 MenuItem {
                     command: "cargo-tools.projectOutline.clearAllFilters".to_string(),
-                    when: Some("view == cargoToolsProjectOutline && viewItem =~ /memberFilter|typeFilter/".to_string()),
-                    group: Some("modify@2".to_string()),
+                    when: Some(
+                        "view == cargoToolsProjectOutline && viewItem =~ /memberFilter|typeFilter/"
+                            .to_string(),
+                    ),
+                    group: Some(MenuGroup::with_position(Modify, 2)),
                 },
-                MenuItem {
-                    command: "cargo-tools.makefile.runTask".to_string(),
-                    when: Some("view == cargoToolsMakefile && viewItem == makefileTask".to_string()),
-                    group: Some("inline@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.makefile.pinTask".to_string(),
-                    when: Some("view == cargoToolsMakefile && viewItem == makefileTask".to_string()),
-                    group: Some("context@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.pinnedMakefileTasks.execute".to_string(),
-                    when: Some("view == cargoToolsPinnedMakefileTasks && viewItem == pinned-task".to_string()),
-                    group: Some("inline@1".to_string()),
-                },
-                MenuItem {
-                    command: "cargo-tools.pinnedMakefileTasks.remove".to_string(),
-                    when: Some("view == cargoToolsPinnedMakefileTasks && viewItem == pinned-task".to_string()),
-                    group: Some("context@1".to_string()),
-                },
+                // Makefile task actions
+                MenuItem::for_view_item_context(
+                    "cargo-tools.makefile.runTask",
+                    "cargoToolsMakefile",
+                    "makefileTask",
+                    MenuGroup::with_position(Inline, 1),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.makefile.pinTask",
+                    "cargoToolsMakefile",
+                    "makefileTask",
+                    MenuGroup::with_position(Context, 1),
+                ),
+                // Pinned task actions
+                MenuItem::for_view_item_context(
+                    "cargo-tools.pinnedMakefileTasks.execute",
+                    "cargoToolsPinnedMakefileTasks",
+                    "pinned-task",
+                    MenuGroup::with_position(Inline, 1),
+                ),
+                MenuItem::for_view_item_context(
+                    "cargo-tools.pinnedMakefileTasks.remove",
+                    "cargoToolsPinnedMakefileTasks",
+                    "pinned-task",
+                    MenuGroup::with_position(Context, 1),
+                ),
             ],
             command_palette: vec![
-                MenuItem {
-                    command: "cargo-tools.projectOutline.selectPackage".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unselectPackage".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setBuildTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unsetBuildTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setRunTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unsetRunTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setBenchmarkTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.unsetBenchmarkTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildPackage".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.testPackage".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.buildTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.runTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.benchTarget".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.editWorkspaceMemberFilter".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.clearWorkspaceMemberFilter".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.clearTargetTypeFilter".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.clearAllFilters".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.makefile.runTask".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.makefile.pinTask".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.pinnedMakefileTasks.add".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.pinnedMakefileTasks.remove".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
-                MenuItem {
-                    command: "cargo-tools.pinnedMakefileTasks.execute".to_string(),
-                    when: Some("never".to_string()),
-                    group: None,
-                },
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.selectPackage"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.unselectPackage"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.setBuildTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.unsetBuildTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.setRunTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.unsetRunTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.setBenchmarkTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.unsetBenchmarkTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.buildPackage"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.testPackage"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.buildTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.runTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.benchTarget"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.setWorkspaceMemberFilter"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.editWorkspaceMemberFilter"),
+                MenuItem::hide_from_palette(
+                    "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
+                ),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.showTargetTypeFilter"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.clearTargetTypeFilter"),
+                MenuItem::hide_from_palette("cargo-tools.projectOutline.clearAllFilters"),
+                MenuItem::hide_from_palette(
+                    "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
+                ),
+                MenuItem::hide_from_palette("cargo-tools.makefile.runTask"),
+                MenuItem::hide_from_palette("cargo-tools.makefile.pinTask"),
+                MenuItem::hide_from_palette("cargo-tools.pinnedMakefileTasks.add"),
+                MenuItem::hide_from_palette("cargo-tools.pinnedMakefileTasks.remove"),
+                MenuItem::hide_from_palette("cargo-tools.pinnedMakefileTasks.execute"),
             ],
         }
     }
@@ -895,74 +1151,7 @@ pub mod data {
     }
 
     pub fn all_task_definitions() -> Vec<TaskDefinition> {
-        let mut cargo_props = HashMap::new();
-        cargo_props.insert(
-            "command".to_string(),
-            TaskProperty {
-                type_: "string".to_string(),
-                description: Some("The cargo command to run".to_string()),
-                items: None,
-            },
-        );
-        cargo_props.insert(
-            "profile".to_string(),
-            TaskProperty {
-                type_: "string".to_string(),
-                description: Some("The build profile to use".to_string()),
-                items: None,
-            },
-        );
-        cargo_props.insert(
-            "target".to_string(),
-            TaskProperty {
-                type_: "string".to_string(),
-                description: Some("The target to build".to_string()),
-                items: None,
-            },
-        );
-        cargo_props.insert(
-            "features".to_string(),
-            TaskProperty {
-                type_: "array".to_string(),
-                description: Some("Features to enable".to_string()),
-                items: Some(Box::new(TaskProperty {
-                    type_: "string".to_string(),
-                    description: None,
-                    items: None,
-                })),
-            },
-        );
-        cargo_props.insert(
-            "allFeatures".to_string(),
-            TaskProperty {
-                type_: "boolean".to_string(),
-                description: Some("Enable all features".to_string()),
-                items: None,
-            },
-        );
-
-        let mut cargo_make_props = HashMap::new();
-        cargo_make_props.insert(
-            "task".to_string(),
-            TaskProperty {
-                type_: "string".to_string(),
-                description: Some("The cargo-make task to run".to_string()),
-                items: None,
-            },
-        );
-
-        vec![
-            TaskDefinition {
-                type_: "cargo".to_string(),
-                required: vec!["command".to_string()],
-                properties: cargo_props,
-            },
-            TaskDefinition {
-                type_: "cargo-make".to_string(),
-                required: vec!["task".to_string()],
-                properties: cargo_make_props,
-            },
-        ]
+        vec![TaskDefinition::cargo(), TaskDefinition::cargo_make()]
     }
 
     pub fn all_keybindings() -> Vec<Keybinding> {
@@ -1028,14 +1217,14 @@ mod tests {
     #[test]
     fn view_serializes_with_correct_field_names() {
         let view = View {
-            id: "test.view".to_string(),
+            id: ViewId::CargoToolsExplorer,
             name: "Test View".to_string(),
             icon: "$(package)".to_string(),
             when: Some("test:condition".to_string()),
         };
 
         let json = serde_json::to_value(&view).unwrap();
-        assert_eq!(json["id"], "test.view");
+        assert_eq!(json["id"], "cargoToolsExplorer");
         assert_eq!(json["name"], "Test View");
         assert_eq!(json["when"], "test:condition");
         assert_eq!(json["icon"], "$(package)");
@@ -1046,15 +1235,11 @@ mod tests {
         let mut properties = HashMap::new();
         properties.insert(
             "command".to_string(),
-            TaskProperty {
-                type_: "string".to_string(),
-                description: Some("The cargo command".to_string()),
-                items: None,
-            },
+            TaskProperty::string(Some("The cargo command".to_string())),
         );
 
         let task = TaskDefinition {
-            type_: "cargo".to_string(),
+            type_: TaskType::Cargo,
             required: vec!["command".to_string()],
             properties,
         };
@@ -1092,7 +1277,7 @@ mod tests {
         let menu_item = MenuItem {
             command: "test.command".to_string(),
             when: Some("test:condition".to_string()),
-            group: Some("navigation".to_string()),
+            group: Some(MenuGroup::new(MenuGroupType::Navigation)),
         };
 
         let json = serde_json::to_value(&menu_item).unwrap();
@@ -1165,16 +1350,11 @@ mod tests {
                 command.command
             );
             assert_eq!(
-                command.category,
-                "Cargo Tools",
+                command.category, "Cargo Tools",
                 "Command {} should have category 'Cargo Tools'",
                 command.command
             );
-            assert!(
-                !command.icon.is_empty(),
-                "Command {} should have an icon",
-                command.command
-            );
+            // Icon is now an enum, so it always has a value - no need to check
         }
     }
 
@@ -1184,7 +1364,7 @@ mod tests {
 
         for view in &views.explorer {
             assert!(
-                view.id.starts_with("cargoTools"),
+                view.id.as_str().starts_with("cargoTools"),
                 "Explorer view {} should start with 'cargoTools'",
                 view.id
             );
@@ -1193,7 +1373,7 @@ mod tests {
 
         for view in &views.cargo_tools {
             assert!(
-                view.id.starts_with("cargoTools"),
+                view.id.as_str().starts_with("cargoTools"),
                 "CargoTools view {} should start with 'cargoTools'",
                 view.id
             );
@@ -1206,20 +1386,17 @@ mod tests {
         let task_defs = data::all_task_definitions();
 
         for task_def in &task_defs {
-            assert!(
-                !task_def.type_.is_empty(),
-                "Task definition should have a type"
-            );
+            // TaskType is now an enum, so it always has a value
             assert!(
                 !task_def.required.is_empty(),
-                "Task definition {} should have required properties",
+                "Task definition {:?} should have required properties",
                 task_def.type_
             );
 
             for required_prop in &task_def.required {
                 assert!(
                     task_def.properties.contains_key(required_prop),
-                    "Task definition {} should define required property {}",
+                    "Task definition {:?} should define required property {}",
                     task_def.type_,
                     required_prop
                 );
@@ -1290,7 +1467,7 @@ mod tests {
             for (prop_name, prop) in &task_def.properties {
                 assert!(
                     valid_types.contains(&prop.type_.as_str()),
-                    "Property {} in task {} has invalid type: {}",
+                    "Property {} in task {:?} has invalid type: {}",
                     prop_name,
                     task_def.type_,
                     prop.type_
