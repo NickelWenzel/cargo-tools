@@ -42,12 +42,35 @@ mod command {
     pub struct Command {
         pub command: String,
         pub title: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub category: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub icon: Option<String>,
+        pub category: String,
+        pub icon: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub enablement: Option<String>,
+    }
+
+    impl Command {
+        /// Create a new command with the "cargo-tools." prefix automatically added.
+        ///
+        /// # Arguments
+        ///
+        /// * `command` - The command identifier without the "cargo-tools." prefix
+        /// * `title` - The display title for the command
+        /// * `icon` - The icon identifier (e.g., "$(gear)")
+        /// * `enablement` - Optional enablement condition
+        pub fn new(
+            command: impl Into<String>,
+            title: impl Into<String>,
+            icon: impl Into<String>,
+            enablement: Option<String>,
+        ) -> Self {
+            Self {
+                command: format!("cargo-tools.{}", command.into()),
+                title: title.into(),
+                category: "Cargo Tools".to_string(),
+                icon: icon.into(),
+                enablement,
+            }
+        }
     }
 }
 
@@ -112,8 +135,8 @@ mod tests {
         let cmd = Command {
             command: "test.command".to_string(),
             title: "Test".to_string(),
-            category: Some("Cat".to_string()),
-            icon: Some("$(icon)".to_string()),
+            category: "Cat".to_string(),
+            icon: "$(icon)".to_string(),
             enablement: Some("test:condition".to_string()),
         };
 
@@ -144,7 +167,7 @@ mod tests {
         let prop = ConfigurationProperty {
             type_: ConfigPropertyType::String,
             default: Some(serde_json::json!("default_value")),
-            description: "Test property".to_string(),
+            description: Some("Test property".to_string()),
             items: None,
             additional_properties: None,
         };
@@ -156,18 +179,44 @@ mod tests {
     }
 
     #[test]
-    fn command_without_optional_fields_omits_them() {
+    fn command_serializes_all_fields() {
         let cmd = Command {
             command: "test.cmd".to_string(),
             title: "Test".to_string(),
-            category: None,
-            icon: None,
+            category: "Test Category".to_string(),
+            icon: "$(icon)".to_string(),
             enablement: None,
         };
         let json = serde_json::to_value(&cmd).unwrap();
 
-        assert!(!json.as_object().unwrap().contains_key("category"));
-        assert!(!json.as_object().unwrap().contains_key("icon"));
+        assert_eq!(json["command"], "test.cmd");
+        assert_eq!(json["title"], "Test");
+        assert_eq!(json["category"], "Test Category");
+        assert_eq!(json["icon"], "$(icon)");
         assert!(!json.as_object().unwrap().contains_key("enablement"));
+    }
+
+    #[test]
+    fn command_new_adds_prefix() {
+        let cmd = Command::new("myCommand", "My Command", "$(gear)", None);
+        
+        assert_eq!(cmd.command, "cargo-tools.myCommand");
+        assert_eq!(cmd.title, "My Command");
+        assert_eq!(cmd.category, "Cargo Tools");
+        assert_eq!(cmd.icon, "$(gear)");
+        assert_eq!(cmd.enablement, None);
+    }
+
+    #[test]
+    fn command_new_with_enablement() {
+        let cmd = Command::new(
+            "conditionalCommand",
+            "Conditional",
+            "$(check)",
+            Some("myExtension:enabled".to_string()),
+        );
+        
+        assert_eq!(cmd.command, "cargo-tools.conditionalCommand");
+        assert_eq!(cmd.enablement, Some("myExtension:enabled".to_string()));
     }
 }
