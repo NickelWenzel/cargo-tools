@@ -44,137 +44,56 @@ mod icon {
     /// VS Code icon reference for commands, views, and other UI elements.
     ///
     /// Icons use the VS Code codicon format: `$(icon-name)`.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub enum Icon {
+        #[serde(rename = "$(gear)")]
         Gear,
+        #[serde(rename = "$(package)")]
         Package,
+        #[serde(rename = "$(tools)")]
         Tools,
+        #[serde(rename = "$(play)")]
         Play,
+        #[serde(rename = "$(dashboard)")]
         Dashboard,
+        #[serde(rename = "$(desktop-download)")]
         DesktopDownload,
+        #[serde(rename = "$(cloud-download)")]
         CloudDownload,
+        #[serde(rename = "$(checklist)")]
         Checklist,
+        #[serde(rename = "$(book)")]
         Book,
+        #[serde(rename = "$(extensions)")]
         Extensions,
+        #[serde(rename = "$(refresh)")]
         Refresh,
+        #[serde(rename = "$(trash)")]
         Trash,
+        #[serde(rename = "$(filter)")]
         Filter,
+        #[serde(rename = "$(edit)")]
         Edit,
+        #[serde(rename = "$(clear-all)")]
         ClearAll,
+        #[serde(rename = "$(symbol-class)")]
         SymbolClass,
+        #[serde(rename = "$(add)")]
         Add,
+        #[serde(rename = "$(remove)")]
         Remove,
+        #[serde(rename = "$(pin)")]
         Pin,
+        #[serde(rename = "$(debug-alt)")]
         DebugAlt,
+        #[serde(rename = "$(beaker)")]
         Beaker,
+        #[serde(rename = "$(check)")]
         Check,
+        #[serde(rename = "$(close)")]
         Close,
+        #[serde(rename = "$(group-by-ref-type)")]
         GroupByRefType,
-    }
-
-    impl Icon {
-        /// Get the icon string in VS Code codicon format.
-        pub fn as_str(self) -> &'static str {
-            match self {
-                Icon::Gear => "$(gear)",
-                Icon::Package => "$(package)",
-                Icon::Tools => "$(tools)",
-                Icon::Play => "$(play)",
-                Icon::Dashboard => "$(dashboard)",
-                Icon::DesktopDownload => "$(desktop-download)",
-                Icon::CloudDownload => "$(cloud-download)",
-                Icon::Checklist => "$(checklist)",
-                Icon::Book => "$(book)",
-                Icon::Extensions => "$(extensions)",
-                Icon::Refresh => "$(refresh)",
-                Icon::Trash => "$(trash)",
-                Icon::Filter => "$(filter)",
-                Icon::Edit => "$(edit)",
-                Icon::ClearAll => "$(clear-all)",
-                Icon::SymbolClass => "$(symbol-class)",
-                Icon::Add => "$(add)",
-                Icon::Remove => "$(remove)",
-                Icon::Pin => "$(pin)",
-                Icon::DebugAlt => "$(debug-alt)",
-                Icon::Beaker => "$(beaker)",
-                Icon::Check => "$(check)",
-                Icon::Close => "$(close)",
-                Icon::GroupByRefType => "$(group-by-ref-type)",
-            }
-        }
-    }
-
-    impl Serialize for Icon {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-
-    impl<'de> Deserialize<'de> for Icon {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            match s.as_str() {
-                "$(gear)" => Ok(Icon::Gear),
-                "$(package)" => Ok(Icon::Package),
-                "$(tools)" => Ok(Icon::Tools),
-                "$(play)" => Ok(Icon::Play),
-                "$(dashboard)" => Ok(Icon::Dashboard),
-                "$(desktop-download)" => Ok(Icon::DesktopDownload),
-                "$(cloud-download)" => Ok(Icon::CloudDownload),
-                "$(checklist)" => Ok(Icon::Checklist),
-                "$(book)" => Ok(Icon::Book),
-                "$(extensions)" => Ok(Icon::Extensions),
-                "$(refresh)" => Ok(Icon::Refresh),
-                "$(trash)" => Ok(Icon::Trash),
-                "$(filter)" => Ok(Icon::Filter),
-                "$(edit)" => Ok(Icon::Edit),
-                "$(clear-all)" => Ok(Icon::ClearAll),
-                "$(symbol-class)" => Ok(Icon::SymbolClass),
-                "$(add)" => Ok(Icon::Add),
-                "$(remove)" => Ok(Icon::Remove),
-                "$(pin)" => Ok(Icon::Pin),
-                "$(debug-alt)" => Ok(Icon::DebugAlt),
-                "$(beaker)" => Ok(Icon::Beaker),
-                "$(check)" => Ok(Icon::Check),
-                "$(close)" => Ok(Icon::Close),
-                "$(group-by-ref-type)" => Ok(Icon::GroupByRefType),
-                _ => Err(serde::de::Error::unknown_variant(
-                    &s,
-                    &[
-                        "$(gear)",
-                        "$(package)",
-                        "$(tools)",
-                        "$(play)",
-                        "$(dashboard)",
-                        "$(desktop-download)",
-                        "$(cloud-download)",
-                        "$(checklist)",
-                        "$(book)",
-                        "$(extensions)",
-                        "$(refresh)",
-                        "$(trash)",
-                        "$(filter)",
-                        "$(edit)",
-                        "$(clear-all)",
-                        "$(symbol-class)",
-                        "$(add)",
-                        "$(remove)",
-                        "$(pin)",
-                        "$(debug-alt)",
-                        "$(beaker)",
-                        "$(check)",
-                        "$(close)",
-                        "$(group-by-ref-type)",
-                    ],
-                )),
-            }
-        }
     }
 }
 
@@ -184,57 +103,24 @@ mod task_type {
     /// Task type for VS Code task definitions.
     ///
     /// Represents the supported task types in the cargo-tools extension.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
     pub enum TaskType {
         /// Standard Cargo task (build, run, test, etc.)
         Cargo,
         /// cargo-make task
         CargoMake,
     }
-
-    impl TaskType {
-        /// Get the task type string for VS Code task definitions.
-        pub fn as_str(self) -> &'static str {
-            match self {
-                TaskType::Cargo => "cargo",
-                TaskType::CargoMake => "cargo-make",
-            }
-        }
-    }
-
-    impl Serialize for TaskType {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-
-    impl<'de> Deserialize<'de> for TaskType {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            match s.as_str() {
-                "cargo" => Ok(TaskType::Cargo),
-                "cargo-make" => Ok(TaskType::CargoMake),
-                _ => Err(serde::de::Error::custom(format!(
-                    "invalid task type: {}",
-                    s
-                ))),
-            }
-        }
-    }
 }
 
 mod menu_group {
+    use serde::de::IntoDeserializer;
+
     use super::*;
-    use std::fmt;
 
     /// Menu group types for VS Code menu contributions.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "lowercase")]
     pub enum MenuGroupType {
         /// Navigation group - typically shown in view title areas
         Navigation,
@@ -254,23 +140,6 @@ mod menu_group {
         Modify,
         /// Context menu actions
         Context,
-    }
-
-    impl MenuGroupType {
-        /// Get the group type string for VS Code menus.
-        pub fn as_str(self) -> &'static str {
-            match self {
-                MenuGroupType::Navigation => "navigation",
-                MenuGroupType::Inline => "inline",
-                MenuGroupType::Selection => "selection",
-                MenuGroupType::Build => "build",
-                MenuGroupType::Run => "run",
-                MenuGroupType::Benchmark => "benchmark",
-                MenuGroupType::Actions => "actions",
-                MenuGroupType::Modify => "modify",
-                MenuGroupType::Context => "context",
-            }
-        }
     }
 
     /// Menu group with optional position within the group.
@@ -302,17 +171,13 @@ mod menu_group {
 
         /// Get the string representation in VS Code menu group format.
         pub fn as_str(&self) -> String {
+            let group_type = serde_json::to_string(&self.group_type).unwrap();
+            let group_type = &group_type[1..group_type.len() - 1];
             if let Some(pos) = self.position {
-                format!("{}@{}", self.group_type.as_str(), pos)
+                format!("{group_type}@{pos}")
             } else {
-                self.group_type.as_str().to_string()
+                group_type.to_string()
             }
-        }
-    }
-
-    impl fmt::Display for MenuGroup {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}", self.as_str())
         }
     }
 
@@ -338,13 +203,13 @@ mod menu_group {
                     .parse::<u32>()
                     .map_err(|e| serde::de::Error::custom(format!("invalid position: {}", e)))?;
 
-                let group_type = Self::parse_group_type(group_str)?;
+                let group_type = MenuGroupType::deserialize(group_str.into_deserializer())?;
                 Ok(MenuGroup {
                     group_type,
                     position: Some(position),
                 })
             } else {
-                let group_type = Self::parse_group_type(&s)?;
+                let group_type = MenuGroupType::deserialize(s.into_deserializer())?;
                 Ok(MenuGroup {
                     group_type,
                     position: None,
@@ -352,88 +217,19 @@ mod menu_group {
             }
         }
     }
-
-    impl MenuGroup {
-        fn parse_group_type<E: serde::de::Error>(s: &str) -> Result<MenuGroupType, E> {
-            match s {
-                "navigation" => Ok(MenuGroupType::Navigation),
-                "inline" => Ok(MenuGroupType::Inline),
-                "selection" => Ok(MenuGroupType::Selection),
-                "build" => Ok(MenuGroupType::Build),
-                "run" => Ok(MenuGroupType::Run),
-                "benchmark" => Ok(MenuGroupType::Benchmark),
-                "actions" => Ok(MenuGroupType::Actions),
-                "modify" => Ok(MenuGroupType::Modify),
-                "context" => Ok(MenuGroupType::Context),
-                _ => Err(serde::de::Error::custom(format!(
-                    "invalid menu group: {}",
-                    s
-                ))),
-            }
-        }
-    }
 }
 
 pub mod view_id {
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::fmt;
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+    #[serde(rename_all = "camelCase")]
     pub enum ViewId {
         CargoToolsExplorer,
         CargoToolsProjectStatus,
         CargoToolsProjectOutline,
         CargoToolsMakefile,
         CargoToolsPinnedMakefileTasks,
-    }
-
-    impl ViewId {
-        pub fn as_str(&self) -> &'static str {
-            match self {
-                ViewId::CargoToolsExplorer => "cargoToolsExplorer",
-                ViewId::CargoToolsProjectStatus => "cargoToolsProjectStatus",
-                ViewId::CargoToolsProjectOutline => "cargoToolsProjectOutline",
-                ViewId::CargoToolsMakefile => "cargoToolsMakefile",
-                ViewId::CargoToolsPinnedMakefileTasks => "cargoToolsPinnedMakefileTasks",
-            }
-        }
-
-        pub fn from_str(s: &str) -> Option<Self> {
-            match s {
-                "cargoToolsExplorer" => Some(ViewId::CargoToolsExplorer),
-                "cargoToolsProjectStatus" => Some(ViewId::CargoToolsProjectStatus),
-                "cargoToolsProjectOutline" => Some(ViewId::CargoToolsProjectOutline),
-                "cargoToolsMakefile" => Some(ViewId::CargoToolsMakefile),
-                "cargoToolsPinnedMakefileTasks" => Some(ViewId::CargoToolsPinnedMakefileTasks),
-                _ => None,
-            }
-        }
-    }
-
-    impl fmt::Display for ViewId {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}", self.as_str())
-        }
-    }
-
-    impl Serialize for ViewId {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-
-    impl<'de> Deserialize<'de> for ViewId {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            ViewId::from_str(&s)
-                .ok_or_else(|| serde::de::Error::custom(format!("Invalid view ID: {}", s)))
-        }
     }
 }
 

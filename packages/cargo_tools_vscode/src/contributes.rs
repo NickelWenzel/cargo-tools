@@ -1363,21 +1363,22 @@ mod tests {
         let views = data::all_views();
 
         for view in &views.explorer {
+            let id = serde_json::to_string(&view.id).unwrap();
             assert!(
-                view.id.as_str().starts_with("cargoTools"),
-                "Explorer view {} should start with 'cargoTools'",
-                view.id
+                id.starts_with("\"cargoTools"),
+                "Explorer view {id:?} should start with 'cargoTools'"
             );
-            assert!(!view.name.is_empty(), "View {} should have a name", view.id);
+            assert!(!view.name.is_empty(), "View {id:?} should have a name");
         }
 
         for view in &views.cargo_tools {
+            let id = serde_json::to_string(&view.id).unwrap();
             assert!(
-                view.id.as_str().starts_with("cargoTools"),
-                "CargoTools view {} should start with 'cargoTools'",
+                id.starts_with("\"cargoTools"),
+                "CargoTools view {:?} should start with 'cargoTools'",
                 view.id
             );
-            assert!(!view.name.is_empty(), "View {} should have a name", view.id);
+            assert!(!view.name.is_empty(), "View {id:?} should have a name");
         }
     }
 
