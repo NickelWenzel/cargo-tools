@@ -110,7 +110,7 @@ impl VsCodeContext {
 
 #[wasm_async_trait]
 impl Context for VsCodeContext {
-    async fn update_prefix(ctx: String) {
+    fn update_prefix(ctx: String) {
         let mut prefix = PREFIX.lock().unwrap();
         *prefix = ctx;
     }

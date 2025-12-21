@@ -13,7 +13,7 @@ pub struct ConfigurationUpdate {
 
 #[wasm_async_trait]
 pub trait Context: 'static {
-    async fn update_prefix(prefix: String);
+    fn update_prefix(prefix: String);
 
     async fn update_state(update: StateUpdate);
     fn state_receiver() -> Receiver<State>;

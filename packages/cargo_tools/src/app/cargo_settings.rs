@@ -57,14 +57,13 @@ impl CargoSettings {
 
     fn update_root_dir<RT: Runtime, CTX: Context>(&mut self, root_dir: String) -> Task<Msg> {
         self.root_manifest = format!("{root_dir}/Cargo.toml");
+        CTX::update_prefix(root_dir.clone());
+
         let update =
             Task::future(parse_metadata::<RT>(self.root_manifest.clone())).map(Msg::MetadataUpdate);
-        let prefix = Task::future(async move {
-            CTX::update_prefix(root_dir.clone()).await;
-        })
-        .discard::<Msg>();
+
         let tick_state = Task::future(CTX::update_state(StateUpdate::Tick)).discard::<Msg>();
-        Task::batch([update, prefix, tick_state])
+        Task::batch([update, tick_state])
     }
 
     fn update_metadata<RT: Runtime, UI: CargoSettingsUi>(

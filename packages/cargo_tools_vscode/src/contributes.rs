@@ -134,7 +134,7 @@ pub mod data {
         keybindings: all_keybindings(),
     });
 
-    fn all_commands() -> Vec<Command> {
+    pub fn all_commands() -> Vec<Command> {
         vec![
             Command {
                 command: "cargo-tools.testRust".to_string(),
@@ -230,7 +230,7 @@ pub mod data {
         ]
     }
 
-    fn all_views_containers() -> ViewsContainers {
+    pub fn all_views_containers() -> ViewsContainers {
         ViewsContainers {
             activitybar: vec![ViewContainer {
                 id: "cargoTools".to_string(),
@@ -240,7 +240,7 @@ pub mod data {
         }
     }
 
-    fn all_views() -> Views {
+    pub fn all_views() -> Views {
         Views {
             explorer: vec![View {
                 id: "cargoToolsExplorer".to_string(),
@@ -283,7 +283,7 @@ pub mod data {
         }
     }
 
-    fn all_menus() -> Menus {
+    pub fn all_menus() -> Menus {
         Menus {
             view_title: vec![
                 MenuItem {
@@ -302,7 +302,7 @@ pub mod data {
         }
     }
 
-    fn extension_configuration() -> Configuration {
+    pub fn extension_configuration() -> Configuration {
         let mut properties = HashMap::new();
         properties.insert(
             "cargoTools.cargoCommand".to_string(),
@@ -331,7 +331,7 @@ pub mod data {
         }
     }
 
-    fn all_task_definitions() -> Vec<TaskDefinition> {
+    pub fn all_task_definitions() -> Vec<TaskDefinition> {
         let mut cargo_props = HashMap::new();
         cargo_props.insert(
             "command".to_string(),
@@ -382,7 +382,7 @@ pub mod data {
         ]
     }
 
-    fn all_keybindings() -> Vec<Keybinding> {
+    pub fn all_keybindings() -> Vec<Keybinding> {
         vec![
             Keybinding {
                 command: "cargo-tools.projectStatus.build".to_string(),
@@ -452,7 +452,7 @@ mod tests {
         let json = serde_json::to_value(&*data::CONTRIBUTES).unwrap();
 
         assert!(json["commands"].is_array());
-        assert!(json["commands"].as_array().unwrap().len() > 0);
+        assert!(!json["commands"].as_array().unwrap().is_empty());
         assert!(json["viewsContainers"]["activitybar"].is_array());
         assert!(json["views"]["cargoTools"].is_array());
         assert_eq!(json["configuration"]["title"], "Cargo Tools");
@@ -495,5 +495,214 @@ mod tests {
         assert_eq!(json["id"], "testContainer");
         assert_eq!(json["title"], "Test Container");
         assert_eq!(json["icon"], "$(package)");
+    }
+
+    #[test]
+    fn contributes_matches_package_json() {
+        let package_json = include_str!("../../../package.json");
+        let package: serde_json::Value = serde_json::from_str(package_json).unwrap();
+        
+        let package_contributes: Contributes = serde_json::from_value(package["contributes"].clone())
+            .expect("Failed to deserialize contributes from package.json");
+
+        assert_eq!(
+            &package_contributes, &*data::CONTRIBUTES,
+            "Contributes struct does not match package.json"
+        );
+    }
+
+    #[test]
+    fn configuration_properties_have_required_fields() {
+        let config = data::extension_configuration();
+
+        for (key, prop) in &config.properties {
+            assert!(
+                key.starts_with("cargoTools."),
+                "Property key {} should start with 'cargoTools.'",
+                key
+            );
+            assert!(
+                !prop.description.is_empty(),
+                "Property {} should have a description",
+                key
+            );
+        }
+    }
+
+    #[test]
+    fn all_commands_have_required_fields() {
+        let commands = data::all_commands();
+
+        for command in &commands {
+            assert!(
+                command.command.starts_with("cargo-tools."),
+                "Command {} should start with 'cargo-tools.'",
+                command.command
+            );
+            assert!(
+                !command.title.is_empty(),
+                "Command {} should have a title",
+                command.command
+            );
+            assert_eq!(
+                command.category,
+                Some("Cargo Tools".to_string()),
+                "Command {} should have category 'Cargo Tools'",
+                command.command
+            );
+            assert!(
+                command.icon.is_some(),
+                "Command {} should have an icon",
+                command.command
+            );
+        }
+    }
+
+    #[test]
+    fn all_views_have_consistent_naming() {
+        let views = data::all_views();
+
+        for view in &views.explorer {
+            assert!(
+                view.id.starts_with("cargoTools"),
+                "Explorer view {} should start with 'cargoTools'",
+                view.id
+            );
+            assert!(!view.name.is_empty(), "View {} should have a name", view.id);
+        }
+
+        for view in &views.cargo_tools {
+            assert!(
+                view.id.starts_with("cargoTools"),
+                "CargoTools view {} should start with 'cargoTools'",
+                view.id
+            );
+            assert!(!view.name.is_empty(), "View {} should have a name", view.id);
+        }
+    }
+
+    #[test]
+    fn task_definitions_have_required_properties() {
+        let task_defs = data::all_task_definitions();
+
+        for task_def in &task_defs {
+            assert!(
+                !task_def.type_.is_empty(),
+                "Task definition should have a type"
+            );
+            assert!(
+                !task_def.required.is_empty(),
+                "Task definition {} should have required properties",
+                task_def.type_
+            );
+
+            for required_prop in &task_def.required {
+                assert!(
+                    task_def.properties.contains_key(required_prop),
+                    "Task definition {} should define required property {}",
+                    task_def.type_,
+                    required_prop
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn keybindings_have_valid_format() {
+        let keybindings = data::all_keybindings();
+
+        for keybinding in &keybindings {
+            assert!(
+                keybinding.command.starts_with("cargo-tools."),
+                "Keybinding command {} should start with 'cargo-tools.'",
+                keybinding.command
+            );
+            assert!(
+                !keybinding.key.is_empty(),
+                "Keybinding for {} should have a key",
+                keybinding.command
+            );
+            assert!(
+                keybinding.when.is_some(),
+                "Keybinding for {} should have a when clause",
+                keybinding.command
+            );
+        }
+    }
+
+    #[test]
+    fn menus_reference_valid_commands() {
+        let menus = data::all_menus();
+        let commands = data::all_commands();
+        let command_ids: Vec<String> = commands.iter().map(|c| c.command.clone()).collect();
+
+        for menu_item in &menus.view_title {
+            assert!(
+                command_ids.contains(&menu_item.command),
+                "Menu item references unknown command: {}",
+                menu_item.command
+            );
+        }
+    }
+
+    #[test]
+    fn views_containers_activitybar_not_empty() {
+        let containers = data::all_views_containers();
+
+        assert!(
+            !containers.activitybar.is_empty(),
+            "Should have at least one activity bar container"
+        );
+
+        for container in &containers.activitybar {
+            assert!(!container.id.is_empty(), "Container should have an id");
+            assert!(!container.title.is_empty(), "Container should have a title");
+            assert!(!container.icon.is_empty(), "Container should have an icon");
+        }
+    }
+
+    #[test]
+    fn task_property_types_are_valid() {
+        let task_defs = data::all_task_definitions();
+        let valid_types = ["string", "boolean", "number", "array", "object"];
+
+        for task_def in &task_defs {
+            for (prop_name, prop) in &task_def.properties {
+                assert!(
+                    valid_types.contains(&prop.type_.as_str()),
+                    "Property {} in task {} has invalid type: {}",
+                    prop_name,
+                    task_def.type_,
+                    prop.type_
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn contributes_has_all_required_sections() {
+        let contributes = &*data::CONTRIBUTES;
+
+        assert!(!contributes.commands.is_empty(), "Should have commands");
+        assert!(
+            !contributes.views_containers.activitybar.is_empty(),
+            "Should have activity bar containers"
+        );
+        assert!(
+            !contributes.views.cargo_tools.is_empty(),
+            "Should have cargo tools views"
+        );
+        assert!(
+            !contributes.configuration.properties.is_empty(),
+            "Should have configuration properties"
+        );
+        assert!(
+            !contributes.task_definitions.is_empty(),
+            "Should have task definitions"
+        );
+        assert!(
+            !contributes.keybindings.is_empty(),
+            "Should have keybindings"
+        );
     }
 }

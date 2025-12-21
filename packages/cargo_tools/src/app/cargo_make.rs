@@ -59,13 +59,9 @@ impl CargoMake {
 
     fn update_root_dir<RT: Runtime, CTX: Context>(&mut self, root_dir: String) -> Task<Msg> {
         self.makefile = format!("{root_dir}/Makefile.toml");
-        let update =
-            Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate);
-        let prefix = Task::future(async move {
-            CTX::update_prefix(root_dir.clone()).await;
-        })
-        .discard::<Msg>();
-        Task::batch([update, prefix])
+        CTX::update_prefix(root_dir.clone());
+
+        Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
     }
 
     fn update_tasks<RT: Runtime, UI: CargoMakeUi>(
