@@ -3,11 +3,8 @@
 //! This module provides a concrete Runtime implementation that bridges to the
 //! tracing logging framework, enabling log verification in tests via tracing-test.
 
-use cargo_tools::{
-    cargo_tools::state::{State, StateUpdate},
-    runtime::{Runtime, Settings, SettingsUpdate},
-};
-use futures::channel::mpsc::Receiver;
+use async_broadcast::Receiver;
+use cargo_tools::runtime::Runtime;
 use wasm_async_trait::wasm_async_trait;
 
 /// Test runtime implementation for integration testing.
@@ -46,31 +43,13 @@ impl Runtime for TestRuntime {
 
     fn current_dir_notitifier() -> Receiver<String> {
         // Return a mock receiver for testing
-        let (_, rx) = futures::channel::mpsc::channel(1);
+        let (_, rx) = async_broadcast::broadcast(1);
         rx
     }
 
     fn file_changed_notifier(_file: String) -> Receiver<()> {
-        todo!()
-    }
-
-    async fn update_state_context(_ctx: String) -> State {
-        // Return default state for testing
-        State::default()
-    }
-
-    async fn update_state(_update: StateUpdate) -> State {
-        // Return default state for testing
-        State::default()
-    }
-
-    async fn update_settings_context(_ctx: String) -> Settings {
-        // Return default settings for testing
-        Settings
-    }
-
-    async fn update_settings(_update: SettingsUpdate) -> Settings {
-        // Return default settings for testing
-        Settings
+        // Return a mock receiver for testing
+        let (_, rx) = async_broadcast::broadcast(1);
+        rx
     }
 }

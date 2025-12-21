@@ -8,14 +8,14 @@
 //! Creating individual contribution types:
 //!
 //! ```
-//! use cargo_tools::contributes::{Command, Keybinding};
+//! use cargo_tools::contributes::{Command, Icon, Keybinding};
 //!
 //! // Create a command
 //! let cmd = Command {
 //!     command: "my.command".to_string(),
 //!     title: "My Command".to_string(),
-//!     category: Some("My Extension".to_string()),
-//!     icon: Some("$(gear)".to_string()),
+//!     category: "My Extension".to_string(),
+//!     icon: Icon::Gear,
 //!     enablement: Some("myExtension:enabled".to_string()),
 //! };
 //!
