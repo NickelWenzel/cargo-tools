@@ -135,22 +135,3 @@ impl Context for VsCodeContext {
         sender.new_receiver()
     }
 }
-
-#[wasm_bindgen]
-pub async fn on_configuration_changed(config_json: String) {
-    let new_config: Configuration = match serde_json::from_str(&config_json) {
-        Ok(c) => c,
-        Err(e) => {
-            vs_code_api::log(&format!("Failed to deserialize configuration: {}", e));
-            return;
-        }
-    };
-
-    {
-        let mut config = CONFIG.lock().unwrap();
-        *config = Some(new_config.clone());
-    }
-
-    let sender = CONFIG_TX.lock().unwrap().clone();
-    let _ = sender.broadcast(new_config).await;
-}

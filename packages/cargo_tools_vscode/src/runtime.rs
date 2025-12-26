@@ -97,14 +97,16 @@ impl Runtime for VsCodeRuntime {
 /// Called by TypeScript when the current directory changes.
 #[wasm_bindgen]
 pub async fn on_current_dir_changed(dir: String) {
+    {
+        let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
+        if let Some(h) = *handle {
+            vs_code_api::unwatch_current_dir(h);
+            *handle = None;
+        }
+    }
+
     let sender = CURRENT_DIR_TX.lock().unwrap().clone();
     let _ = sender.broadcast(dir).await;
-
-    let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
-    if let Some(h) = *handle {
-        vs_code_api::unwatch_current_dir(h);
-        *handle = None;
-    }
 }
 
 /// Called by TypeScript when a watched file changes.
@@ -112,8 +114,8 @@ pub async fn on_current_dir_changed(dir: String) {
 pub fn on_file_changed(path: String) {
     let mut watchers = FILE_WATCHERS.lock().unwrap();
     if let Some((handle, sender)) = watchers.remove(&path) {
-        let _ = sender.try_broadcast(());
         vs_code_api::unwatch_file(handle);
+        let _ = sender.try_broadcast(());
     }
 }
 
