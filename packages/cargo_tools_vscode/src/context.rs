@@ -29,109 +29,53 @@
 //! - `get_configuration_json()` - Read full configuration
 //! - `set_configuration_value(key, value)` - Update configuration property
 
-use async_broadcast::{broadcast, Receiver, Sender};
-use cargo_tools::app::state::{State, StateUpdate};
-use cargo_tools::context::{Configuration, Context};
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
+use std::fmt::Debug;
+
+use cargo_tools::context::Context;
+use cargo_tools::contributes::Configuration;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use wasm_async_trait::wasm_async_trait;
-use wasm_bindgen::prelude::*;
 
 use crate::vs_code_api::{self, JsValueExt};
 
-const CHANNEL_CAPACITY: usize = 100;
-
-static PREFIX: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
-
-static STATE: Lazy<Mutex<State>> = Lazy::new(|| Mutex::new(State::default()));
-static STATE_TX: Lazy<Mutex<Sender<State>>> = Lazy::new(|| {
-    let (tx, _) = broadcast(CHANNEL_CAPACITY);
-    Mutex::new(tx)
-});
-
-static CONFIG: Lazy<Mutex<Option<Configuration>>> = Lazy::new(|| Mutex::new(None));
-static CONFIG_TX: Lazy<Mutex<Sender<Configuration>>> = Lazy::new(|| {
-    let (tx, _) = broadcast(CHANNEL_CAPACITY);
-    Mutex::new(tx)
-});
-
 pub struct VsCodeContext;
-
-impl VsCodeContext {
-    async fn persist_state(state: State) -> Result<(), String> {
-        let full_key = {
-            let prefix = PREFIX.lock().unwrap();
-            if prefix.is_empty() {
-                "state".to_string()
-            } else {
-                format!("{}.state", *prefix)
-            }
-        };
-
-        let state = serde_wasm_bindgen::to_value(&state)
-            .map_err(|e| format!("Serialization failed: {:?}", e))?;
-        vs_code_api::set_state(&full_key, state)
-            .await
-            .map_err(|e| e.to_error_string())
-    }
-
-    fn apply_state_update(state: &mut State, update: StateUpdate) {
-        match update {
-            StateUpdate::SelectedPackage(v) => state.selected_package = Some(v),
-            StateUpdate::SelectedBuildTarget(v) => state.selected_build_target = Some(v),
-            StateUpdate::SelectedRunTarget(v) => state.selected_run_target = Some(v),
-            StateUpdate::SelectedBenchmarkTarget(v) => state.selected_benchmark_target = Some(v),
-            StateUpdate::SelectedPlatformTarget(v) => state.selected_platform_target = Some(v),
-            StateUpdate::SelectedFeatures(v) => state.selected_features = Some(v),
-            StateUpdate::SelectedProfile(v) => state.selected_profile = Some(v),
-            StateUpdate::GroupByWorkspaceMember(v) => state.group_by_workspace_member = Some(v),
-            StateUpdate::WorkspaceMemberFilter(v) => state.workspace_member_filter = Some(v),
-            StateUpdate::TargetTypeFilter(v) => state.target_type_filter = Some(v),
-            StateUpdate::IsTargetTypeFilterActive(v) => {
-                state.is_target_type_filter_active = Some(v)
-            }
-            StateUpdate::ShowFeatures(v) => state.show_features = Some(v),
-            StateUpdate::MakefileTaskFilter(v) => state.makefile_task_filter = Some(v),
-            StateUpdate::MakefileCategoryFilter(v) => state.makefile_category_filter = Some(v),
-            StateUpdate::IsMakefileCategoryFilterActive(v) => {
-                state.is_makefile_category_filter_active = Some(v)
-            }
-            StateUpdate::PinnedMakefileTasks(v) => state.pinned_makefile_tasks = Some(v),
-            StateUpdate::Tick => {}
-        }
-    }
-
-    fn get_configuration() -> Result<Configuration, String> {
-        let js_value = vs_code_api::get_configuration();
-        serde_wasm_bindgen::from_value(js_value)
-            .map_err(|e| format!("Failed to deserialize configuration: {:?}", e))
-    }
-}
 
 #[wasm_async_trait]
 impl Context for VsCodeContext {
-    fn update_prefix(ctx: String) {
-        let mut prefix = PREFIX.lock().unwrap();
-        *prefix = ctx;
-    }
-
-    async fn update_state(update: StateUpdate) {
-        let state = {
-            let mut state = STATE.lock().unwrap();
-            Self::apply_state_update(&mut state, update.clone());
-            state.clone()
+    async fn persist_state(key: String, state: impl Serialize) {
+        let state = serde_wasm_bindgen::to_value(&state);
+        let Ok(state) = state else {
+            let e = state.unwrap_err();
+            vs_code_api::log(&format!("Failed to serialize state: {e}"));
+            return;
         };
 
-        if let Err(e) = Self::persist_state(state.clone()).await {
-            vs_code_api::log(&format!("Failed persist state in VSCode: {e}"));
+        if let Err(e) = vs_code_api::set_state(&key, state).await {
+            let e = e.to_error_string();
+            vs_code_api::log(&format!("Failed to set state: {e}"));
         }
-
-        let sender = STATE_TX.lock().unwrap().clone();
-        let _ = sender.broadcast(state).await;
     }
 
-    fn state_receiver() -> Receiver<State> {
-        let sender = STATE_TX.lock().unwrap();
-        sender.new_receiver()
+    fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T> {
+        let js_value = vs_code_api::get_state(&key);
+        let state = serde_wasm_bindgen::from_value(js_value);
+        let Ok(state) = state else {
+            let e = state.unwrap_err();
+            vs_code_api::log(&format!("Failed to deserialize state: {e}"));
+            return None;
+        };
+        Some(state)
+    }
+
+    fn get_configuration() -> Option<Configuration> {
+        let js_value = vs_code_api::get_configuration();
+        let conf = serde_wasm_bindgen::from_value(js_value);
+        let Ok(conf) = conf else {
+            let e = conf.unwrap_err();
+            vs_code_api::log(&format!("Failed to deserialize configuration: {e}"));
+            return None;
+        };
+        Some(conf)
     }
 }

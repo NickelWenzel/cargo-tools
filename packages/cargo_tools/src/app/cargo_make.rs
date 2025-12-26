@@ -1,15 +1,7 @@
-use std::sync::{Arc, Mutex};
-
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
-use wasm_async_trait::wasm_async_trait;
 
-use crate::{app::state::State, context::Context, runtime::Runtime};
-
-#[wasm_async_trait]
-pub trait CargoMakeUi {
-    async fn update(tasks: Arc<Mutex<MakefileTasks>>, state: Arc<Mutex<State>>);
-}
+use crate::{context::Context, runtime::Runtime};
 
 #[derive(Debug, Clone)]
 pub struct MakefileTask {
@@ -29,7 +21,6 @@ pub enum MakefileTasksUpdate {
 
 pub enum CargoMakeMessage {
     RootDirUpdate(String),
-    StateUpdate(State),
     MakefileUpdate,
     MakefileTasksUpdate(MakefileTasksUpdate),
 }
@@ -38,63 +29,42 @@ use CargoMakeMessage as Msg;
 
 pub struct CargoMake {
     makefile: String,
-    tasks: Arc<Mutex<MakefileTasks>>,
-    state: Arc<Mutex<State>>,
+    tasks: MakefileTasks,
 }
 
 impl CargoMake {
-    pub fn update<RT: Runtime, UI: CargoMakeUi, CTX: Context>(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<RT: Runtime, CTX: Context>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
             Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT, CTX>(root_dir),
             Msg::MakefileUpdate => {
                 Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
             }
-            Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT, UI>(tasks_update),
-            Msg::StateUpdate(state) => {
-                *self.state.lock().unwrap() = state;
-                self.update_ui::<UI>()
-            }
+            Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT>(tasks_update),
         }
     }
 
     fn update_root_dir<RT: Runtime, CTX: Context>(&mut self, root_dir: String) -> Task<Msg> {
         self.makefile = format!("{root_dir}/Makefile.toml");
-        CTX::update_prefix(root_dir.clone());
 
         Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
     }
 
-    fn update_tasks<RT: Runtime, UI: CargoMakeUi>(
-        &mut self,
-        tasks_update: MakefileTasksUpdate,
-    ) -> Task<Msg> {
+    fn update_tasks<RT: Runtime>(&mut self, tasks_update: MakefileTasksUpdate) -> Task<Msg> {
         match tasks_update {
-            MakefileTasksUpdate::New(tasks) => *self.tasks.lock().unwrap() = tasks,
-            MakefileTasksUpdate::NoMakefile => *self.tasks.lock().unwrap() = Vec::new(),
+            MakefileTasksUpdate::New(tasks) => self.tasks = tasks,
+            MakefileTasksUpdate::NoMakefile => self.tasks = Vec::new(),
             MakefileTasksUpdate::FailedToRetrieve => {}
         }
 
         let makefile = self.makefile.clone();
-        let makefile = Task::future(async move {
+        Task::future(async move {
             RT::file_changed_notifier(makefile).next().await;
         })
-        .map(|()| Msg::MakefileUpdate);
-
-        let ui = self.update_ui::<UI>();
-
-        Task::batch([makefile, ui])
-    }
-
-    fn update_ui<UI: CargoMakeUi>(&self) -> Task<Msg> {
-        let (tasks, state) = (self.tasks.clone(), self.state.clone());
-        Task::future(UI::update(tasks, state)).discard::<Msg>()
+        .map(|()| Msg::MakefileUpdate)
     }
 
     pub fn subscription<RT: Runtime, CTX: Context>(&self) -> Subscription<Msg> {
-        let root_dir = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
-        let state = Subscription::run(CTX::state_receiver).map(Msg::StateUpdate);
-
-        Subscription::batch([root_dir, state])
+        Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate)
     }
 }
 

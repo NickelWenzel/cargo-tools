@@ -1,20 +1,8 @@
-use std::sync::{Arc, Mutex};
-
 use cargo_metadata::{Metadata, MetadataCommand};
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
-use wasm_async_trait::wasm_async_trait;
 
-use crate::{
-    app::state::{State, StateUpdate},
-    context::Context,
-    runtime::Runtime,
-};
-
-#[wasm_async_trait]
-pub trait CargoSettingsUi {
-    async fn update(metadata: Arc<Mutex<MetadataUpdate>>, state: Arc<Mutex<State>>);
-}
+use crate::{app::selection::Selection, context::Context, runtime::Runtime};
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
@@ -22,54 +10,53 @@ pub enum MetadataUpdate {
     NoCargoToml,
     FailedToRetrieve,
 }
-pub enum CargoSettingsMessage {
+pub enum CargoMessage {
     RootDirUpdate(String),
-    StateUpdate(State),
+    SelectionUpdate(Selection),
     ManifestUpdate,
     MetadataUpdate(MetadataUpdate),
 }
 
-use CargoSettingsMessage as Msg;
+use CargoMessage as Msg;
 
-pub struct CargoSettings {
+pub struct Cargo {
     root_manifest: String,
     workspace_manifests: Vec<String>,
-    metadata: Arc<Mutex<MetadataUpdate>>,
-    state: Arc<Mutex<State>>,
+    metadata: MetadataUpdate,
+    selection: Selection,
 }
 
-impl CargoSettings {
-    pub fn update<RT: Runtime, UI: CargoSettingsUi, CTX: Context>(
-        &mut self,
-        msg: Msg,
-    ) -> Task<Msg> {
+impl Cargo {
+    pub fn update<RT: Runtime, CTX: Context>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
             Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT, CTX>(root_dir),
             Msg::ManifestUpdate => Task::future(parse_metadata::<RT>(self.root_manifest.clone()))
                 .map(Msg::MetadataUpdate),
-            Msg::MetadataUpdate(update) => self.update_metadata::<RT, UI>(update),
-            Msg::StateUpdate(state) => {
-                *self.state.lock().unwrap() = state;
-                self.update_ui::<UI>()
+            Msg::MetadataUpdate(update) => self.update_metadata::<RT>(update),
+            Msg::SelectionUpdate(selection) => {
+                self.selection = selection;
+                Task::none()
             }
         }
     }
 
     fn update_root_dir<RT: Runtime, CTX: Context>(&mut self, root_dir: String) -> Task<Msg> {
         self.root_manifest = format!("{root_dir}/Cargo.toml");
-        CTX::update_prefix(root_dir.clone());
+        let selection = {
+            if let Some(s) = CTX::get_state(format!("{root_dir}.cargo_selection")) {
+                Task::done(Msg::SelectionUpdate(s))
+            } else {
+                Task::none()
+            }
+        };
 
-        let update =
+        let metadata =
             Task::future(parse_metadata::<RT>(self.root_manifest.clone())).map(Msg::MetadataUpdate);
 
-        let tick_state = Task::future(CTX::update_state(StateUpdate::Tick)).discard::<Msg>();
-        Task::batch([update, tick_state])
+        Task::batch([metadata, selection])
     }
 
-    fn update_metadata<RT: Runtime, UI: CargoSettingsUi>(
-        &mut self,
-        metadata_update: MetadataUpdate,
-    ) -> Task<Msg> {
+    fn update_metadata<RT: Runtime>(&mut self, metadata_update: MetadataUpdate) -> Task<Msg> {
         match &metadata_update {
             MetadataUpdate::New(metadata) => {
                 self.workspace_manifests = workspace_manifests(metadata);
@@ -80,30 +67,18 @@ impl CargoSettings {
             MetadataUpdate::FailedToRetrieve => {}
         }
 
-        *self.metadata.lock().unwrap() = metadata_update;
+        self.metadata = metadata_update;
 
         let manifests_changed = self.manifests();
-        let manifests = Task::future(async move {
+        Task::future(async move {
             let notifiers = manifests_changed.into_iter().map(RT::file_changed_notifier);
             futures::stream::select_all(notifiers).next().await;
         })
-        .map(|()| Msg::ManifestUpdate);
-
-        let ui = self.update_ui::<UI>();
-
-        Task::batch([manifests, ui])
+        .map(|()| Msg::ManifestUpdate)
     }
 
-    fn update_ui<UI: CargoSettingsUi>(&self) -> Task<Msg> {
-        let (metadata, state) = (self.metadata.clone(), self.state.clone());
-        Task::future(UI::update(metadata, state)).discard::<Msg>()
-    }
-
-    pub fn subscription<RuntimeT: Runtime, ContextT: Context>(&self) -> Subscription<Msg> {
-        let root_dir = Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate);
-        let state = Subscription::run(ContextT::state_receiver).map(Msg::StateUpdate);
-
-        Subscription::batch([root_dir, state])
+    pub fn subscription<RuntimeT: Runtime>(&self) -> Subscription<Msg> {
+        Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate)
     }
 
     fn manifests(&self) -> Vec<String> {

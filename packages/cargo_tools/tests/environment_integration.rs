@@ -6,7 +6,7 @@
 mod support;
 use cargo_tools::app::{
     cargo_make::{parse_tasks as update_makefile_tasks, MakefileTasksUpdate},
-    cargo_settings::{parse_metadata as update_metadata, MetadataUpdate},
+    cargo::{parse_metadata as update_metadata, MetadataUpdate},
 };
 use support::TestRuntime;
 

@@ -38,6 +38,7 @@ proc-macro2 = "1.0"
 iced = { version = "0.14.0", default-features = false, features = [
     "wayland",
     "x11",
+    "wgpu",
 ] }
 iced_futures = { version = "0.14.0" }
 iced_runtime = { version = "0.14.0" }

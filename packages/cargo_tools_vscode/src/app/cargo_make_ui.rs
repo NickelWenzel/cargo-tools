@@ -1,13 +1,29 @@
-use cargo_tools::app::cargo_make::{CargoMakeUi, MakefileTasks};
-use cargo_tools::app::state::State;
-use std::sync::{Arc, Mutex};
-use wasm_async_trait::wasm_async_trait;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MakefileTaskFilter(String);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MakefileCategoryFilter(Vec<String>);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct IsMakefileCategoryFilterActive(bool);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PinnedMakefileTasks(Vec<String>);
 
 pub struct VsCodeCargoMakeUi;
 
-#[wasm_async_trait]
-impl CargoMakeUi for VsCodeCargoMakeUi {
-    async fn update(_tasks: Arc<Mutex<MakefileTasks>>, _state: Arc<Mutex<State>>) {
-        todo!()
-    }
+enum UiStateUpdate {
+    MakefileTaskFilter(MakefileTaskFilter),
+    MakefileCategoryFilter(MakefileCategoryFilter),
+    IsMakefileCategoryFilterActive(IsMakefileCategoryFilterActive),
+    PinnedMakefileTasks(PinnedMakefileTasks),
+}
+
+struct UiState {
+    pub makefile_task_filter: Option<MakefileTaskFilter>,
+    pub makefile_category_filter: Option<MakefileCategoryFilter>,
+    pub is_makefile_category_filter_active: Option<IsMakefileCategoryFilterActive>,
+    pub pinned_makefile_tasks: Option<PinnedMakefileTasks>,
 }
