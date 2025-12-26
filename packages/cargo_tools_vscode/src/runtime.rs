@@ -31,11 +31,15 @@
 //! Unit tests are provided but cannot be executed directly on wasm32 target.
 //! They serve as documentation and can be validated through integration tests
 //! or manual testing in the VS Code extension.
-
 use async_broadcast::{broadcast, Receiver, Sender};
-use cargo_tools::runtime::Runtime;
+use cargo_tools::{
+    contributes::Configuration,
+    runtime::{CargoTask, Runtime},
+};
 use once_cell::sync::Lazy;
+use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::Mutex;
 use wasm_async_trait::wasm_async_trait;
 use wasm_bindgen::prelude::*;
@@ -66,6 +70,9 @@ impl Runtime for VsCodeRuntime {
             .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
             .map_err(|e| e.to_error_string())
     }
+    async fn exec_task(_task: CargoTask) {
+        todo!()
+    }
 
     async fn log(msg: String) {
         vs_code_api::log(&msg);
@@ -91,6 +98,42 @@ impl Runtime for VsCodeRuntime {
             (handle, sender)
         });
         entry.1.new_receiver()
+    }
+
+    async fn persist_state(key: String, state: impl Serialize) {
+        let state = serde_wasm_bindgen::to_value(&state);
+        let Ok(state) = state else {
+            let e = state.unwrap_err();
+            vs_code_api::log(&format!("Failed to serialize state: {e}"));
+            return;
+        };
+
+        if let Err(e) = vs_code_api::set_state(&key, state).await {
+            let e = e.to_error_string();
+            vs_code_api::log(&format!("Failed to set state: {e}"));
+        }
+    }
+
+    fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T> {
+        let js_value = vs_code_api::get_state(&key);
+        let state = serde_wasm_bindgen::from_value(js_value);
+        let Ok(state) = state else {
+            let e = state.unwrap_err();
+            vs_code_api::log(&format!("Failed to deserialize state: {e}"));
+            return None;
+        };
+        Some(state)
+    }
+
+    fn get_configuration() -> Option<Configuration> {
+        let js_value = vs_code_api::get_configuration();
+        let conf = serde_wasm_bindgen::from_value(js_value);
+        let Ok(conf) = conf else {
+            let e = conf.unwrap_err();
+            vs_code_api::log(&format!("Failed to deserialize configuration: {e}"));
+            return None;
+        };
+        Some(conf)
     }
 }
 

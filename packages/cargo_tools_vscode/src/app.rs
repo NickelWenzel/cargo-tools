@@ -3,12 +3,10 @@ pub mod cargo_settings_ui;
 
 use cargo_tools::app::AppServices;
 
-use crate::context::VsCodeContext;
 use crate::runtime::VsCodeRuntime;
 
 pub struct VsCodeAppServices;
 
 impl AppServices for VsCodeAppServices {
     type RuntimeT = VsCodeRuntime;
-    type ContextT = VsCodeContext;
 }

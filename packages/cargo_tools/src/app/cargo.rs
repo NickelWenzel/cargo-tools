@@ -2,7 +2,7 @@ use cargo_metadata::{Metadata, MetadataCommand};
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
-use crate::{app::selection::Selection, context::Context, runtime::Runtime};
+use crate::{app::selection::Selection, runtime::Runtime};
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
@@ -27,9 +27,9 @@ pub struct Cargo {
 }
 
 impl Cargo {
-    pub fn update<RT: Runtime, CTX: Context>(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<RT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
-            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT, CTX>(root_dir),
+            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
             Msg::ManifestUpdate => Task::future(parse_metadata::<RT>(self.root_manifest.clone()))
                 .map(Msg::MetadataUpdate),
             Msg::MetadataUpdate(update) => self.update_metadata::<RT>(update),
@@ -40,10 +40,10 @@ impl Cargo {
         }
     }
 
-    fn update_root_dir<RT: Runtime, CTX: Context>(&mut self, root_dir: String) -> Task<Msg> {
+    fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg> {
         self.root_manifest = format!("{root_dir}/Cargo.toml");
         let selection = {
-            if let Some(s) = CTX::get_state(format!("{root_dir}.cargo_selection")) {
+            if let Some(s) = RT::get_state(format!("{root_dir}.cargo_selection")) {
                 Task::done(Msg::SelectionUpdate(s))
             } else {
                 Task::none()

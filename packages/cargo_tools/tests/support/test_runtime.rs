@@ -2,9 +2,13 @@
 //!
 //! This module provides a concrete Runtime implementation that bridges to the
 //! tracing logging framework, enabling log verification in tests via tracing-test.
-
 use async_broadcast::Receiver;
-use cargo_tools::runtime::Runtime;
+use cargo_tools::{
+    contributes::Configuration,
+    runtime::{CargoTask, Runtime},
+};
+use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::Debug;
 use wasm_async_trait::wasm_async_trait;
 
 /// Test runtime implementation for integration testing.
@@ -36,6 +40,13 @@ impl Runtime for TestRuntime {
         Ok(result)
     }
 
+    async fn exec_task(task: CargoTask) -> Result<String, String> {
+        // Execute command using sh -c wrapper to allow dynamic command strings
+        // This is necessary because cmd_lib's run_fun! macro requires literal syntax
+        let result = cmd_lib::run_fun!(sh -c "echo run task").map_err(|e| e.to_string())?;
+        Ok(result)
+    }
+
     async fn log(msg: String) {
         // Bridge Runtime::log to tracing for test verification
         tracing::info!("{}", msg);
@@ -51,5 +62,15 @@ impl Runtime for TestRuntime {
         // Return a mock receiver for testing
         let (_, rx) = async_broadcast::broadcast(1);
         rx
+    }
+
+    async fn persist_state(_key: String, _state: impl Serialize + Send) {}
+
+    fn get_state<T: DeserializeOwned + Debug>(_key: String) -> Option<T> {
+        None
+    }
+
+    fn get_configuration() -> Option<Configuration> {
+        None
     }
 }

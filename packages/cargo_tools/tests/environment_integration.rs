@@ -5,8 +5,8 @@
 
 mod support;
 use cargo_tools::app::{
-    cargo_make::{parse_tasks as update_makefile_tasks, MakefileTasksUpdate},
-    cargo::{parse_metadata as update_metadata, MetadataUpdate},
+    cargo::{parse_metadata, MetadataUpdate},
+    cargo_make::tasks::{parse_tasks, MakefileTasksUpdate},
 };
 use support::TestRuntime;
 
@@ -15,7 +15,7 @@ use support::TestRuntime;
 #[tracing_test::traced_test]
 async fn test_update_metadata_success() {
     // Use canonicalized absolute path to avoid working directory issues with cmd_lib
-    // Note: update_metadata expects manifest directory, not the full Cargo.toml path
+    // Note: parse_metadata expects manifest directory, not the full Cargo.toml path
     let base_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let manifest = base_path
         .join("../../test-rust-project/Cargo.toml")
@@ -25,7 +25,7 @@ async fn test_update_metadata_success() {
         .unwrap()
         .to_string();
 
-    let result = update_metadata::<TestRuntime>(manifest).await;
+    let result = parse_metadata::<TestRuntime>(manifest).await;
 
     // Verify success variant
     assert!(
@@ -83,7 +83,7 @@ async fn test_update_makefile_tasks_success() {
     )
     .to_string();
 
-    let result = update_makefile_tasks::<TestRuntime>(test_project_path).await;
+    let result = parse_tasks::<TestRuntime>(test_project_path).await;
 
     // The result depends on whether cargo-make is installed
     match result {
@@ -144,7 +144,7 @@ async fn test_update_makefile_tasks_success() {
 async fn test_update_metadata_no_cargo_toml() {
     let nonexistent_path = "/nonexistent/path/that/does/not/exist".to_string();
 
-    let result = update_metadata::<TestRuntime>(nonexistent_path).await;
+    let result = parse_metadata::<TestRuntime>(nonexistent_path).await;
 
     // Verify error variant
     assert!(
@@ -165,7 +165,7 @@ async fn test_update_makefile_tasks_no_cargo_make() {
     let test_project_path =
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project").to_string();
 
-    let result = update_makefile_tasks::<TestRuntime>(test_project_path).await;
+    let result = parse_tasks::<TestRuntime>(test_project_path).await;
 
     // The result depends on whether cargo-make is installed
     // All outcomes are valid for this test
@@ -191,7 +191,7 @@ async fn test_update_makefile_tasks_no_makefile() {
     let path_without_makefile =
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project/core").to_string();
 
-    let result = update_makefile_tasks::<TestRuntime>(path_without_makefile).await;
+    let result = parse_tasks::<TestRuntime>(path_without_makefile).await;
 
     // When given an invalid makefile path, cargo-make command fails
     // The current implementation returns NoMakefile in this case
