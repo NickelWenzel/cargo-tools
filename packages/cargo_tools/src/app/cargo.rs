@@ -126,8 +126,11 @@ impl<Ui: ui::Ui> Cargo<Ui> {
         .map(|()| Msg::ManifestUpdate)
     }
 
-    pub fn subscription<RuntimeT: Runtime>(&self) -> Subscription<Msg> {
-        Subscription::run(RuntimeT::current_dir_notitifier).map(Msg::RootDirUpdate)
+    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg> {
+        let root = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
+        let ui = self.ui.subscription().map(Msg::Ui);
+
+        Subscription::batch([root, ui])
     }
 
     pub fn state_key(&self) -> String {
