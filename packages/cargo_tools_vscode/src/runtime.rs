@@ -33,7 +33,7 @@
 //! or manual testing in the VS Code extension.
 use async_broadcast::{broadcast, Receiver, Sender};
 use cargo_tools::{
-    contributes::Configuration,
+    configuration::Configuration,
     runtime::{CargoTask, Runtime},
 };
 use once_cell::sync::Lazy;
