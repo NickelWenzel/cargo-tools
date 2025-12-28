@@ -1,7 +1,5 @@
 pub mod cargo;
 pub mod cargo_make;
-pub mod command;
-pub mod selection;
 
 use iced_headless::{Subscription, Task};
 
@@ -18,19 +16,25 @@ pub enum AppMessage {
     MakefileHandler(CargoMakeMessage),
 }
 
+use crate::app::cargo::ui::Ui as CargoUi;
 use crate::app::cargo_make::ui::Ui as CargoMakeUi;
 use AppMessage as Msg;
+
+pub trait Ui {
+    type Cargo: CargoUi;
+    type CargoMake: CargoMakeUi;
+}
 
 pub trait AppServices {
     type RuntimeT: Runtime;
 }
 
-pub struct App<CargoMakeUiT: CargoMakeUi> {
-    metadata_handler: Cargo,
-    makefile_handler: CargoMake<CargoMakeUiT>,
+pub struct App<UiT: Ui> {
+    metadata_handler: Cargo<UiT::Cargo>,
+    makefile_handler: CargoMake<UiT::CargoMake>,
 }
 
-impl<CargoMakeUiT: CargoMakeUi> App<CargoMakeUiT> {
+impl<UiT: Ui> App<UiT> {
     pub fn update<Services: AppServices>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
             Msg::MetadataHandler(msg) => self

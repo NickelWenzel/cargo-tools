@@ -1,5 +1,4 @@
 use iced_headless::Subscription;
-use wasm_async_trait::wasm_async_trait;
 
 use crate::app::cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate};
 

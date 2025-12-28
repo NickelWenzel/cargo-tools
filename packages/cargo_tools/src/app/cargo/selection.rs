@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use cargo_metadata::{Metadata, PackageId};
+use cargo_metadata::Metadata;
 use serde::{Deserialize, Serialize};
 
-use crate::app::command::{BuildSubTarget, RunSubTarget};
+use crate::app::cargo::command::{BuildSubTarget, RunSubTarget};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Features {
@@ -18,7 +18,7 @@ impl Default for Features {
 }
 
 #[derive(Debug, Clone)]
-pub enum SelectionUpdate {
+pub enum Update {
     SelectedPackage(Option<String>),
     SelectedBuildTarget(Option<BuildSubTarget>),
     SelectedRunTarget(Option<RunSubTarget>),
@@ -29,17 +29,17 @@ pub enum SelectionUpdate {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct Selection {
-    pub package: Option<PackageId>,
-    pub package_selection: HashMap<PackageId, PackageSelection>,
+pub struct State {
+    pub package: Option<String>,
+    pub package_selection: HashMap<String, PackageSelection>,
     pub platform_target: Option<String>,
     pub profile: Option<String>,
 }
 
-impl Selection {
-    pub fn update(&mut self, update: SelectionUpdate, metadata: &Metadata) {
+impl State {
+    pub fn update(&mut self, update: Update, metadata: &Metadata) {
         match update {
-            SelectionUpdate::SelectedPackage(package) => {
+            Update::SelectedPackage(package) => {
                 let Some(package) = package else {
                     return;
                 };
@@ -47,36 +47,56 @@ impl Selection {
                 self.package = metadata
                     .workspace_packages()
                     .iter()
-                    .find_map(|p| (p.name == package).then_some(p.id.clone()));
+                    .find_map(|p| (p.name == package).then_some(p.id.to_string()));
             }
-            SelectionUpdate::SelectedBuildTarget(v) => {
+            Update::SelectedBuildTarget(v) => {
                 if let Some(s) = self.package_selection() {
                     s.build_target = v;
                 }
             }
-            SelectionUpdate::SelectedRunTarget(v) => {
+            Update::SelectedRunTarget(v) => {
                 if let Some(s) = self.package_selection() {
                     s.run_target = v;
                 }
             }
-            SelectionUpdate::SelectedBenchmarkTarget(v) => {
+            Update::SelectedBenchmarkTarget(v) => {
                 if let Some(s) = self.package_selection() {
                     s.benchmark_target = v;
                 }
             }
-            SelectionUpdate::SelectedFeatures(v) => {
+            Update::SelectedFeatures(v) => {
                 if let Some(s) = self.package_selection() {
                     s.features = v;
                 }
             }
-            SelectionUpdate::SelectedPlatformTarget(v) => self.platform_target = v,
-            SelectionUpdate::SelectedProfile(v) => self.profile = v,
+            Update::SelectedPlatformTarget(v) => self.platform_target = v,
+            Update::SelectedProfile(v) => self.profile = v,
         }
     }
 
     fn package_selection(&mut self) -> Option<&mut PackageSelection> {
         let p = self.package.clone()?;
         Some(self.package_selection.entry(p).or_default())
+    }
+
+    pub fn get<T>(&self, package: &str, get: impl Fn(&PackageSelection) -> Option<T>) -> Option<T> {
+        if let Some(package) = self.package_selection.get(package) {
+            get(package)
+        } else {
+            None
+        }
+    }
+
+    pub fn append_platform_and_target(&self, mut args: Vec<String>) -> Vec<String> {
+        if let Some(platform) = self.platform_target.clone() {
+            args.push("--target".to_string());
+            args.push(platform);
+        }
+        if let Some(profile) = self.profile.clone() {
+            args.push("--profile".to_string());
+            args.push(profile);
+        }
+        args
     }
 }
 
