@@ -17,10 +17,12 @@ pub enum Task {
     ExplicitCommand(Explicit),
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct State {
     pub selection: selection::State,
 }
 
+use serde::{Deserialize, Serialize};
 use Message as Msg;
 
 pub trait Ui {

@@ -21,7 +21,7 @@ pub enum CargoMakeMessage {
 use CargoMakeMessage as Msg;
 
 pub struct CargoMake<Ui: ui::Ui> {
-    makefile: String,
+    root_dir: String,
     ui: Ui,
     state: ui::State,
 }
@@ -31,23 +31,27 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
         match msg {
             Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
             Msg::MakefileUpdate => {
-                Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
+                Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
             }
             Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT>(tasks_update),
             Msg::Ui(msg) => match msg {
-                ui::Message::Update(update) => self.update_state(update),
+                ui::Message::Update(update) => self.update_state::<RT>(update),
                 ui::Message::Task(task) => self.exec_task::<RT>(task),
             },
         }
     }
 
     fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg> {
-        self.makefile = format!("{root_dir}/Makefile.toml");
+        self.root_dir = root_dir;
 
-        Task::future(parse_tasks::<RT>(self.makefile.clone())).map(Msg::MakefileTasksUpdate)
+        if let Some(s) = RT::get_state(self.state_key()) {
+            self.state = s;
+        }
+
+        Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
     }
 
-    fn update_state(&mut self, update: ui::Update) -> Task<Msg> {
+    fn update_state<RT: Runtime>(&mut self, update: ui::Update) -> Task<Msg> {
         match update {
             ui::Update::AddPinned(task) => {
                 if self.state.pinned.contains(&task) {
@@ -60,7 +64,7 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
                 }
             }
         };
-        Task::none()
+        Task::future(RT::persist_state(self.state_key(), self.state.clone())).discard()
     }
 
     fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg> {
@@ -84,7 +88,7 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
     fn update_tasks<RT: Runtime>(&mut self, tasks_update: MakefileTasksUpdate) -> Task<Msg> {
         self.ui.update(tasks_update);
 
-        let makefile = self.makefile.clone();
+        let makefile = self.makefile();
         Task::future(async move {
             RT::file_changed_notifier(makefile).next().await;
         })
@@ -96,5 +100,13 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
         let ui = self.ui.subscription().map(Msg::Ui);
 
         Subscription::batch([root, ui])
+    }
+
+    pub fn state_key(&self) -> String {
+        format!("{}.cargo_tools.cargo_make.state", self.root_dir)
+    }
+
+    pub fn makefile(&self) -> String {
+        format!("{}.Makefile.toml", self.root_dir)
     }
 }

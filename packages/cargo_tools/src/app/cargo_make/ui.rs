@@ -1,4 +1,5 @@
 use iced_headless::Subscription;
+use serde::{Deserialize, Serialize};
 
 use crate::app::cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate};
 
@@ -17,6 +18,7 @@ pub enum Task {
     Pinned(usize),
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct State {
     pub pinned: MakefileTasks,
 }

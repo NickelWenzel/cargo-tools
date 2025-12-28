@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::runtime::Runtime;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MakefileTask {
     pub name: String,
     pub category: String,
