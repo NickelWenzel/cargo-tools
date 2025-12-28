@@ -11,6 +11,7 @@ use iced_headless::{Subscription, Task};
 
 use crate::{
     app::cargo::metadata::{parse_metadata, workspace_manifests, MetadataUpdate},
+    configuration::{self, Configuration},
     runtime::{self, CargoTask, Runtime},
 };
 pub enum CargoMessage {
@@ -75,11 +76,22 @@ impl<Ui: ui::Ui> Cargo<Ui> {
                 ui::Task::ExplicitCommand(implicit.to_explicit(&self.state.selection)),
             ))),
             ui::Task::ExplicitCommand(explicit) => {
-                let args = explicit.into_args(&self.state.selection);
+                let (cmd, args, env) = if let Some(config) = RT::get_configuration() {
+                    let ctx = explicit.task_context();
+                    let mut args = explicit.into_args(&self.state.selection);
+                    args.extend(config.get_extra_args(ctx));
+                    (config.get_cargo_command(ctx), args, config.get_env(ctx))
+                } else {
+                    (
+                        "cargo".to_string(),
+                        explicit.into_args(&self.state.selection),
+                        HashMap::new(),
+                    )
+                };
                 Task::future(RT::exec_task(CargoTask::Cargo(runtime::Task {
-                    cmd: "cargo".to_string(),
+                    cmd,
                     args,
-                    env: HashMap::new(),
+                    env,
                 })))
                 .discard()
             }
@@ -123,6 +135,22 @@ impl<Ui: ui::Ui> Cargo<Ui> {
     }
 
     pub fn root_manifest(&self) -> String {
-        format!("{}.Cargo.toml", self.root_dir)
+        format!("{}/Cargo.toml", self.root_dir)
+    }
+}
+
+trait TaskContext {
+    fn task_context(&self) -> configuration::Context;
+}
+
+impl TaskContext for command::Explicit {
+    fn task_context(&self) -> configuration::Context {
+        match self {
+            command::Explicit::Run(_) => configuration::Context::Run,
+            command::Explicit::Test { package: _ } => configuration::Context::Test,
+            command::Explicit::Build(_)
+            | command::Explicit::Bench { package: _ }
+            | command::Explicit::Doc => configuration::Context::General,
+        }
     }
 }

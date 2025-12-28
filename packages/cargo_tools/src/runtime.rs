@@ -4,7 +4,7 @@ use async_broadcast::Receiver;
 use serde::{de::DeserializeOwned, Serialize};
 use wasm_async_trait::wasm_async_trait;
 
-use crate::contributes::Configuration;
+use crate::configuration::Configuration;
 
 pub enum CargoTask {
     Cargo(Task),
@@ -29,5 +29,5 @@ pub trait Runtime: 'static {
     async fn persist_state(key: String, state: impl Serialize + Send);
     fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T>;
 
-    fn get_configuration() -> Option<Configuration>;
+    fn get_configuration() -> Option<impl Configuration>;
 }

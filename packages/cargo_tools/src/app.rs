@@ -1,6 +1,5 @@
 pub mod cargo;
 pub mod cargo_make;
-pub mod configuration;
 
 use iced_headless::{Subscription, Task};
 

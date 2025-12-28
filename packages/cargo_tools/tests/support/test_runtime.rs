@@ -4,11 +4,11 @@
 //! tracing logging framework, enabling log verification in tests via tracing-test.
 use async_broadcast::Receiver;
 use cargo_tools::{
-    contributes::Configuration,
-    runtime::{CargoTask, Runtime},
+    configuration::{self, Configuration},
+    runtime::{CargoTask, Runtime, Task},
 };
 use serde::{de::DeserializeOwned, Serialize};
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 use wasm_async_trait::wasm_async_trait;
 
 /// Test runtime implementation for integration testing.
@@ -40,11 +40,20 @@ impl Runtime for TestRuntime {
         Ok(result)
     }
 
-    async fn exec_task(task: CargoTask) -> Result<String, String> {
+    async fn exec_task(task: CargoTask) {
         // Execute command using sh -c wrapper to allow dynamic command strings
         // This is necessary because cmd_lib's run_fun! macro requires literal syntax
-        let result = cmd_lib::run_fun!(sh -c "echo run task").map_err(|e| e.to_string())?;
-        Ok(result)
+        let Task { cmd, args, env } = match task {
+            CargoTask::Cargo(task) => task,
+            CargoTask::CargoMake(task) => task,
+        };
+        let env = env
+            .into_iter()
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let args = args.join(" ");
+        let _ = cmd_lib::run_cmd!(sh -c "${env} ${cmd} ${args}").map_err(|e| e.to_string());
     }
 
     async fn log(msg: String) {
@@ -70,7 +79,23 @@ impl Runtime for TestRuntime {
         None
     }
 
-    fn get_configuration() -> Option<Configuration> {
-        None
+    fn get_configuration() -> Option<impl configuration::Configuration> {
+        Some(TestConfig)
+    }
+}
+
+pub struct TestConfig;
+
+impl Configuration for TestConfig {
+    fn get_env(&self, _: cargo_tools::configuration::Context) -> HashMap<String, String> {
+        HashMap::new()
+    }
+
+    fn get_extra_args(&self, _: cargo_tools::configuration::Context) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn get_cargo_command(&self, _: cargo_tools::configuration::Context) -> String {
+        "cargo".to_string()
     }
 }

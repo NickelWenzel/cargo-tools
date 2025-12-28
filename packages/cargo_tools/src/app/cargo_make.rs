@@ -8,6 +8,7 @@ use iced_headless::{Subscription, Task};
 
 use crate::{
     app::cargo_make::tasks::{parse_tasks, MakefileTasksUpdate},
+    configuration::{self, Configuration},
     runtime::{self, CargoTask, Runtime},
 };
 
@@ -70,10 +71,19 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
     fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg> {
         match task {
             ui::Task::MakeTask(name) => {
+                let args = vec!["make".to_string(), name];
+
+                let (cmd, env) = if let Some(config) = RT::get_configuration() {
+                    let ctx = configuration::Context::General;
+                    (config.get_cargo_command(ctx), config.get_env(ctx))
+                } else {
+                    ("cargo".to_string(), HashMap::new())
+                };
+
                 Task::future(RT::exec_task(CargoTask::CargoMake(runtime::Task {
-                    cmd: "cargo".to_string(),
-                    args: vec!["make".to_string(), name],
-                    env: HashMap::new(),
+                    cmd,
+                    args,
+                    env,
                 })))
                 .discard()
             }
@@ -107,6 +117,6 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
     }
 
     pub fn makefile(&self) -> String {
-        format!("{}.Makefile.toml", self.root_dir)
+        format!("{}/Makefile.toml", self.root_dir)
     }
 }
