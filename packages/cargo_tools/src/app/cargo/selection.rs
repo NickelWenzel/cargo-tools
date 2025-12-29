@@ -34,6 +34,7 @@ pub struct State {
     pub package_selection: HashMap<String, PackageSelection>,
     pub platform_target: Option<String>,
     pub profile: Option<String>,
+    pub features: Features,
 }
 
 impl State {
@@ -50,23 +51,25 @@ impl State {
                     .find_map(|p| (p.name == package).then_some(p.id.to_string()));
             }
             Update::SelectedBuildTarget(v) => {
-                if let Some(s) = self.package_selection() {
+                if let Some(s) = self.package_selection_mut() {
                     s.build_target = v;
                 }
             }
             Update::SelectedRunTarget(v) => {
-                if let Some(s) = self.package_selection() {
+                if let Some(s) = self.package_selection_mut() {
                     s.run_target = v;
                 }
             }
             Update::SelectedBenchmarkTarget(v) => {
-                if let Some(s) = self.package_selection() {
+                if let Some(s) = self.package_selection_mut() {
                     s.benchmark_target = v;
                 }
             }
             Update::SelectedFeatures(v) => {
-                if let Some(s) = self.package_selection() {
+                if let Some(s) = self.package_selection_mut() {
                     s.features = v;
+                } else {
+                    self.features = v;
                 }
             }
             Update::SelectedPlatformTarget(v) => self.platform_target = v,
@@ -74,9 +77,14 @@ impl State {
         }
     }
 
-    fn package_selection(&mut self) -> Option<&mut PackageSelection> {
+    fn package_selection_mut(&mut self) -> Option<&mut PackageSelection> {
         let p = self.package.clone()?;
         Some(self.package_selection.entry(p).or_default())
+    }
+
+    fn package_selection(&self) -> Option<&PackageSelection> {
+        let p = self.package.clone()?;
+        self.package_selection.get(&p)
     }
 
     pub fn get<T>(&self, package: &str, get: impl Fn(&PackageSelection) -> Option<T>) -> Option<T> {
@@ -87,15 +95,29 @@ impl State {
         }
     }
 
-    pub fn append_platform_and_target(&self, mut args: Vec<String>) -> Vec<String> {
+    pub fn args(&self, for_package: bool) -> Vec<String> {
+        let mut args = Vec::new();
         if let Some(platform) = self.platform_target.clone() {
-            args.push("--target".to_string());
-            args.push(platform);
+            args.extend(["--target".to_string(), platform]);
         }
         if let Some(profile) = self.profile.clone() {
-            args.push("--profile".to_string());
-            args.push(profile);
+            args.extend(["--profile".to_string(), profile]);
         }
+
+        let features = if let Some(s) = self.package_selection() && for_package {
+            &s.features
+        } else {
+            &self.features
+        };
+
+        match features {
+            Features::All => args.push("--all-features".to_string()),
+            Features::Some(items) if !items.is_empty() => {
+                args.extend(["--features".to_string(), items.join(",")])
+            }
+            Features::Some(_) => {}
+        };
+
         args
     }
 }

@@ -57,66 +57,65 @@ impl Explicit {
         match self {
             Explicit::Build(build_target) => {
                 let mut args = vec!["build".to_string()];
+                let selection_args = selection.args(build_target.is_some());
                 if let Some(BuildTarget { package, target }) = build_target {
-                    args.push("--package".to_string());
-                    args.push(package);
+                    args.extend(["--package".to_string(), package]);
 
                     if let Some(target) = target {
                         match target {
                             BuildSubTarget::Bin(bin) => {
-                                args.push("--bin".to_string());
-                                args.push(bin);
+                                args.extend(["--bin".to_string(), bin]);
                             }
                             BuildSubTarget::Example(example) => {
-                                args.push("--example".to_string());
-                                args.push(example);
+                                args.extend(["--example".to_string(), example]);
                             }
                             BuildSubTarget::Lib(_) => args.push("--lib".to_string()),
                             BuildSubTarget::Bench(bench) => {
-                                args.push("--bench".to_string());
-                                args.push(bench);
+                                args.extend(["--bench".to_string(), bench]);
                             }
                         }
                     }
                 }
-                selection.append_platform_and_target(args)
+                args.extend(selection_args);
+                args
             }
             Explicit::Run(run_target) => {
                 let mut args = vec!["run".to_string()];
+                let selection_args = selection.args(run_target.is_some());
                 if let Some(RunTarget { package, target }) = run_target {
-                    args.push("--package".to_string());
-                    args.push(package);
+                    args.extend(["--package".to_string(), package]);
 
                     if let Some(target) = target {
                         match target {
                             RunSubTarget::Bin(bin) => {
-                                args.push("--bin".to_string());
-                                args.push(bin);
+                                args.extend(["--bin".to_string(), bin]);
                             }
                             RunSubTarget::Example(example) => {
-                                args.push("--example".to_string());
-                                args.push(example);
+                                args.extend(["--example".to_string(), example]);
                             }
                         }
                     }
                 }
-                selection.append_platform_and_target(args)
+                args.extend(selection_args);
+                args
             }
             Explicit::Test { package } => {
                 let mut args: Vec<_> = vec!["test".to_string()];
+                let selection_args = selection.args(package.is_some());
                 if let Some(package) = package {
-                    args.push("--package".to_string());
-                    args.push(package);
+                    args.extend(["--package".to_string(), package]);
                 }
-                selection.append_platform_and_target(args)
+                args.extend(selection_args);
+                args
             }
             Explicit::Bench { package } => {
                 let mut args: Vec<_> = vec!["bench".to_string()];
+                let selection_args = selection.args(package.is_some());
                 if let Some(package) = package {
-                    args.push("--package".to_string());
-                    args.push(package);
+                    args.extend(["--package".to_string(), package]);
                 }
-                selection.append_platform_and_target(args)
+                args.extend(selection_args);
+                args
             }
             Explicit::Doc => ["doc", "--no-deps", "release"]
                 .into_iter()

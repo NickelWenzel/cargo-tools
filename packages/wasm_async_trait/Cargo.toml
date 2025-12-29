@@ -1,7 +1,7 @@
 [package]
 name = "wasm_async_trait"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["Nicolas Wenzel"]
 description = "Automatically applies the correct async_trait variant for WASM and native targets"
 license = "MIT"

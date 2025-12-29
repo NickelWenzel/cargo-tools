@@ -1,7 +1,7 @@
 [package]
 name = "iced_headless"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["Nicolas Wenzel"]
 description = "Headless application runtime for iced, enabling background services without UI"
 license = "MIT"
