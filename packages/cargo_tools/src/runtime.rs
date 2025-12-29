@@ -29,5 +29,5 @@ pub trait Runtime: 'static {
     async fn persist_state(key: String, state: impl Serialize + Send);
     fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T>;
 
-    fn get_configuration() -> Option<impl Configuration>;
+    fn get_configuration() -> impl Configuration;
 }

@@ -44,7 +44,10 @@ use std::sync::Mutex;
 use wasm_async_trait::wasm_async_trait;
 use wasm_bindgen::prelude::*;
 
-use crate::vs_code_api::{self, JsValueExt};
+use crate::{
+    configuration,
+    vs_code_api::{self, JsValueExt},
+};
 
 const CHANNEL_CAPACITY: usize = 100;
 
@@ -125,15 +128,8 @@ impl Runtime for VsCodeRuntime {
         Some(state)
     }
 
-    fn get_configuration() -> Option<Configuration> {
-        let js_value = vs_code_api::get_configuration();
-        let conf = serde_wasm_bindgen::from_value(js_value);
-        let Ok(conf) = conf else {
-            let e = conf.unwrap_err();
-            vs_code_api::log(&format!("Failed to deserialize configuration: {e}"));
-            return None;
-        };
-        Some(conf)
+    fn get_configuration() -> impl Configuration {
+        configuration::Configuration
     }
 }
 

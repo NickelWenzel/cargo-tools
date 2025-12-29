@@ -358,6 +358,8 @@ mod menu {
 }
 
 mod configuration {
+    use wasm_bindgen::prelude::wasm_bindgen;
+
     use super::*;
 
     /// Configuration contribution for extension settings.
@@ -388,6 +390,7 @@ mod configuration {
     /// Type of a configuration property.
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(rename_all = "lowercase")]
+    #[wasm_bindgen]
     pub enum ConfigPropertyType {
         String,
         Boolean,

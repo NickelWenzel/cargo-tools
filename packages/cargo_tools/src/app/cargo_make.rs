@@ -1,8 +1,6 @@
 pub mod tasks;
 pub mod ui;
 
-use std::collections::HashMap;
-
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
@@ -73,11 +71,10 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
             ui::Task::MakeTask(name) => {
                 let args = vec!["make".to_string(), name];
 
-                let (cmd, env) = if let Some(config) = RT::get_configuration() {
+                let (cmd, env) = {
+                    let config = RT::get_configuration();
                     let ctx = configuration::Context::General;
                     (config.get_cargo_command(ctx), config.get_env(ctx))
-                } else {
-                    ("cargo".to_string(), HashMap::new())
                 };
 
                 Task::future(RT::exec_task(CargoTask::CargoMake(runtime::Task {

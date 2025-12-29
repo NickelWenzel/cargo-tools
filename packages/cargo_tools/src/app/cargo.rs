@@ -3,7 +3,7 @@ pub mod metadata;
 pub mod selection;
 pub mod ui;
 
-use std::{collections::HashMap, iter};
+use std::iter;
 
 use cargo_metadata::Metadata;
 use futures::StreamExt;
@@ -76,17 +76,14 @@ impl<Ui: ui::Ui> Cargo<Ui> {
                 ui::Task::ExplicitCommand(implicit.to_explicit(&self.state.selection)),
             ))),
             ui::Task::ExplicitCommand(explicit) => {
-                let (cmd, args, env) = if let Some(config) = RT::get_configuration() {
+                let (cmd, args, env) = {
+                    let config = RT::get_configuration();
                     let ctx = explicit.task_context();
+
                     let mut args = explicit.into_args(&self.state.selection);
                     args.extend(config.get_extra_args(ctx));
+
                     (config.get_cargo_command(ctx), args, config.get_env(ctx))
-                } else {
-                    (
-                        "cargo".to_string(),
-                        explicit.into_args(&self.state.selection),
-                        HashMap::new(),
-                    )
                 };
                 Task::future(RT::exec_task(CargoTask::Cargo(runtime::Task {
                     cmd,

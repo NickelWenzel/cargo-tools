@@ -79,8 +79,8 @@ impl Runtime for TestRuntime {
         None
     }
 
-    fn get_configuration() -> Option<impl configuration::Configuration> {
-        Some(TestConfig)
+    fn get_configuration() -> impl configuration::Configuration {
+        TestConfig
     }
 }
 
