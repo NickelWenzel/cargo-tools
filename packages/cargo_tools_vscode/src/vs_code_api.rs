@@ -1,6 +1,8 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::JsString;
 
+use crate::runtime::VsCodeTask;
+
 #[wasm_bindgen(raw_module = "../cargoTools.ts")]
 extern "C" {
     pub async fn echo_task(msg: &str);
@@ -26,6 +28,12 @@ extern "C" {
     pub fn unwatch_file(handle: u32);
 }
 
+#[wasm_bindgen(raw_module = "../task.ts")]
+extern "C" {
+    /// Get a state value from VS Code workspace state storage.
+    pub async fn execute_task(task: VsCodeTask);
+}
+
 #[wasm_bindgen(raw_module = "../context.ts")]
 extern "C" {
     /// Get a state value from VS Code workspace state storage.
@@ -34,9 +42,6 @@ extern "C" {
     /// Set a state value in VS Code workspace state storage.
     #[wasm_bindgen(catch)]
     pub async fn set_state(key: &str, value: JsValue) -> Result<(), JsValue>;
-
-    /// Get the full VS Code configuration as JSON.
-    pub fn get_configuration() -> JsValue;
 }
 
 #[wasm_bindgen(raw_module = "../configuration.ts")]

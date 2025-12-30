@@ -31,18 +31,20 @@
 //! Unit tests are provided but cannot be executed directly on wasm32 target.
 //! They serve as documentation and can be validated through integration tests
 //! or manual testing in the VS Code extension.
-use async_broadcast::{broadcast, Receiver, Sender};
+use async_broadcast::{Receiver, Sender, broadcast};
 use cargo_tools::{
     configuration::Configuration,
-    runtime::{CargoTask, Runtime},
+    runtime::{CargoTask, Runtime, Task},
 };
 use once_cell::sync::Lazy;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
+use serde_wasm_bindgen::to_value;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Mutex;
 use wasm_async_trait::wasm_async_trait;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::js_sys::Map;
 
 use crate::{
     configuration,
@@ -73,8 +75,9 @@ impl Runtime for VsCodeRuntime {
             .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
             .map_err(|e| e.to_error_string())
     }
-    async fn exec_task(_task: CargoTask) {
-        todo!()
+
+    async fn exec_task(task: CargoTask) {
+        vs_code_api::execute_task(VsCodeTask(task)).await;
     }
 
     async fn log(msg: String) {
@@ -130,6 +133,45 @@ impl Runtime for VsCodeRuntime {
 
     fn get_configuration() -> impl Configuration {
         configuration::Configuration
+    }
+}
+
+/// Task type which is exported in typescript code
+#[wasm_bindgen]
+pub struct VsCodeTask(CargoTask);
+
+#[wasm_bindgen]
+impl VsCodeTask {
+    #[wasm_bindgen]
+    pub fn task_type(&self) -> String {
+        match self.0 {
+            CargoTask::Cargo(_) => "cargo".to_string(),
+            CargoTask::CargoMake(_) => "cargo-make".to_string(),
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn cmd(&self) -> String {
+        self.task().cmd.clone()
+    }
+
+    #[wasm_bindgen]
+    pub fn args(&self) -> Vec<String> {
+        self.task().args.clone()
+    }
+
+    #[wasm_bindgen]
+    pub fn env(&self) -> Map {
+        to_value(&self.task().env)
+            .map(Map::from)
+            .unwrap_or_default()
+    }
+
+    fn task(&self) -> &Task {
+        match &self.0 {
+            CargoTask::Cargo(task) => task,
+            CargoTask::CargoMake(task) => task,
+        }
     }
 }
 

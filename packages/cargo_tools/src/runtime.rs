@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use async_broadcast::Receiver;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use wasm_async_trait::wasm_async_trait;
 
 use crate::configuration::Configuration;
