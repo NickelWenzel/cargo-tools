@@ -5,7 +5,7 @@ use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
 use crate::{
-    app::cargo_make::tasks::{parse_tasks, MakefileTasksUpdate},
+    app::cargo_make::tasks::{MakefileTasksUpdate, parse_tasks},
     configuration::{self, Configuration},
     runtime::{self, CargoTask, Runtime},
 };
@@ -69,13 +69,16 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
     fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg> {
         match task {
             ui::Task::MakeTask(name) => {
-                let args = vec!["make".to_string(), name];
-
-                let (cmd, env) = {
+                let (cmd, mut args, env) = {
                     let config = RT::get_configuration();
                     let ctx = configuration::Context::General;
-                    (config.get_cargo_command(ctx), config.get_env(ctx))
+                    let config_cmd = config.get_cargo_command(ctx);
+                    let mut cmd = config_cmd.split_whitespace().map(String::from);
+                    let (cmd, args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
+                    (cmd, args, config.get_env(ctx))
                 };
+
+                args.extend(["make".to_string(), name]);
 
                 Task::future(RT::exec_task(CargoTask::CargoMake(runtime::Task {
                     cmd,

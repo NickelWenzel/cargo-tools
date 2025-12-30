@@ -10,7 +10,7 @@ use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
 use crate::{
-    app::cargo::metadata::{parse_metadata, workspace_manifests, MetadataUpdate},
+    app::cargo::metadata::{MetadataUpdate, parse_metadata, workspace_manifests},
     configuration::{self, Configuration},
     runtime::{self, CargoTask, Runtime},
 };
@@ -80,10 +80,13 @@ impl<Ui: ui::Ui> Cargo<Ui> {
                     let config = RT::get_configuration();
                     let ctx = explicit.task_context();
 
-                    let mut args = explicit.into_args(&self.state.selection);
+                    let config_cmd = config.get_cargo_command(ctx);
+                    let mut cmd = config_cmd.split_whitespace().map(String::from);
+                    let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
+                    args.extend(explicit.into_args(&self.state.selection));
                     args.extend(config.get_extra_args(ctx));
 
-                    (config.get_cargo_command(ctx), args, config.get_env(ctx))
+                    (cmd, args, config.get_env(ctx))
                 };
                 Task::future(RT::exec_task(CargoTask::Cargo(runtime::Task {
                     cmd,
