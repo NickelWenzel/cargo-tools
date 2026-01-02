@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::js_sys::JsString;
+use wasm_bindgen_futures::js_sys::{Array, JsString};
 
 use crate::runtime::VsCodeTask;
 
@@ -32,6 +32,19 @@ extern "C" {
 extern "C" {
     /// Get a state value from VS Code workspace state storage.
     pub async fn execute_task(task: VsCodeTask);
+}
+
+#[wasm_bindgen(raw_module = "../command.ts")]
+extern "C" {
+    /// Get a state value from VS Code workspace state storage.
+    #[wasm_bindgen(catch)]
+    pub fn register_command(
+        command: &str,
+        callback: &Closure<dyn FnMut(Array)>,
+    ) -> Result<(), JsValue>;
+
+    /// Set a state value in VS Code workspace state storage.
+    pub fn dispose_commands();
 }
 
 #[wasm_bindgen(raw_module = "../context.ts")]
