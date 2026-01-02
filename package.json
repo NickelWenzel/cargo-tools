@@ -30,12 +30,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "cargo-tools.testRust",
-        "title": "Test Rust bindgen",
-        "category": "Cargo Tools",
-        "icon": "$(gear)"
-      },
-      {
         "command": "cargo-tools.selectProfile",
         "title": "Select Build Profile",
         "category": "Cargo Tools",

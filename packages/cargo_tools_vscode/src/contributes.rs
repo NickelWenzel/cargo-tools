@@ -577,7 +577,6 @@ pub mod data {
 
     pub fn all_commands() -> Vec<Command> {
         vec![
-            Command::new("testRust", "Test Rust bindgen", Icon::Gear, None),
             Command::new("selectProfile", "Select Build Profile", Icon::Gear, None),
             Command::new("selectPackage", "Select Package", Icon::Package, None),
             Command::new(

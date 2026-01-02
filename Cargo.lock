@@ -515,6 +515,7 @@ dependencies = [
  "thiserror 2.0.17",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-bindgen-test",
  "wasm_async_trait",
 ]
 
