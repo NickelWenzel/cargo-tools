@@ -1,5 +1,5 @@
 use cargo_tools::configuration;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use serde_wasm_bindgen::{from_value, to_value};
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
@@ -16,7 +16,7 @@ impl Configuration {
         let config_type = ConfigPropertyType::String as u32;
         let default_value = to_value(&default).unwrap_or(JsValue::NULL);
         let result = vs_code_api::get_config(section, key, config_type, default_value);
-        from_value(result).unwrap_or_else(|_| default)
+        from_value(result).unwrap_or(default)
     }
 
     fn use_rust_analyzer_env_and_args() -> bool {

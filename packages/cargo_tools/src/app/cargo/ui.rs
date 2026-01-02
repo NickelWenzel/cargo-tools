@@ -7,11 +7,13 @@ use crate::app::cargo::{
 };
 use iced_headless::Subscription;
 
+#[derive(Debug, Clone)]
 pub enum Message {
     Update(Update),
     Task(Task),
 }
 
+#[derive(Debug, Clone)]
 pub enum Task {
     ImplicitCommand(Implicit),
     ExplicitCommand(Explicit),
@@ -22,8 +24,8 @@ pub struct State {
     pub selection: selection::State,
 }
 
-use serde::{Deserialize, Serialize};
 use Message as Msg;
+use serde::{Deserialize, Serialize};
 
 pub trait Ui {
     fn update(&mut self, update: MetadataUpdate);

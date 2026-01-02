@@ -10,6 +10,7 @@ use crate::{
     runtime::{self, CargoTask, Runtime},
 };
 
+#[derive(Debug, Clone)]
 pub enum CargoMakeMessage {
     RootDirUpdate(String),
     MakefileUpdate,
@@ -23,6 +24,16 @@ pub struct CargoMake<Ui: ui::Ui> {
     root_dir: String,
     ui: Ui,
     state: ui::State,
+}
+
+impl<Ui: ui::Ui> CargoMake<Ui> {
+    pub fn new(root_dir: String, ui: Ui) -> Self {
+        Self {
+            root_dir,
+            ui,
+            state: Default::default(),
+        }
+    }
 }
 
 impl<Ui: ui::Ui> CargoMake<Ui> {

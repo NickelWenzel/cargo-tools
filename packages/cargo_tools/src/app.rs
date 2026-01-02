@@ -11,9 +11,10 @@ use crate::{
     runtime::Runtime,
 };
 
+#[derive(Debug, Clone)]
 pub enum AppMessage {
-    MetadataHandler(CargoMessage),
-    MakefileHandler(CargoMakeMessage),
+    Cargo(CargoMessage),
+    CargoMake(CargoMakeMessage),
 }
 
 use crate::app::cargo::ui::Ui as CargoUi;
@@ -25,32 +26,23 @@ pub trait Ui {
     type CargoMake: CargoMakeUi;
 }
 
-pub trait AppServices {
-    type RuntimeT: Runtime;
-}
-
 pub struct App<UiT: Ui> {
-    metadata_handler: Cargo<UiT::Cargo>,
-    makefile_handler: CargoMake<UiT::CargoMake>,
+    pub cargo: Cargo<UiT::Cargo>,
+    pub cargo_make: CargoMake<UiT::CargoMake>,
 }
 
 impl<UiT: Ui> App<UiT> {
-    pub fn update<Services: AppServices>(&mut self, msg: Msg) -> Task<Msg> {
+    pub fn update<RT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
         match msg {
-            Msg::MetadataHandler(msg) => self
-                .metadata_handler
-                .update::<Services::RuntimeT>(msg)
-                .map(Msg::MetadataHandler),
-            Msg::MakefileHandler(msg) => self
-                .makefile_handler
-                .update::<Services::RuntimeT>(msg)
-                .map(Msg::MakefileHandler),
+            Msg::Cargo(msg) => self.cargo.update::<RT>(msg).map(Msg::Cargo),
+            Msg::CargoMake(msg) => self.cargo_make.update::<RT>(msg).map(Msg::CargoMake),
         }
     }
 
-    pub fn subscription<Services: AppServices>(&self) -> Subscription<Msg> {
-        self.makefile_handler
-            .subscription::<Services::RuntimeT>()
-            .map(Msg::MakefileHandler)
+    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg> {
+        let cargo = self.cargo.subscription::<RT>().map(Msg::Cargo);
+        let cargo_make = self.cargo_make.subscription::<RT>().map(Msg::CargoMake);
+
+        Subscription::batch([cargo, cargo_make])
     }
 }

@@ -507,6 +507,7 @@ dependencies = [
  "cargo_metadata",
  "cargo_tools",
  "futures",
+ "iced_headless",
  "once_cell",
  "serde",
  "serde-wasm-bindgen",

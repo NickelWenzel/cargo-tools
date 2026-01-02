@@ -14,6 +14,8 @@ use crate::{
     configuration::{self, Configuration},
     runtime::{self, CargoTask, Runtime},
 };
+
+#[derive(Debug, Clone)]
 pub enum CargoMessage {
     RootDirUpdate(String),
     ManifestUpdate,
@@ -29,6 +31,18 @@ pub struct Cargo<Ui: ui::Ui> {
     metadata: Option<Metadata>,
     ui: Ui,
     state: ui::State,
+}
+
+impl<Ui: ui::Ui> Cargo<Ui> {
+    pub fn new(root_dir: String, ui: Ui) -> Self {
+        Self {
+            root_dir,
+            workspace_manifests: Vec::new(),
+            metadata: None,
+            ui,
+            state: Default::default(),
+        }
+    }
 }
 
 impl<Ui: ui::Ui> Cargo<Ui> {

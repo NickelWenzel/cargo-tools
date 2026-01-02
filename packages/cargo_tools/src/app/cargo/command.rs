@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::cargo::selection;
 
+#[derive(Debug, Clone, Copy)]
 pub enum Implicit {
     Build,
     Run,
@@ -44,6 +45,7 @@ impl Implicit {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum Explicit {
     Build(Option<BuildTarget>),
     Run(Option<RunTarget>),
@@ -125,11 +127,13 @@ impl Explicit {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct BuildTarget {
     pub package: String,
     pub target: Option<BuildSubTarget>,
 }
 
+#[derive(Debug, Clone)]
 pub struct RunTarget {
     pub package: String,
     pub target: Option<RunSubTarget>,
