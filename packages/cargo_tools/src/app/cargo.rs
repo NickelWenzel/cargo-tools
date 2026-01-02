@@ -5,7 +5,6 @@ pub mod ui;
 
 use std::iter;
 
-use cargo_metadata::Metadata;
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
@@ -28,7 +27,6 @@ use CargoMessage as Msg;
 pub struct Cargo<Ui: ui::Ui> {
     root_dir: String,
     workspace_manifests: Vec<String>,
-    metadata: Option<Metadata>,
     ui: Ui,
     state: ui::State,
 }
@@ -38,7 +36,6 @@ impl<Ui: ui::Ui> Cargo<Ui> {
         Self {
             root_dir,
             workspace_manifests: Vec::new(),
-            metadata: None,
             ui,
             state: Default::default(),
         }
@@ -76,12 +73,8 @@ impl<Ui: ui::Ui> Cargo<Ui> {
     }
 
     fn update_state<RT: Runtime>(&mut self, update: ui::Update) -> Task<Msg> {
-        if let Some(metadata) = &self.metadata {
-            self.state.selection.update(update, metadata);
-            Task::future(RT::persist_state(self.state_key(), self.state.clone())).discard()
-        } else {
-            Task::none()
-        }
+        self.state.selection.update(update);
+        Task::future(RT::persist_state(self.state_key(), self.state.clone())).discard()
     }
 
     fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg> {
@@ -118,11 +111,9 @@ impl<Ui: ui::Ui> Cargo<Ui> {
         match metadata_update {
             MetadataUpdate::New(metadata) => {
                 self.workspace_manifests = workspace_manifests(&metadata);
-                self.metadata = Some(metadata);
             }
             MetadataUpdate::NoCargoToml => {
                 self.workspace_manifests = Vec::new();
-                self.metadata = None;
             }
             MetadataUpdate::FailedToRetrieve => {}
         }

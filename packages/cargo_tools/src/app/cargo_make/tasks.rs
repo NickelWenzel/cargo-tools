@@ -64,11 +64,11 @@ async fn parse_makefile_output<RT: Runtime>(output: &str) -> MakefileTasksUpdate
             if let Some(task) = task {
                 tasks.push(task);
             }
-        } else if !line.is_empty() {
-            if let Some(task) = tasks.last_mut() {
-                task.description.push('\n');
-                task.description.push_str(line);
-            }
+        } else if !line.is_empty()
+            && let Some(task) = tasks.last_mut()
+        {
+            task.description.push('\n');
+            task.description.push_str(line);
         }
     }
 

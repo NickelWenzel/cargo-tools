@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use cargo_metadata::Metadata;
 use serde::{Deserialize, Serialize};
 
 use crate::app::cargo::command::{BuildSubTarget, RunSubTarget};
@@ -38,17 +37,10 @@ pub struct State {
 }
 
 impl State {
-    pub fn update(&mut self, update: Update, metadata: &Metadata) {
+    pub fn update(&mut self, update: Update) {
         match update {
             Update::SelectedPackage(package) => {
-                let Some(package) = package else {
-                    return;
-                };
-
-                self.package = metadata
-                    .workspace_packages()
-                    .iter()
-                    .find_map(|p| (p.name == package).then_some(p.id.to_string()));
+                self.package = package;
             }
             Update::SelectedBuildTarget(v) => {
                 if let Some(s) = self.package_selection_mut() {
@@ -104,7 +96,9 @@ impl State {
             args.extend(["--profile".to_string(), profile]);
         }
 
-        let features = if let Some(s) = self.package_selection() && for_package {
+        let features = if let Some(s) = self.package_selection()
+            && for_package
+        {
             &s.features
         } else {
             &self.features
