@@ -4,7 +4,7 @@ pub mod cargo_make;
 use std::sync::Mutex;
 
 use cargo_tools::app::{
-    App, AppMessage,
+    self, App, AppMessage,
     cargo::{Cargo, CargoMessage},
     cargo_make::{CargoMake, CargoMakeMessage},
 };
@@ -21,6 +21,17 @@ static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     let (tx, _) = channel(10);
     Mutex::new(tx)
 });
+
+pub static MSG_RX: Lazy<Mutex<async_broadcast::Receiver<Message>>> = Lazy::new(|| {
+    let (_, rx) = async_broadcast::broadcast(10);
+    Mutex::new(rx)
+});
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    Cargo(app::cargo::ui::Message<cargo::Ui>),
+    CargoMake(app::cargo_make::ui::Message<cargo_make::Ui>),
+}
 
 #[derive(Debug)]
 struct Ui;

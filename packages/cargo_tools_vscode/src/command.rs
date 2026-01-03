@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
+use async_broadcast::Sender;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Array;
 
-use crate::vs_code_api::{log, register_command};
+use crate::{
+    app::Message,
+    vs_code_api::{log, register_command},
+};
 
-pub fn register_commands() {
+pub fn register_commands(tx: Sender<Message>) {
     for (command_id, closure) in commmand_map() {
         if let Err(e) = register_command(&command_id, &closure) {
             log(&format!(
@@ -18,7 +22,7 @@ pub fn register_commands() {
 
 type CommandMap = HashMap<String, Closure<dyn FnMut(Array)>>;
 
-fn commmand_map() -> CommandMap {
+fn commmand_map(tx: Sender<Message>) -> CommandMap {
     HashMap::from([
         (
             "cargo-tools.selectProfile".to_string(),

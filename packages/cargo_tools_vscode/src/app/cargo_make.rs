@@ -1,7 +1,7 @@
 use cargo_tools::app::cargo_make;
 use iced_headless::{Subscription, Task};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ui;
 
 impl cargo_make::ui::Ui for Ui {
@@ -15,6 +15,9 @@ impl cargo_make::ui::Ui for Ui {
     }
 
     fn subscription(&self) -> Subscription<cargo_make::ui::Message<Self>> {
-        todo!()
+        Subscription::run(|| super::MSG_RX.lock().unwrap().clone()).filter_map(|msg| match msg {
+            super::Message::Cargo(_) => None,
+            super::Message::CargoMake(msg) => Some(msg),
+        })
     }
 }
