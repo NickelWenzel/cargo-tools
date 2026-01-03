@@ -15,11 +15,11 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum CargoMessage {
+pub enum CargoMessage<Ui: ui::Ui> {
     RootDirUpdate(String),
     ManifestUpdate,
     MetadataUpdate(MetadataUpdate),
-    Ui(ui::Message),
+    Ui(ui::Message<Ui>),
 }
 
 use CargoMessage as Msg;
@@ -42,22 +42,28 @@ impl<Ui: ui::Ui> Cargo<Ui> {
     }
 }
 
-impl<Ui: ui::Ui> Cargo<Ui> {
-    pub fn update<RT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
+impl<Ui: ui::Ui + 'static> Cargo<Ui> {
+    pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
         match msg {
             Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
             Msg::ManifestUpdate => {
                 Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
             }
             Msg::MetadataUpdate(update) => self.update_metadata::<RT>(update),
-            Msg::Ui(msg) => match msg {
-                ui::Message::Update(update) => self.update_state::<RT>(update),
-                ui::Message::Task(task) => self.exec_task::<RT>(task),
-            },
+            Msg::Ui(msg) => {
+                let task = match &msg {
+                    ui::Message::Selection(update) => self.update_state::<RT>(update.clone()),
+                    ui::Message::Task(task) => self.exec_task::<RT>(task.clone()),
+                    ui::Message::Custom(_) | ui::Message::Metadata(_) => Task::none(),
+                };
+                let ui = self.ui.update(msg).map(Msg::<Ui>::Ui);
+
+                Task::batch([task, ui])
+            }
         }
     }
 
-    fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg> {
+    fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg<Ui>> {
         self.root_dir = root_dir;
         let selection = {
             if let Some(s) = RT::get_state(self.state_key()) {
@@ -72,12 +78,12 @@ impl<Ui: ui::Ui> Cargo<Ui> {
         Task::batch([metadata, selection])
     }
 
-    fn update_state<RT: Runtime>(&mut self, update: ui::Update) -> Task<Msg> {
+    fn update_state<RT: Runtime>(&mut self, update: selection::Update) -> Task<Msg<Ui>> {
         self.state.selection.update(update);
         Task::future(RT::persist_state(self.state_key(), self.state.clone())).discard()
     }
 
-    fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg> {
+    fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg<Ui>> {
         match task {
             ui::Task::ImplicitCommand(implicit) => Task::done(Msg::Ui(ui::Message::Task(
                 ui::Task::ExplicitCommand(implicit.to_explicit(&self.state.selection)),
@@ -105,9 +111,7 @@ impl<Ui: ui::Ui> Cargo<Ui> {
         }
     }
 
-    fn update_metadata<RT: Runtime>(&mut self, metadata_update: MetadataUpdate) -> Task<Msg> {
-        self.ui.update(metadata_update.clone());
-
+    fn update_metadata<RT: Runtime>(&mut self, metadata_update: MetadataUpdate) -> Task<Msg<Ui>> {
         match metadata_update {
             MetadataUpdate::New(metadata) => {
                 self.workspace_manifests = workspace_manifests(&metadata);
@@ -131,7 +135,7 @@ impl<Ui: ui::Ui> Cargo<Ui> {
         .map(|()| Msg::ManifestUpdate)
     }
 
-    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg> {
+    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg<Ui>> {
         let root = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
         let ui = self.ui.subscription().map(Msg::Ui);
 

@@ -11,11 +11,11 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum CargoMakeMessage {
+pub enum CargoMakeMessage<Ui: ui::Ui> {
     RootDirUpdate(String),
     MakefileUpdate,
     MakefileTasksUpdate(MakefileTasksUpdate),
-    Ui(ui::Message),
+    Ui(ui::Message<Ui>),
 }
 
 use CargoMakeMessage as Msg;
@@ -36,48 +36,54 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
     }
 }
 
-impl<Ui: ui::Ui> CargoMake<Ui> {
-    pub fn update<RT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
+impl<Ui: ui::Ui + 'static> CargoMake<Ui> {
+    pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
         match msg {
             Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
             Msg::MakefileUpdate => {
                 Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
             }
             Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT>(tasks_update),
-            Msg::Ui(msg) => match msg {
-                ui::Message::Update(update) => self.update_state::<RT>(update),
-                ui::Message::Task(task) => self.exec_task::<RT>(task),
-            },
+            Msg::Ui(msg) => {
+                let task = match &msg {
+                    ui::Message::Update(update) => self.update_state::<RT>(update),
+                    ui::Message::Task(task) => self.exec_task::<RT>(task.clone()),
+                    ui::Message::MakefileTasks(_) | ui::Message::Custom(_) => Task::none(),
+                };
+                let ui = self.ui.update(msg).map(Msg::<Ui>::Ui);
+
+                Task::batch([task, ui])
+            }
         }
     }
 
-    fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg> {
+    fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg<Ui>> {
         self.root_dir = root_dir;
 
         if let Some(s) = RT::get_state(self.state_key()) {
             self.state = s;
         }
 
-        Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
+        Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::<Ui>::MakefileTasksUpdate)
     }
 
-    fn update_state<RT: Runtime>(&mut self, update: ui::Update) -> Task<Msg> {
+    fn update_state<RT: Runtime>(&mut self, update: &ui::Update) -> Task<Msg<Ui>> {
         match update {
             ui::Update::AddPinned(task) => {
-                if self.state.pinned.contains(&task) {
-                    self.state.pinned.push(task);
+                if self.state.pinned.contains(task) {
+                    self.state.pinned.push(task.clone());
                 }
             }
             ui::Update::RemovePinned(idx) => {
-                if idx < self.state.pinned.len() {
-                    self.state.pinned.remove(idx);
+                if *idx < self.state.pinned.len() {
+                    self.state.pinned.remove(*idx);
                 }
             }
         };
         Task::future(RT::persist_state(self.state_key(), self.state.clone())).discard()
     }
 
-    fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg> {
+    fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg<Ui>> {
         match task {
             ui::Task::MakeTask(name) => {
                 let (cmd, mut args, env) = {
@@ -106,19 +112,20 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
         }
     }
 
-    fn update_tasks<RT: Runtime>(&mut self, tasks_update: MakefileTasksUpdate) -> Task<Msg> {
-        self.ui.update(tasks_update);
-
+    fn update_tasks<RT: Runtime>(&mut self, tasks_update: MakefileTasksUpdate) -> Task<Msg<Ui>> {
         let makefile = self.makefile();
-        Task::future(async move {
+        let file_change = Task::future(async move {
             RT::file_changed_notifier(makefile).next().await;
         })
-        .map(|()| Msg::MakefileUpdate)
+        .map(|()| Msg::<Ui>::MakefileUpdate);
+        let ui = Task::done(ui::Message::<Ui>::MakefileTasks(tasks_update)).map(Msg::Ui);
+
+        Task::batch([file_change, ui])
     }
 
-    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg> {
-        let root = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
-        let ui = self.ui.subscription().map(Msg::Ui);
+    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg<Ui>> {
+        let root = Subscription::run(RT::current_dir_notitifier).map(Msg::<Ui>::RootDirUpdate);
+        let ui = self.ui.subscription().map(Msg::<Ui>::Ui);
 
         Subscription::batch([root, ui])
     }

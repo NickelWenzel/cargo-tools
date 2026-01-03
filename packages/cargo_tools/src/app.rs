@@ -12,9 +12,9 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum AppMessage {
-    Cargo(CargoMessage),
-    CargoMake(CargoMakeMessage),
+pub enum AppMessage<UiT: Ui> {
+    Cargo(CargoMessage<UiT::Cargo>),
+    CargoMake(CargoMakeMessage<UiT::CargoMake>),
 }
 
 use crate::app::cargo::ui::Ui as CargoUi;
@@ -31,17 +31,20 @@ pub struct App<UiT: Ui> {
     pub cargo_make: CargoMake<UiT::CargoMake>,
 }
 
-impl<UiT: Ui> App<UiT> {
-    pub fn update<RT: Runtime>(&mut self, msg: Msg) -> Task<Msg> {
+impl<UiT: Ui + 'static> App<UiT> {
+    pub fn update<RT: Runtime>(&mut self, msg: Msg<UiT>) -> Task<Msg<UiT>> {
         match msg {
-            Msg::Cargo(msg) => self.cargo.update::<RT>(msg).map(Msg::Cargo),
-            Msg::CargoMake(msg) => self.cargo_make.update::<RT>(msg).map(Msg::CargoMake),
+            Msg::Cargo(msg) => self.cargo.update::<RT>(msg).map(Msg::<UiT>::Cargo),
+            Msg::CargoMake(msg) => self.cargo_make.update::<RT>(msg).map(Msg::<UiT>::CargoMake),
         }
     }
 
-    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg> {
-        let cargo = self.cargo.subscription::<RT>().map(Msg::Cargo);
-        let cargo_make = self.cargo_make.subscription::<RT>().map(Msg::CargoMake);
+    pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg<UiT>> {
+        let cargo = self.cargo.subscription::<RT>().map(Msg::<UiT>::Cargo);
+        let cargo_make = self
+            .cargo_make
+            .subscription::<RT>()
+            .map(Msg::<UiT>::CargoMake);
 
         Subscription::batch([cargo, cargo_make])
     }

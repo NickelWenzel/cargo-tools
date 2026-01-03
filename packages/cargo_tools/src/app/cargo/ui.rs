@@ -1,16 +1,19 @@
-pub use super::selection::Update;
+use std::fmt::Debug;
+
+pub use super::selection;
 
 use crate::app::cargo::{
     command::{Explicit, Implicit},
     metadata::MetadataUpdate,
-    selection::{self},
 };
 use iced_headless::Subscription;
 
 #[derive(Debug, Clone)]
-pub enum Message {
-    Update(Update),
+pub enum Message<State: Ui> {
+    Selection(selection::Update),
+    Metadata(MetadataUpdate),
     Task(Task),
+    Custom(State::CustomUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -27,8 +30,10 @@ pub struct State {
 use Message as Msg;
 use serde::{Deserialize, Serialize};
 
-pub trait Ui {
-    fn update(&mut self, update: MetadataUpdate);
+pub trait Ui: Sized {
+    type CustomUpdate: Debug + Clone;
 
-    fn subscription(&self) -> Subscription<Msg>;
+    fn update(&mut self, msg: Msg<Self>) -> iced_headless::Task<Msg<Self>>;
+
+    fn subscription(&self) -> Subscription<Msg<Self>>;
 }

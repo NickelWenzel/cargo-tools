@@ -1,12 +1,16 @@
+use std::fmt::Debug;
+
 use iced_headless::Subscription;
 use serde::{Deserialize, Serialize};
 
 use crate::app::cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate};
 
 #[derive(Debug, Clone)]
-pub enum Message {
+pub enum Message<State: Ui> {
     Update(Update),
+    MakefileTasks(MakefileTasksUpdate),
     Task(Task),
+    Custom(State::CustomUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -28,8 +32,10 @@ pub struct State {
 
 use Message as Msg;
 
-pub trait Ui {
-    fn update(&mut self, update: MakefileTasksUpdate);
+pub trait Ui: Sized {
+    type CustomUpdate: Debug + Clone;
 
-    fn subscription(&self) -> Subscription<Msg>;
+    fn update(&mut self, update: Msg<Self>) -> iced_headless::Task<Msg<Self>>;
+
+    fn subscription(&self) -> Subscription<Msg<Self>>;
 }

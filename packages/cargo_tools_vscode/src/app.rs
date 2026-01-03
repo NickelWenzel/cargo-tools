@@ -22,6 +22,7 @@ static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     Mutex::new(tx)
 });
 
+#[derive(Debug)]
 struct Ui;
 
 impl cargo_tools::app::Ui for Ui {
@@ -50,7 +51,7 @@ pub async fn exit() {
     }
 }
 
-fn init(root_dir: String) -> (App<Ui>, Task<AppMessage>) {
+fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     let app = App {
         cargo: Cargo::new(root_dir.clone(), cargo::Ui),
         cargo_make: CargoMake::new(root_dir.clone(), cargo_make::Ui),
