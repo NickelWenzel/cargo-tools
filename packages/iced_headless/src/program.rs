@@ -3,12 +3,12 @@
 use std::future::Future;
 
 use iced::Task;
-use iced_futures::{subscription, Executor, MaybeSend, Runtime, Subscription};
+use iced_futures::{Executor, MaybeSend, Runtime, Subscription, subscription};
 use iced_runtime::Action;
 
 use crate::{
-    event_loop::{EventLoop, Exit},
     Error, Result,
+    event_loop::{EventLoop, Exit},
 };
 
 /// A headless application with no UI.

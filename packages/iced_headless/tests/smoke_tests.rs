@@ -1,10 +1,10 @@
-use iced::{stream, Subscription, Task};
+use iced::{Subscription, Task, stream};
 use iced_headless::{application, event_loop::Exit, headless::async_application};
 use log::info;
 use tracing_test::traced_test;
 use wasm_bindgen_test::*;
 
-use futures::{channel::mpsc::Sender, SinkExt};
+use futures::{SinkExt, channel::mpsc::Sender};
 
 #[derive(Debug, Clone)]
 struct Message;

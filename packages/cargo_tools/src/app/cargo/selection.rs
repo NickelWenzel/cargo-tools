@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::app::cargo::command::{BuildSubTarget, RunSubTarget};
+use crate::{
+    app::cargo::command::{BuildSubTarget, RunSubTarget},
+    profile::Profile,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Features {
@@ -24,7 +27,7 @@ pub enum Update {
     SelectedBenchmarkTarget(Option<String>),
     SelectedPlatformTarget(Option<String>),
     SelectedFeatures(Features),
-    SelectedProfile(Option<String>),
+    SelectedProfile(Profile),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -32,7 +35,7 @@ pub struct State {
     pub package: Option<String>,
     pub package_selection: HashMap<String, PackageSelection>,
     pub platform_target: Option<String>,
-    pub profile: Option<String>,
+    pub profile: Profile,
     pub features: Features,
 }
 
@@ -92,9 +95,7 @@ impl State {
         if let Some(platform) = self.platform_target.clone() {
             args.extend(["--target".to_string(), platform]);
         }
-        if let Some(profile) = self.profile.clone() {
-            args.extend(["--profile".to_string(), profile]);
-        }
+        args.extend(self.profile.cargo_args());
 
         let features = if let Some(s) = self.package_selection()
             && for_package

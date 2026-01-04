@@ -15,7 +15,7 @@ use futures::{
 use iced_headless::{Subscription, Task, async_application, event_loop::Exit};
 use once_cell::sync::Lazy;
 
-use crate::{runtime::VsCodeRuntime, vs_code_api};
+use crate::{command::register_commands, runtime::VsCodeRuntime, vs_code_api};
 
 static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     let (tx, _) = channel(10);
@@ -63,9 +63,12 @@ pub async fn exit() {
 }
 
 fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
+    let cargo_ui = cargo::Ui::new();
+    let cargo_make_ui = cargo_make::Ui::new();
+
     let app = App {
-        cargo: Cargo::new(root_dir.clone(), cargo::Ui),
-        cargo_make: CargoMake::new(root_dir.clone(), cargo_make::Ui),
+        cargo: Cargo::new(root_dir.clone(), cargo_ui.clone()),
+        cargo_make: CargoMake::new(root_dir.clone(), cargo_make_ui.clone()),
     };
 
     let cargo = Task::done(AppMessage::Cargo(CargoMessage::RootDirUpdate(
@@ -74,6 +77,8 @@ fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
         root_dir,
     )));
+
+    register_commands(MSG_RX.lock().unwrap().new_sender(), cargo_ui, cargo_make_ui);
 
     (app, Task::batch([cargo, cargo_make]))
 }

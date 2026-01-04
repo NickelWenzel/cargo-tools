@@ -23,6 +23,8 @@ pub trait Runtime: 'static {
     async fn exec_task(task: CargoTask);
     async fn log(msg: String);
 
+    async fn read_file(file_path: String) -> Result<String, String>;
+
     fn current_dir_notitifier() -> Receiver<String>;
     fn file_changed_notifier(file: String) -> Receiver<()>;
 

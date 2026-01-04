@@ -15,7 +15,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
 async-broadcast = { workspace = true }
-once_cell = "1.19"
+once_cell = { workspace = true }
+toml = { workspace = true }
 
 [dev-dependencies]
 cmd_lib = "2.0"

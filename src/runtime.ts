@@ -4,6 +4,12 @@ import { on_current_dir_changed, on_file_changed } from './wasm/cargo_tools_vsco
 let nextHandle = 1;
 const disposables = new Map<number, vscode.Disposable>();
 
+export async function read_file(file_path: string): Promise<string> {
+    const uri = vscode.Uri.file(file_path);
+    const fileContent = await vscode.workspace.fs.readFile(uri);
+    return new TextDecoder().decode(fileContent);
+}
+
 export function watch_current_dir(): number {
     const handle = nextHandle++;
 

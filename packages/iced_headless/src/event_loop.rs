@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use futures::{
-    channel::mpsc::{self, UnboundedSender},
     StreamExt,
+    channel::mpsc::{self, UnboundedSender},
 };
 use iced_runtime::Action;
 use log::info;

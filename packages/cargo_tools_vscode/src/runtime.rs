@@ -84,6 +84,13 @@ impl Runtime for VsCodeRuntime {
         vs_code_api::log(&msg);
     }
 
+    async fn read_file(file_path: String) -> Result<String, String> {
+        vs_code_api::read_file(&file_path)
+            .await
+            .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
+            .map_err(|e| e.to_error_string())
+    }
+
     fn current_dir_notitifier() -> Receiver<String> {
         let sender = CURRENT_DIR_TX.lock().unwrap();
         let receiver = sender.new_receiver();

@@ -1,15 +1,26 @@
-use cargo_tools::app::cargo_make;
+use std::sync::{Arc, Mutex};
+
+use cargo_tools::app::cargo_make::{self, tasks::MakefileTasks};
 use iced_headless::{Subscription, Task};
 
 #[derive(Debug, Clone)]
-pub struct Ui;
+pub struct Ui {
+    makefile_tasks: Arc<Mutex<MakefileTasks>>,
+    state: Arc<Mutex<cargo_make::ui::State>>,
+}
+
+impl Ui {
+    pub fn new() -> Self {
+        todo!()
+    }
+}
 
 impl cargo_make::ui::Ui for Ui {
     type CustomUpdate = ();
 
     fn update(
         &mut self,
-        update: cargo_make::ui::Message<Self>,
+        _update: cargo_make::ui::Message<Self>,
     ) -> Task<cargo_make::ui::Message<Self>> {
         todo!()
     }

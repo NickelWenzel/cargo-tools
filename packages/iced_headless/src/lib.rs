@@ -92,7 +92,7 @@ pub mod program;
 pub mod tokio_context;
 
 pub use error::{Error, Result};
-pub use headless::{application, async_application, Application, WithExecutor, WithSubscription};
+pub use headless::{Application, WithExecutor, WithSubscription, application, async_application};
 pub use program::HeadlessProgram;
 
-pub use iced::{stream, Subscription, Task};
+pub use iced::{Subscription, Task, stream};

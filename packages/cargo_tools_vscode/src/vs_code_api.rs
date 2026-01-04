@@ -13,6 +13,9 @@ extern "C" {
 
 #[wasm_bindgen(raw_module = "../runtime.ts")]
 extern "C" {
+    #[wasm_bindgen(catch)]
+    pub async fn read_file(file_path: &str) -> Result<JsString, JsValue>;
+
     /// Start watching the current directory for changes.
     /// Returns a handle that can be used to stop watching.
     pub fn watch_current_dir() -> u32;
@@ -74,6 +77,20 @@ extern "C" {
     ) -> JsValue;
 }
 
+#[wasm_bindgen(raw_module = "../window.ts")]
+extern "C" {
+    /// Show a quick pick menu to the user.
+    ///
+    /// # Parameters
+    /// - `items`: Array of quick pick items to display
+    ///
+    /// # Returns
+    /// - `Ok(JsValue)`: Index of the selected item (as a number), or null if cancelled
+    /// - `Err(JsValue)`: Error if the operation fails
+    #[wasm_bindgen(catch)]
+    pub async fn show_quick_pick(items: Array) -> Result<JsValue, JsValue>;
+}
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -81,6 +98,9 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = ["vscode", "commands"])]
     pub fn execute_command(command: &str, rest: Vec<JsValue>);
+
+    #[wasm_bindgen(js_namespace = ["vscode", "window"])]
+    pub fn showErrorMessage(message: String, items: Array);
 }
 
 pub fn set_cargo_context(has_cargo: bool) {

@@ -7,7 +7,7 @@ use cargo_tools::{
     configuration::{self, Configuration},
     runtime::{CargoTask, Runtime, Task},
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::{collections::HashMap, fmt::Debug};
 use wasm_async_trait::wasm_async_trait;
 

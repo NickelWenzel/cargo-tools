@@ -18,6 +18,7 @@ use crate::{
 pub enum CargoMessage<Ui: ui::Ui> {
     RootDirUpdate(String),
     ManifestUpdate,
+    ConfigUpdate,
     MetadataUpdate(MetadataUpdate),
     Ui(ui::Message<Ui>),
 }
@@ -47,6 +48,9 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
         match msg {
             Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
             Msg::ManifestUpdate => {
+                Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
+            }
+            Msg::ConfigUpdate => {
                 Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
             }
             Msg::MetadataUpdate(update) => self.update_metadata::<RT>(update),
@@ -113,13 +117,13 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
 
     fn update_metadata<RT: Runtime>(&mut self, metadata_update: MetadataUpdate) -> Task<Msg<Ui>> {
         match metadata_update {
-            MetadataUpdate::New(metadata) => {
+            MetadataUpdate::Metadata(metadata) => {
                 self.workspace_manifests = workspace_manifests(&metadata);
             }
             MetadataUpdate::NoCargoToml => {
                 self.workspace_manifests = Vec::new();
             }
-            MetadataUpdate::FailedToRetrieve => {}
+            MetadataUpdate::FailedToRetrieve | MetadataUpdate::Profiles(_) => {}
         }
 
         let manifests = self

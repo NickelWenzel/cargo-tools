@@ -17,6 +17,8 @@ impl iced_futures::Executor for Executor {
     }
 
     fn block_on<T>(&self, _future: impl Future<Output = T>) -> T {
-        panic!("This executor should run within an existing tokio context and therefore you should never call block_on.")
+        panic!(
+            "This executor should run within an existing tokio context and therefore you should never call block_on."
+        )
     }
 }

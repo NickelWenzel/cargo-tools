@@ -1,8 +1,8 @@
 //! Builder API for creating and running headless applications.
 
-use crate::{default, Result};
+use crate::{Result, default};
 use crate::{event_loop::Exit, program::HeadlessProgram};
-use iced::{application::UpdateFn, Task};
+use iced::{Task, application::UpdateFn};
 use iced_futures::{Executor, MaybeSend, Subscription};
 
 /// A builder for headless applications implementing iced's Program trait.

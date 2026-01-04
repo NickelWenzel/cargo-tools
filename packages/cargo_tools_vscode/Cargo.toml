@@ -23,7 +23,7 @@ async-trait = { workspace = true }
 async-broadcast = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
-once_cell = "1.19"
+once_cell = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
