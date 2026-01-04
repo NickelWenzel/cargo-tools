@@ -89,6 +89,17 @@ extern "C" {
     /// - `Err(JsValue)`: Error if the operation fails
     #[wasm_bindgen(catch)]
     pub async fn show_quick_pick(items: Array) -> Result<JsValue, JsValue>;
+
+    /// Show a multi-select quick pick menu to the user.
+    ///
+    /// # Parameters
+    /// - `items`: Array of quick pick items to display
+    ///
+    /// # Returns
+    /// - `Ok(JsValue)`: Array of selected indices, or null if cancelled
+    /// - `Err(JsValue)`: Error if the operation fails
+    #[wasm_bindgen(catch)]
+    pub async fn show_quick_pick_multiple(items: Array) -> Result<JsValue, JsValue>;
 }
 
 #[wasm_bindgen]

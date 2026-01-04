@@ -1,4 +1,7 @@
-use cargo_tools::profile::Profile;
+use cargo_tools::{
+    app::cargo::command::{BuildSubTarget, RunSubTarget},
+    profile::Profile,
+};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -60,15 +63,71 @@ impl QuickPickItem {
     pub fn detail(&self) -> Option<String> {
         self.detail.clone()
     }
+
+    pub fn picked(&self) -> Option<bool> {
+        self.picked
+    }
 }
 
 pub trait ToQuickPickItem {
-    fn to_item(&self) -> QuickPickItem;
+    fn to_item(&self, picked: bool) -> QuickPickItem;
 }
 
 impl ToQuickPickItem for Profile {
-    fn to_item(&self) -> QuickPickItem {
+    fn to_item(&self, picked: bool) -> QuickPickItem {
         QuickPickItem::new(self.get_display_name().to_string())
             .with_detail(self.get_description().to_string())
+            .with_picked(picked)
+    }
+}
+
+impl ToQuickPickItem for String {
+    fn to_item(&self, picked: bool) -> QuickPickItem {
+        QuickPickItem::new(self.clone()).with_picked(picked)
+    }
+}
+
+impl ToQuickPickItem for Option<String> {
+    fn to_item(&self, picked: bool) -> QuickPickItem {
+        match self {
+            Some(name) => name.to_item(picked),
+            None => QuickPickItem::new("No selection".to_string()).with_picked(picked),
+        }
+    }
+}
+
+impl ToQuickPickItem for Option<BuildSubTarget> {
+    fn to_item(&self, picked: bool) -> QuickPickItem {
+        let Some(target) = &self else {
+            return QuickPickItem::new("No selection".to_string()).with_picked(picked);
+        };
+
+        let (name, desc) = match target.clone() {
+            BuildSubTarget::Bin(name) => (name, "Binary".to_string()),
+            BuildSubTarget::Example(name) => (name, "Example".to_string()),
+            BuildSubTarget::Lib(name) => (name, "Library".to_string()),
+            BuildSubTarget::Bench(name) => (name, "Benchmark".to_string()),
+        };
+
+        QuickPickItem::new(name)
+            .with_description(desc)
+            .with_picked(picked)
+    }
+}
+
+impl ToQuickPickItem for Option<RunSubTarget> {
+    fn to_item(&self, picked: bool) -> QuickPickItem {
+        let Some(target) = &self else {
+            return QuickPickItem::new("No selection".to_string()).with_picked(picked);
+        };
+
+        let (name, desc) = match target.clone() {
+            RunSubTarget::Bin(name) => (name, "Binary".to_string()),
+            RunSubTarget::Example(name) => (name, "Example".to_string()),
+        };
+
+        QuickPickItem::new(name)
+            .with_description(desc)
+            .with_picked(picked)
     }
 }

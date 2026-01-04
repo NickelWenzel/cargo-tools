@@ -77,7 +77,7 @@ impl State {
         Some(self.package_selection.entry(p).or_default())
     }
 
-    fn package_selection(&self) -> Option<&PackageSelection> {
+    pub fn package_selection(&self) -> Option<&PackageSelection> {
         let p = self.package.clone()?;
         self.package_selection.get(&p)
     }
@@ -114,6 +114,14 @@ impl State {
         };
 
         args
+    }
+
+    pub fn selected_features(&self) -> Features {
+        let Some(package) = self.package_selection() else {
+            return self.features.clone();
+        };
+
+        package.features.clone()
     }
 }
 

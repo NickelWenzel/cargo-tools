@@ -32,7 +32,7 @@ fn command_map(
     HashMap::from([
         (
             "cargo-tools.selectProfile".to_string(),
-            cargo_tools::select_profile(tx.clone(), cargo_ui.data.clone()),
+            cargo_tools::select_profile(tx.clone(), cargo_ui.clone()),
         ),
         (
             "cargo-tools.selectPackage".to_string(),
