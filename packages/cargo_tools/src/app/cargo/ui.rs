@@ -20,6 +20,7 @@ pub enum Message<State: Ui> {
 pub enum Task {
     ImplicitCommand(Implicit),
     ExplicitCommand(Explicit),
+    AddPlatformTarget(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]

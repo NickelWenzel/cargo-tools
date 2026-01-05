@@ -56,7 +56,7 @@ fn command_map(
         ),
         (
             "cargo-tools.installPlatformTarget".to_string(),
-            cargo_tools::install_platform_target(tx.clone(), cargo_ui.clone()),
+            cargo_tools::install_platform_target(tx.clone()),
         ),
         (
             "cargo-tools.setRustAnalyzerCheckTargets".to_string(),

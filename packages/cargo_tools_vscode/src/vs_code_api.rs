@@ -111,6 +111,9 @@ extern "C" {
     pub fn execute_command(command: &str, rest: Vec<JsValue>);
 
     #[wasm_bindgen(js_namespace = ["vscode", "window"])]
+    pub fn showInformationMessage(message: String, items: Array);
+
+    #[wasm_bindgen(js_namespace = ["vscode", "window"])]
     pub fn showErrorMessage(message: String, items: Array);
 }
 

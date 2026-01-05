@@ -154,6 +154,7 @@ impl VsCodeTask {
         match self.0 {
             CargoTask::Cargo(_) => "cargo".to_string(),
             CargoTask::CargoMake(_) => "cargo-make".to_string(),
+            CargoTask::RustUp(_) => "cargo".to_string(),
         }
     }
 
@@ -178,6 +179,7 @@ impl VsCodeTask {
         match &self.0 {
             CargoTask::Cargo(task) => task,
             CargoTask::CargoMake(task) => task,
+            CargoTask::RustUp(task) => task,
         }
     }
 }

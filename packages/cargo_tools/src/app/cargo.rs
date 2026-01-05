@@ -3,7 +3,7 @@ pub mod metadata;
 pub mod selection;
 pub mod ui;
 
-use std::iter;
+use std::{collections::HashMap, iter};
 
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
@@ -112,6 +112,14 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
                 })))
                 .discard()
             }
+            ui::Task::AddPlatformTarget(target) => {
+                Task::future(RT::exec_task(CargoTask::Cargo(runtime::Task {
+                    cmd: "rustup".to_string(),
+                    args: vec!["target".to_string(), "add".to_string(), target],
+                    env: HashMap::new(),
+                })))
+                .discard()
+            }
         }
     }
 
@@ -166,7 +174,8 @@ impl TaskContext for command::Explicit {
             command::Explicit::Test { package: _ } => configuration::Context::Test,
             command::Explicit::Build(_)
             | command::Explicit::Bench { package: _ }
-            | command::Explicit::Doc => configuration::Context::General,
+            | command::Explicit::Doc
+            | command::Explicit::Clean { package: _ } => configuration::Context::General,
         }
     }
 }

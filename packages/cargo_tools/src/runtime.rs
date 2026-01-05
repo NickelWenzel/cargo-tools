@@ -9,6 +9,7 @@ use crate::configuration::Configuration;
 pub enum CargoTask {
     Cargo(Task),
     CargoMake(Task),
+    RustUp(Task),
 }
 
 pub struct Task {

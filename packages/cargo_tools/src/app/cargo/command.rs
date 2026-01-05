@@ -8,7 +8,7 @@ pub enum Implicit {
     Run,
     Test,
     Bench,
-    Doc,
+    Clean,
 }
 
 impl Implicit {
@@ -40,7 +40,10 @@ impl Implicit {
                 let package = selection.package.clone();
                 Explicit::Bench { package }
             }
-            Implicit::Doc => Explicit::Doc,
+            Implicit::Clean => {
+                let package = selection.package.clone();
+                Explicit::Clean { package }
+            }
         }
     }
 }
@@ -52,6 +55,7 @@ pub enum Explicit {
     Test { package: Option<String> },
     Bench { package: Option<String> },
     Doc,
+    Clean { package: Option<String> },
 }
 
 impl Explicit {
@@ -123,6 +127,17 @@ impl Explicit {
                 .into_iter()
                 .map(ToString::to_string)
                 .collect(),
+            Explicit::Clean { package } => {
+                let mut args = vec!["clean".to_string()];
+                if let Some(package) = package {
+                    args.extend(["--package".to_string(), package]);
+                }
+                if let Some(platform) = selection.platform_target.clone() {
+                    args.extend(["--target".to_string(), platform]);
+                }
+                args.extend(selection.profile.cargo_args());
+                args
+            }
         }
     }
 }

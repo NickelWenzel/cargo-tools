@@ -8,7 +8,9 @@ use std::iter;
 use async_broadcast::Sender;
 use cargo_tools::app::cargo::{
     self,
+    command::{Explicit, Implicit},
     selection::{self, Features, Update},
+    ui::Task,
 };
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
@@ -17,7 +19,9 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 use crate::{
     app::{self, Message},
     quick_pick::ToQuickPickItem,
-    vs_code_api::{JsValueExt, execute_async, log, show_quick_pick, show_quick_pick_multiple},
+    vs_code_api::{
+        JsValueExt, execute_async, log, show_quick_pick, show_quick_pick_multiple, showErrorMessage,
+    },
 };
 
 trait IntoMessage {
@@ -27,6 +31,12 @@ trait IntoMessage {
 impl IntoMessage for selection::Update {
     fn into_msg(self) -> Message {
         Message::Cargo(cargo::ui::Message::<_>::Selection(self))
+    }
+}
+
+impl IntoMessage for Task {
+    fn into_msg(self) -> Message {
+        Message::Cargo(cargo::ui::Message::<_>::Task(self))
     }
 }
 
@@ -132,13 +142,12 @@ pub fn select_package(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure<
             let packages = ui_clone.data.lock().unwrap().package_options();
             let current = ui_clone.selection.lock().unwrap().package.clone();
 
-            if let Some(selected) = select(&packages, &[current]).await {
-                if let Err(e) = tx_send
+            if let Some(selected) = select(&packages, &[current]).await
+                && let Err(e) = tx_send
                     .broadcast(Update::SelectedPackage(selected).into_msg())
                     .await
-                {
-                    log(&format!("Failed to queue msg: {e:?}"));
-                }
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
             }
         });
     })
@@ -160,13 +169,12 @@ pub fn select_build_target(
                 .package_selection()
                 .and_then(|s| s.build_target.clone());
 
-            if let Some(selected) = select(&targets, &[current]).await {
-                if let Err(e) = tx_send
+            if let Some(selected) = select(&targets, &[current]).await
+                && let Err(e) = tx_send
                     .broadcast(Update::SelectedBuildTarget(selected).into_msg())
                     .await
-                {
-                    log(&format!("Failed to queue msg: {e:?}"));
-                }
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
             }
         });
     })
@@ -188,13 +196,12 @@ pub fn select_run_target(
                 .package_selection()
                 .and_then(|s| s.run_target.clone());
 
-            if let Some(selected) = select(&targets, &[current]).await {
-                if let Err(e) = tx_send
+            if let Some(selected) = select(&targets, &[current]).await
+                && let Err(e) = tx_send
                     .broadcast(Update::SelectedRunTarget(selected).into_msg())
                     .await
-                {
-                    log(&format!("Failed to queue msg: {e:?}"));
-                }
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
             }
         });
     })
@@ -216,13 +223,12 @@ pub fn select_benchmark_target(
                 .package_selection()
                 .and_then(|s| s.benchmark_target.clone());
 
-            if let Some(selected) = select(&targets, &[current]).await {
-                if let Err(e) = tx_send
+            if let Some(selected) = select(&targets, &[current]).await
+                && let Err(e) = tx_send
                     .broadcast(Update::SelectedBenchmarkTarget(selected).into_msg())
                     .await
-                {
-                    log(&format!("Failed to queue msg: {e:?}"));
-                }
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
             }
         });
     })
@@ -241,13 +247,14 @@ pub fn select_platform_target(
                     let output_str = output.as_string().unwrap_or_default();
                     output_str
                         .lines()
-                        .map(|line| {
+                        .filter_map(|line| {
                             let line = line.trim();
-                            let installed = line.ends_with("(installed)");
-                            if installed {
-                                Some(line.trim_end_matches("(installed)").trim().to_string())
+                            if line.ends_with("(installed)") {
+                                Some(Some(
+                                    line.trim_end_matches("(installed)").trim().to_string(),
+                                ))
                             } else {
-                                Some(line.to_string())
+                                None
                             }
                         })
                         .collect::<Vec<_>>()
@@ -265,31 +272,77 @@ pub fn select_platform_target(
 
             let current = ui_clone.selection.lock().unwrap().platform_target.clone();
 
-            if let Some(selected) = select(&options, &[current]).await {
-                if let Err(e) = tx_send
+            if let Some(selected) = select(&options, &[current]).await
+                && let Err(e) = tx_send
                     .broadcast(Update::SelectedPlatformTarget(selected).into_msg())
                     .await
-                {
-                    log(&format!("Failed to queue msg: {e:?}"));
-                }
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
             }
         });
     })
 }
 
-pub fn install_platform_target(
-    _tx: Sender<Message>,
-    _cargo_ui: app::cargo::Ui,
-) -> Closure<dyn FnMut(Array)> {
-    Closure::new(move |_args: Array| {})
+pub fn install_platform_target(tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
+    Closure::new(move |_args: Array| {
+        let tx_send = tx.clone();
+        spawn_local(async move {
+            let platform_targets = match execute_async("rustup target list").await {
+                Ok(output) => {
+                    let output_str = output.as_string().unwrap_or_default();
+                    output_str
+                        .lines()
+                        .filter_map(|line| {
+                            let line = line.trim();
+                            if line.ends_with("(installed)") {
+                                None
+                            } else {
+                                Some(line.to_string())
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }
+                Err(e) => {
+                    log(&format!(
+                        "Failed to get platform targets from rustup: {}",
+                        e.to_error_string()
+                    ));
+                    vec![]
+                }
+            };
+
+            if let Some(selected) = select(&platform_targets, &[]).await
+                && let Err(e) = tx_send
+                    .broadcast(Task::AddPlatformTarget(selected).into_msg())
+                    .await
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
+            }
+        });
+    })
 }
 
 pub fn set_rust_analyzer_check_targets(_tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
-    Closure::new(move |_args: Array| {})
+    Closure::new(move |_args: Array| {
+        showErrorMessage(
+            "'Set rust-analyzer check targets' not yet implemented".to_string(),
+            Array::new(),
+        );
+    })
 }
 
-pub fn build_docs(_tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
-    Closure::new(move |_args: Array| {})
+pub fn build_docs(tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
+    Closure::new(move |_args: Array| {
+        let tx_send = tx.clone();
+        spawn_local(async move {
+            if let Err(e) = tx_send
+                .broadcast(Task::ExplicitCommand(Explicit::Doc).into_msg())
+                .await
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
+            }
+        });
+    })
 }
 
 pub fn select_features(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure<dyn FnMut(Array)> {
@@ -298,7 +351,7 @@ pub fn select_features(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure
         let ui_clone = cargo_ui.clone();
         spawn_local(async move {
             let features = iter::once("All features".to_string())
-                .chain(ui_clone.feature_options().into_iter())
+                .chain(ui_clone.feature_options())
                 .collect::<Vec<_>>();
             let current_features = match ui_clone.selection.lock().unwrap().selected_features() {
                 Features::All => ["All features".to_string()].to_vec(),
@@ -324,9 +377,21 @@ pub fn select_features(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure
 }
 
 pub fn refresh(_tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
-    Closure::new(move |_args: Array| {})
+    Closure::new(move |_args: Array| {
+        showErrorMessage("'Refresh' not yet implemented".to_string(), Array::new());
+    })
 }
 
-pub fn clean(_tx: Sender<Message>, _cargo_ui: app::cargo::Ui) -> Closure<dyn FnMut(Array)> {
-    Closure::new(move |_args: Array| {})
+pub fn clean(tx: Sender<Message>, _cargo_ui: app::cargo::Ui) -> Closure<dyn FnMut(Array)> {
+    Closure::new(move |_args: Array| {
+        let tx_send = tx.clone();
+        spawn_local(async move {
+            if let Err(e) = tx_send
+                .broadcast(Task::ImplicitCommand(Implicit::Clean).into_msg())
+                .await
+            {
+                log(&format!("Failed to queue msg: {e:?}"));
+            }
+        });
+    })
 }
