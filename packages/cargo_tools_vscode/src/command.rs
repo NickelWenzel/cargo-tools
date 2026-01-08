@@ -5,54 +5,73 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    app::{Message, cargo, cargo_make},
+    app::{CargoMakeMsg, CargoMsg, cargo, cargo_make},
     vs_code_api::{log, register_command},
 };
 
 mod cargo_tools;
 
-pub fn register_commands(tx: Sender<Message>, cargo_ui: cargo::Ui, cargo_make_ui: cargo_make::Ui) {
-    for (command_id, closure) in command_map(tx, cargo_ui, cargo_make_ui) {
-        if let Err(e) = register_command(&command_id, &closure) {
-            log(&format!(
-                "Failed to register command '{}': {:?}",
-                command_id, e
-            ));
-        }
-    }
+pub fn register_cargo_commands(tx: Sender<CargoMsg>, data: cargo::CommandData) -> Vec<Command> {
+    cargo_command_map(tx, data)
+        .into_iter()
+        .map(|(command_id, cmd)| {
+            if let Err(e) = register_command(&command_id, &cmd) {
+                log(&format!(
+                    "Failed to register command '{}': {:?}",
+                    command_id, e
+                ));
+            };
+            cmd
+        })
+        .collect()
 }
 
+pub fn register_cargo_make_commands(
+    tx: Sender<CargoMakeMsg>,
+    data: cargo_make::CommandData,
+) -> Vec<Command> {
+    cargo_make_command_map(tx, data)
+        .into_iter()
+        .map(|(command_id, cmd)| {
+            if let Err(e) = register_command(&command_id, &cmd) {
+                log(&format!(
+                    "Failed to register command '{}': {:?}",
+                    command_id, e
+                ));
+            };
+            cmd
+        })
+        .collect()
+}
+
+pub type Command = Closure<dyn FnMut(Array)>;
 type CommandMap = HashMap<String, Closure<dyn FnMut(Array)>>;
 
-fn command_map(
-    tx: Sender<Message>,
-    cargo_ui: cargo::Ui,
-    _cargo_make_ui: cargo_make::Ui,
-) -> CommandMap {
+fn cargo_command_map(tx: Sender<CargoMsg>, data: cargo::CommandData) -> CommandMap {
     HashMap::from([
         (
             "cargo-tools.selectProfile".to_string(),
-            cargo_tools::select_profile(tx.clone(), cargo_ui.clone()),
+            cargo_tools::select_profile(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.selectPackage".to_string(),
-            cargo_tools::select_package(tx.clone(), cargo_ui.clone()),
+            cargo_tools::select_package(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.selectBuildTarget".to_string(),
-            cargo_tools::select_build_target(tx.clone(), cargo_ui.clone()),
+            cargo_tools::select_build_target(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.selectRunTarget".to_string(),
-            cargo_tools::select_run_target(tx.clone(), cargo_ui.clone()),
+            cargo_tools::select_run_target(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.selectBenchmarkTarget".to_string(),
-            cargo_tools::select_benchmark_target(tx.clone(), cargo_ui.clone()),
+            cargo_tools::select_benchmark_target(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.selectPlatformTarget".to_string(),
-            cargo_tools::select_platform_target(tx.clone(), cargo_ui.clone()),
+            cargo_tools::select_platform_target(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.installPlatformTarget".to_string(),
@@ -68,7 +87,7 @@ fn command_map(
         ),
         (
             "cargo-tools.selectFeatures".to_string(),
-            cargo_tools::select_features(tx.clone(), cargo_ui.clone()),
+            cargo_tools::select_features(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.refresh".to_string(),
@@ -76,71 +95,7 @@ fn command_map(
         ),
         (
             "cargo-tools.clean".to_string(),
-            cargo_tools::clean(tx.clone(), cargo_ui.clone()),
-        ),
-        (
-            "cargo-tools.makefile.runTask".to_string(),
-            cargo_tools::makefile::run_task(tx.clone()),
-        ),
-        (
-            "cargo-tools.makefile.selectAndRunTask".to_string(),
-            cargo_tools::makefile::select_and_run_task(tx.clone()),
-        ),
-        (
-            "cargo-tools.makefile.setTaskFilter".to_string(),
-            cargo_tools::makefile::set_task_filter(tx.clone()),
-        ),
-        (
-            "cargo-tools.makefile.editTaskFilter".to_string(),
-            cargo_tools::makefile::edit_task_filter(tx.clone()),
-        ),
-        (
-            "cargo-tools.makefile.clearTaskFilter".to_string(),
-            cargo_tools::makefile::clear_task_filter(tx.clone()),
-        ),
-        (
-            "cargo-tools.makefile.showCategoryFilter".to_string(),
-            cargo_tools::makefile::show_category_filter(tx.clone()),
-        ),
-        (
-            "cargo-tools.makefile.clearCategoryFilter".to_string(),
-            cargo_tools::makefile::clear_category_filter(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.add".to_string(),
-            cargo_tools::pinned_makefile_tasks::add(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.remove".to_string(),
-            cargo_tools::pinned_makefile_tasks::remove(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.execute".to_string(),
-            cargo_tools::pinned_makefile_tasks::execute(tx.clone()),
-        ),
-        (
-            "cargo-tools.makefile.pinTask".to_string(),
-            cargo_tools::makefile::pin_task(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.execute1".to_string(),
-            cargo_tools::pinned_makefile_tasks::execute1(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.execute2".to_string(),
-            cargo_tools::pinned_makefile_tasks::execute2(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.execute3".to_string(),
-            cargo_tools::pinned_makefile_tasks::execute3(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.execute4".to_string(),
-            cargo_tools::pinned_makefile_tasks::execute4(tx.clone()),
-        ),
-        (
-            "cargo-tools.pinnedMakefileTasks.execute5".to_string(),
-            cargo_tools::pinned_makefile_tasks::execute5(tx.clone()),
+            cargo_tools::clean(tx.clone(), data.clone()),
         ),
         (
             "cargo-tools.projectStatus.build".to_string(),
@@ -265,6 +220,75 @@ fn command_map(
     ])
 }
 
+fn cargo_make_command_map(tx: Sender<CargoMakeMsg>, data: cargo_make::CommandData) -> CommandMap {
+    HashMap::from([
+        (
+            "cargo-tools.makefile.runTask".to_string(),
+            cargo_tools::makefile::run_task(tx.clone()),
+        ),
+        (
+            "cargo-tools.makefile.selectAndRunTask".to_string(),
+            cargo_tools::makefile::select_and_run_task(tx.clone()),
+        ),
+        (
+            "cargo-tools.makefile.setTaskFilter".to_string(),
+            cargo_tools::makefile::set_task_filter(tx.clone()),
+        ),
+        (
+            "cargo-tools.makefile.editTaskFilter".to_string(),
+            cargo_tools::makefile::edit_task_filter(tx.clone()),
+        ),
+        (
+            "cargo-tools.makefile.clearTaskFilter".to_string(),
+            cargo_tools::makefile::clear_task_filter(tx.clone()),
+        ),
+        (
+            "cargo-tools.makefile.showCategoryFilter".to_string(),
+            cargo_tools::makefile::show_category_filter(tx.clone()),
+        ),
+        (
+            "cargo-tools.makefile.clearCategoryFilter".to_string(),
+            cargo_tools::makefile::clear_category_filter(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.add".to_string(),
+            cargo_tools::pinned_makefile_tasks::add(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.remove".to_string(),
+            cargo_tools::pinned_makefile_tasks::remove(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.execute".to_string(),
+            cargo_tools::pinned_makefile_tasks::execute(tx.clone()),
+        ),
+        (
+            "cargo-tools.makefile.pinTask".to_string(),
+            cargo_tools::makefile::pin_task(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.execute1".to_string(),
+            cargo_tools::pinned_makefile_tasks::execute1(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.execute2".to_string(),
+            cargo_tools::pinned_makefile_tasks::execute2(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.execute3".to_string(),
+            cargo_tools::pinned_makefile_tasks::execute3(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.execute4".to_string(),
+            cargo_tools::pinned_makefile_tasks::execute4(tx.clone()),
+        ),
+        (
+            "cargo-tools.pinnedMakefileTasks.execute5".to_string(),
+            cargo_tools::pinned_makefile_tasks::execute5(tx.clone()),
+        ),
+    ])
+}
+
 #[cfg(test)]
 pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
@@ -274,8 +298,13 @@ pub mod tests {
 
     #[wasm_bindgen_test]
     fn all_commands_are_registered() {
-        let (tx, _rx) = async_broadcast::broadcast(10);
-        let closures = command_map(tx, cargo::Ui::new(), cargo_make::Ui::new());
+        let (cargo_tx, _rx) = async_broadcast::broadcast(10);
+        let (cargo_make_tx, _rx) = async_broadcast::broadcast(10);
+        let closures = {
+            let mut cmds = cargo_command_map(cargo_tx, todo!());
+            cmds.extend(cargo_make_command_map(cargo_make_tx, todo!()));
+            cmds
+        };
         let commands = all_commands();
 
         for cmd in commands {

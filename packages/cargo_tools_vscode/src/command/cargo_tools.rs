@@ -17,26 +17,26 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
-    app::{self, Message},
+    app::{self, CargoMsg},
     quick_pick::ToQuickPickItem,
     vs_code_api::{
         JsValueExt, execute_async, log, show_quick_pick, show_quick_pick_multiple, showErrorMessage,
     },
 };
 
-trait IntoMessage {
-    fn into_msg(self) -> Message;
+trait IntoCargoMessage {
+    fn into_cargo_msg(self) -> CargoMsg;
 }
 
-impl IntoMessage for selection::Update {
-    fn into_msg(self) -> Message {
-        Message::Cargo(cargo::ui::Message::<_>::Selection(self))
+impl IntoCargoMessage for selection::Update {
+    fn into_cargo_msg(self) -> CargoMsg {
+        cargo::ui::Message::Selection(self)
     }
 }
 
-impl IntoMessage for Task {
-    fn into_msg(self) -> Message {
-        Message::Cargo(cargo::ui::Message::<_>::Task(self))
+impl IntoCargoMessage for Task {
+    fn into_cargo_msg(self) -> CargoMsg {
+        cargo::ui::Message::Task(self)
     }
 }
 
@@ -115,17 +115,20 @@ async fn select_multiple<T: ToQuickPickItem + Clone + PartialEq>(
     })
 }
 
-pub fn select_profile(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure<dyn FnMut(Array)> {
+pub fn select_profile(
+    tx: Sender<CargoMsg>,
+    cmd_data: app::cargo::CommandData,
+) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
-        let ui_clone = cargo_ui.clone();
+        let data = cmd_data.clone();
         spawn_local(async move {
-            let profiles = ui_clone.data.lock().unwrap().profiles().to_vec();
-            let current = ui_clone.selection.lock().unwrap().profile.clone();
+            let profiles = data.metadata.lock().unwrap().profiles().to_vec();
+            let current = data.selection.lock().unwrap().profile.clone();
 
             if let Some(profile) = select(&profiles, &[current]).await
                 && let Err(e) = tx_send
-                    .broadcast(Update::SelectedProfile(profile).into_msg())
+                    .broadcast(Update::SelectedProfile(profile).into_cargo_msg())
                     .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -134,17 +137,20 @@ pub fn select_profile(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure<
     })
 }
 
-pub fn select_package(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure<dyn FnMut(Array)> {
+pub fn select_package(
+    tx: Sender<CargoMsg>,
+    data: app::cargo::CommandData,
+) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
-        let ui_clone = cargo_ui.clone();
+        let data = data.clone();
         spawn_local(async move {
-            let packages = ui_clone.data.lock().unwrap().package_options();
-            let current = ui_clone.selection.lock().unwrap().package.clone();
+            let packages = data.metadata.lock().unwrap().package_options();
+            let current = data.selection.lock().unwrap().package.clone();
 
             if let Some(selected) = select(&packages, &[current]).await
                 && let Err(e) = tx_send
-                    .broadcast(Update::SelectedPackage(selected).into_msg())
+                    .broadcast(Update::SelectedPackage(selected).into_cargo_msg())
                     .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -154,24 +160,29 @@ pub fn select_package(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure<
 }
 
 pub fn select_build_target(
-    tx: Sender<Message>,
-    cargo_ui: app::cargo::Ui,
+    tx: Sender<CargoMsg>,
+    data: app::cargo::CommandData,
 ) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
-        let ui_clone = cargo_ui.clone();
+        let data = data.clone();
         spawn_local(async move {
-            let targets = ui_clone.build_target_options();
-            let current = ui_clone
-                .selection
-                .lock()
-                .unwrap()
+            let ui_metadata_guard = data.metadata.lock().unwrap();
+            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
+                log(&format!("No metadata to select from."));
+                return;
+            };
+
+            let selection_guard = data.selection.lock().unwrap();
+
+            let targets = selection_guard.build_target_options(metadata);
+            let current = selection_guard
                 .package_selection()
                 .and_then(|s| s.build_target.clone());
 
             if let Some(selected) = select(&targets, &[current]).await
                 && let Err(e) = tx_send
-                    .broadcast(Update::SelectedBuildTarget(selected).into_msg())
+                    .broadcast(Update::SelectedBuildTarget(selected).into_cargo_msg())
                     .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -181,24 +192,29 @@ pub fn select_build_target(
 }
 
 pub fn select_run_target(
-    tx: Sender<Message>,
-    cargo_ui: app::cargo::Ui,
+    tx: Sender<CargoMsg>,
+    data: app::cargo::CommandData,
 ) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
-        let ui_clone = cargo_ui.clone();
+        let data = data.clone();
         spawn_local(async move {
-            let targets = ui_clone.run_target_options();
-            let current = ui_clone
-                .selection
-                .lock()
-                .unwrap()
+            let ui_metadata_guard = data.metadata.lock().unwrap();
+            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
+                log(&format!("No metadata to select from."));
+                return;
+            };
+
+            let selection_guard = data.selection.lock().unwrap();
+
+            let targets = selection_guard.run_target_options(metadata);
+            let current = selection_guard
                 .package_selection()
                 .and_then(|s| s.run_target.clone());
 
             if let Some(selected) = select(&targets, &[current]).await
                 && let Err(e) = tx_send
-                    .broadcast(Update::SelectedRunTarget(selected).into_msg())
+                    .broadcast(Update::SelectedRunTarget(selected).into_cargo_msg())
                     .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -208,24 +224,29 @@ pub fn select_run_target(
 }
 
 pub fn select_benchmark_target(
-    tx: Sender<Message>,
-    cargo_ui: app::cargo::Ui,
+    tx: Sender<CargoMsg>,
+    data: app::cargo::CommandData,
 ) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
-        let ui_clone = cargo_ui.clone();
+        let data = data.clone();
         spawn_local(async move {
-            let targets = ui_clone.bench_target_options();
-            let current = ui_clone
-                .selection
-                .lock()
-                .unwrap()
+            let ui_metadata_guard = data.metadata.lock().unwrap();
+            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
+                log(&format!("No metadata to select from."));
+                return;
+            };
+
+            let selection_guard = data.selection.lock().unwrap();
+
+            let targets = selection_guard.bench_target_options(metadata);
+            let current = selection_guard
                 .package_selection()
                 .and_then(|s| s.benchmark_target.clone());
 
             if let Some(selected) = select(&targets, &[current]).await
                 && let Err(e) = tx_send
-                    .broadcast(Update::SelectedBenchmarkTarget(selected).into_msg())
+                    .broadcast(Update::SelectedBenchmarkTarget(selected).into_cargo_msg())
                     .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -235,12 +256,12 @@ pub fn select_benchmark_target(
 }
 
 pub fn select_platform_target(
-    tx: Sender<Message>,
-    cargo_ui: app::cargo::Ui,
+    tx: Sender<CargoMsg>,
+    data: app::cargo::CommandData,
 ) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
-        let ui_clone = cargo_ui.clone();
+        let data = data.clone();
         spawn_local(async move {
             let platform_targets = match execute_async("rustup target list").await {
                 Ok(output) => {
@@ -270,11 +291,11 @@ pub fn select_platform_target(
             let mut options = vec![None];
             options.extend(platform_targets);
 
-            let current = ui_clone.selection.lock().unwrap().platform_target.clone();
+            let current = data.selection.lock().unwrap().platform_target.clone();
 
             if let Some(selected) = select(&options, &[current]).await
                 && let Err(e) = tx_send
-                    .broadcast(Update::SelectedPlatformTarget(selected).into_msg())
+                    .broadcast(Update::SelectedPlatformTarget(selected).into_cargo_msg())
                     .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -283,7 +304,7 @@ pub fn select_platform_target(
     })
 }
 
-pub fn install_platform_target(tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
+pub fn install_platform_target(tx: Sender<CargoMsg>) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
         spawn_local(async move {
@@ -313,7 +334,7 @@ pub fn install_platform_target(tx: Sender<Message>) -> Closure<dyn FnMut(Array)>
 
             if let Some(selected) = select(&platform_targets, &[]).await
                 && let Err(e) = tx_send
-                    .broadcast(Task::AddPlatformTarget(selected).into_msg())
+                    .broadcast(Task::AddPlatformTarget(selected).into_cargo_msg())
                     .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -322,7 +343,7 @@ pub fn install_platform_target(tx: Sender<Message>) -> Closure<dyn FnMut(Array)>
     })
 }
 
-pub fn set_rust_analyzer_check_targets(_tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
+pub fn set_rust_analyzer_check_targets(_tx: Sender<CargoMsg>) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         showErrorMessage(
             "'Set rust-analyzer check targets' not yet implemented".to_string(),
@@ -331,12 +352,12 @@ pub fn set_rust_analyzer_check_targets(_tx: Sender<Message>) -> Closure<dyn FnMu
     })
 }
 
-pub fn build_docs(tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
+pub fn build_docs(tx: Sender<CargoMsg>) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
         spawn_local(async move {
             if let Err(e) = tx_send
-                .broadcast(Task::ExplicitCommand(Explicit::Doc).into_msg())
+                .broadcast(Task::ExplicitCommand(Explicit::Doc).into_cargo_msg())
                 .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));
@@ -345,15 +366,25 @@ pub fn build_docs(tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
     })
 }
 
-pub fn select_features(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure<dyn FnMut(Array)> {
+pub fn select_features(
+    tx: Sender<CargoMsg>,
+    cmd_data: app::cargo::CommandData,
+) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
-        let ui_clone = cargo_ui.clone();
+        let data = cmd_data.clone();
         spawn_local(async move {
+            let ui_metadata_guard = data.metadata.lock().unwrap();
+            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
+                log(&format!("No metadata to select from."));
+                return;
+            };
+
+            let selection_guard = data.selection.lock().unwrap();
             let features = iter::once("All features".to_string())
-                .chain(ui_clone.feature_options())
+                .chain(selection_guard.feature_options(metadata))
                 .collect::<Vec<_>>();
-            let current_features = match ui_clone.selection.lock().unwrap().selected_features() {
+            let current_features = match data.selection.lock().unwrap().selected_features() {
                 Features::All => ["All features".to_string()].to_vec(),
                 Features::Some(features) => features,
             };
@@ -366,7 +397,7 @@ pub fn select_features(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure
                 };
 
                 if let Err(e) = tx_send
-                    .broadcast(Update::SelectedFeatures(features).into_msg())
+                    .broadcast(Update::SelectedFeatures(features).into_cargo_msg())
                     .await
                 {
                     log(&format!("Failed to queue msg: {e:?}"));
@@ -376,18 +407,18 @@ pub fn select_features(tx: Sender<Message>, cargo_ui: app::cargo::Ui) -> Closure
     })
 }
 
-pub fn refresh(_tx: Sender<Message>) -> Closure<dyn FnMut(Array)> {
+pub fn refresh(_tx: Sender<CargoMsg>) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         showErrorMessage("'Refresh' not yet implemented".to_string(), Array::new());
     })
 }
 
-pub fn clean(tx: Sender<Message>, _cargo_ui: app::cargo::Ui) -> Closure<dyn FnMut(Array)> {
+pub fn clean(tx: Sender<CargoMsg>, _data: app::cargo::CommandData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
         spawn_local(async move {
             if let Err(e) = tx_send
-                .broadcast(Task::ImplicitCommand(Implicit::Clean).into_msg())
+                .broadcast(Task::ImplicitCommand(Implicit::Clean).into_cargo_msg())
                 .await
             {
                 log(&format!("Failed to queue msg: {e:?}"));

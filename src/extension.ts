@@ -4,6 +4,8 @@ import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
 import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
+import { run, exit } from './wasm/cargo_tools_vscode';
+import { initializeStateModule } from './context';
 
 let extensionManager: CargoExtensionManager | undefined;
 /**
@@ -19,24 +21,21 @@ export let extension_context: vscode.ExtensionContext | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<any> {
 	extension_context = context;
 	try {
+		initializeStateModule(context);
 		console.log('Cargo Tools extension activation started...');
 
 		// Initialize and start the extension manager
-		extensionManager = await CargoExtensionManager.create(context);
+		// extensionManager = await CargoExtensionManager.create(context);
 
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 		if (!workspaceFolder) {
 			throw new Error('No workspace folder found');
 		}
 
-		const folders = vscode.workspace.workspaceFolders;
-
-		if (!folders || folders.length === 0) {
-			return {};
-		}
+		run(workspaceFolder);
 
 		console.log('Cargo Tools extension fully initialized!');
-		return setup(context);
+		return {};
 	} catch (error) {
 		await setCargoContext(false);
 		console.error('Failed to activate Cargo Tools extension:', error);
@@ -45,12 +44,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 	}
 }
 
-export
-
-	/**
-	 * Setup function that configures the extension components and commands
-	 */
-	async function setup(context: vscode.ExtensionContext): Promise<any> {
+/**
+ * Setup function that configures the extension components and commands
+ */
+export async function setup(context: vscode.ExtensionContext): Promise<any> {
 	if (!extensionManager) {
 		throw new Error('Extension manager not initialized');
 	}
@@ -534,10 +531,11 @@ export async function deactivate(): Promise<void> {
 
 	try {
 		// Dispose extension manager first (this handles commands and workspace)
-		if (extensionManager) {
-			await extensionManager.asyncDispose();
-			extensionManager = undefined;
-		}
+		// if (extensionManager) {
+		// 	await extensionManager.asyncDispose();
+		// 	extensionManager = undefined;
+		// }
+		await exit();
 
 		console.log('Cargo Tools extension deactivated successfully');
 	} catch (error) {

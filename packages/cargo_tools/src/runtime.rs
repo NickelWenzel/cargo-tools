@@ -22,7 +22,7 @@ pub struct Task {
 pub trait Runtime: 'static {
     async fn exec(command: String) -> Result<String, String>;
     async fn exec_task(task: CargoTask);
-    async fn log(msg: String);
+    fn log(msg: String);
 
     async fn read_file(file_path: String) -> Result<String, String>;
 

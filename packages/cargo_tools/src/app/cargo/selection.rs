@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, iter};
 
+use cargo_metadata::{Metadata, Package, TargetKind};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -122,6 +123,92 @@ impl State {
         };
 
         package.features.clone()
+    }
+
+    fn selected_package(&self, metadata: &Metadata) -> Option<Package> {
+        let selected = self.package.as_ref()?;
+
+        metadata
+            .workspace_packages()
+            .into_iter()
+            .find(|p| p.name == selected)
+            .cloned()
+    }
+
+    pub fn build_target_options(&self, metadata: &Metadata) -> Vec<Option<BuildSubTarget>> {
+        let Some(package) = self.selected_package(metadata) else {
+            return Vec::new();
+        };
+
+        let targets = package.targets.iter().filter_map(|target| {
+            let mut kind = target.kind.iter();
+            if kind.clone().any(|k| matches!(k, TargetKind::Bin)) {
+                return Some(BuildSubTarget::Bin(target.name.clone()));
+            } else if kind.clone().any(|k| {
+                matches!(
+                    k,
+                    TargetKind::Lib
+                        | TargetKind::RLib
+                        | TargetKind::DyLib
+                        | TargetKind::CDyLib
+                        | TargetKind::StaticLib
+                        | TargetKind::ProcMacro
+                )
+            }) {
+                return Some(BuildSubTarget::Lib(package.name.to_string()));
+            } else if kind
+                .clone()
+                .any(|k: &TargetKind| matches!(k, TargetKind::Example))
+            {
+                return Some(BuildSubTarget::Example(target.name.clone()));
+            } else if kind.any(|k| matches!(k, TargetKind::Bench)) {
+                return Some(BuildSubTarget::Bench(target.name.clone()));
+            }
+            None
+        });
+
+        iter::once(None).chain(targets.map(Option::Some)).collect()
+    }
+
+    pub fn run_target_options(&self, metadata: &Metadata) -> Vec<Option<RunSubTarget>> {
+        let Some(package) = self.selected_package(metadata) else {
+            return Vec::new();
+        };
+
+        let targets = package.targets.iter().filter_map(|target| {
+            let mut kind = target.kind.iter();
+            if kind.clone().any(|k| matches!(k, TargetKind::Bin)) {
+                return Some(RunSubTarget::Bin(target.name.clone()));
+            } else if kind.any(|k| matches!(k, TargetKind::Example)) {
+                return Some(RunSubTarget::Example(target.name.clone()));
+            }
+            None
+        });
+
+        iter::once(None).chain(targets.map(Option::Some)).collect()
+    }
+
+    pub fn bench_target_options(&self, metadata: &Metadata) -> Vec<Option<String>> {
+        let Some(package) = self.selected_package(metadata) else {
+            return Vec::new();
+        };
+
+        let targets = package.targets.iter().filter_map(|target| {
+            if target.kind.iter().any(|k| matches!(k, TargetKind::Bench)) {
+                return Some(target.name.clone());
+            }
+            None
+        });
+
+        iter::once(None).chain(targets.map(Option::Some)).collect()
+    }
+
+    pub fn feature_options(&self, metadata: &Metadata) -> Vec<String> {
+        let Some(package) = self.selected_package(metadata) else {
+            return Vec::new();
+        };
+
+        package.features.keys().cloned().collect()
     }
 }
 

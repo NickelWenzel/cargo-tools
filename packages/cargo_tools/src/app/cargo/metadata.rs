@@ -29,7 +29,7 @@ pub async fn parse_metadata<RT: Runtime>(manifest_file: String) -> MetadataUpdat
     match RT::exec(command).await {
         Ok(metadata) => extract_raw_metadata::<RT>(&metadata).await,
         Err(e) => {
-            RT::log(format!("Failed to generate cargo metadata: {e}")).await;
+            RT::log(format!("Failed to generate cargo metadata: {e}"));
             MetadataUpdate::NoCargoToml
         }
     }
@@ -54,7 +54,7 @@ pub async fn parse_manual<RT: Runtime>(root_dir: String) -> MetadataUpdate {
 
 async fn extract_raw_metadata<RT: Runtime>(raw_metadata: &str) -> MetadataUpdate {
     let Some(metadata) = raw_metadata.lines().find(|line| line.starts_with('{')) else {
-        RT::log("Cargo metadata do not contain valid JSON".to_string()).await;
+        RT::log("Cargo metadata do not contain valid JSON".to_string());
         return MetadataUpdate::FailedToRetrieve;
     };
 
@@ -62,7 +62,7 @@ async fn extract_raw_metadata<RT: Runtime>(raw_metadata: &str) -> MetadataUpdate
     match MetadataCommand::parse(metadata) {
         Ok(metadata) => MetadataUpdate::Metadata(metadata),
         Err(e) => {
-            RT::log(format!("Failed to parse cargo metadata: {e}")).await;
+            RT::log(format!("Failed to parse cargo metadata: {e}"));
             MetadataUpdate::NoCargoToml
         }
     }

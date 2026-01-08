@@ -1,36 +1,83 @@
 pub mod cargo;
 pub mod cargo_make;
 
-use std::sync::Mutex;
+use std::{
+    hash::Hash,
+    pin::Pin,
+    sync::Mutex,
+    task::{Context, Poll},
+};
 
-use cargo_tools::app::{
-    self, App, AppMessage,
-    cargo::{Cargo, CargoMessage},
-    cargo_make::{CargoMake, CargoMakeMessage},
+use cargo_tools::{
+    app::{
+        App, AppMessage,
+        cargo::{Cargo, CargoMessage},
+        cargo_make::{CargoMake, CargoMakeMessage},
+    },
+    runtime::Runtime,
 };
 use futures::{
-    SinkExt,
+    SinkExt, Stream,
     channel::mpsc::{Sender, channel},
 };
 use iced_headless::{Subscription, Task, async_application, event_loop::Exit};
 use once_cell::sync::Lazy;
+use pin_project::pin_project;
+use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{command::register_commands, runtime::VsCodeRuntime, vs_code_api};
+use crate::{runtime::VsCodeRuntime, vs_code_api};
+
+pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
+    <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
+>;
+
+pub type CargoMakeMsg = ::cargo_tools::app::cargo_make::ui::Message<
+    <cargo_make::Ui as ::cargo_tools::app::cargo_make::ui::Ui>::CustomUpdate,
+>;
 
 static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     let (tx, _) = channel(10);
     Mutex::new(tx)
 });
 
-pub static MSG_RX: Lazy<Mutex<async_broadcast::Receiver<Message>>> = Lazy::new(|| {
-    let (_, rx) = async_broadcast::broadcast(10);
-    Mutex::new(rx)
-});
+#[pin_project]
+pub struct StaticHashStream<T, H> {
+    #[pin]
+    stream: T,
+    hash: H,
+}
 
-#[derive(Debug, Clone)]
-pub enum Message {
-    Cargo(app::cargo::ui::Message<cargo::Ui>),
-    CargoMake(app::cargo_make::ui::Message<cargo_make::Ui>),
+impl<T, H> StaticHashStream<T, H> {
+    pub fn new(stream: T, hash: H) -> Self {
+        Self { stream, hash }
+    }
+}
+
+impl<T, HashableT: Hash> Hash for StaticHashStream<T, HashableT> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl<T: Stream, H> Stream for StaticHashStream<T, H> {
+    type Item = T::Item;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.project().stream.poll_next(cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.stream.size_hint()
+    }
+}
+
+impl<T: Clone, H: Clone> Clone for StaticHashStream<T, H> {
+    fn clone(&self) -> Self {
+        Self {
+            stream: self.stream.clone(),
+            hash: self.hash.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -41,6 +88,7 @@ impl cargo_tools::app::Ui for Ui {
     type CargoMake = cargo_make::Ui;
 }
 
+#[wasm_bindgen]
 pub fn run(workspace_root: String) {
     wasm_bindgen_futures::spawn_local(async {
         if let Err(e) = async_application(App::update::<VsCodeRuntime>)
@@ -53,6 +101,7 @@ pub fn run(workspace_root: String) {
     });
 }
 
+#[wasm_bindgen]
 pub async fn exit() {
     let mut tx = EXIT_TX.lock().unwrap().clone();
     if let Err(e) = tx.send(Exit).await {
@@ -63,12 +112,17 @@ pub async fn exit() {
 }
 
 fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
-    let cargo_ui = cargo::Ui::new();
-    let cargo_make_ui = cargo_make::Ui::new();
+    let cargo_ui = cargo::Ui::new(
+        VsCodeRuntime::get_state(format!("{root_dir}.cargo_tools.cargo.state")).unwrap_or_default(),
+    );
+    let cargo_make_ui = cargo_make::Ui::new(
+        VsCodeRuntime::get_state(format!("{root_dir}.cargo_tools.cargo_make.state"))
+            .unwrap_or_default(),
+    );
 
     let app = App {
-        cargo: Cargo::new(root_dir.clone(), cargo_ui.clone()),
-        cargo_make: CargoMake::new(root_dir.clone(), cargo_make_ui.clone()),
+        cargo: Cargo::new(root_dir.clone(), cargo_ui),
+        cargo_make: CargoMake::new(root_dir.clone(), cargo_make_ui),
     };
 
     let cargo = Task::done(AppMessage::Cargo(CargoMessage::RootDirUpdate(
@@ -77,8 +131,6 @@ fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
         root_dir,
     )));
-
-    register_commands(MSG_RX.lock().unwrap().new_sender(), cargo_ui, cargo_make_ui);
 
     (app, Task::batch([cargo, cargo_make]))
 }

@@ -20,7 +20,7 @@ pub enum CargoMessage<Ui: ui::Ui> {
     ManifestUpdate,
     ConfigUpdate,
     MetadataUpdate(MetadataUpdate),
-    Ui(ui::Message<Ui>),
+    Ui(ui::Message<Ui::CustomUpdate>),
 }
 
 use CargoMessage as Msg;
@@ -77,7 +77,7 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
         };
 
         let metadata =
-            Task::future(parse_metadata::<RT>(self.root_dir.clone())).map(Msg::MetadataUpdate);
+            Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate);
 
         Task::batch([metadata, selection])
     }
@@ -124,9 +124,9 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
     }
 
     fn update_metadata<RT: Runtime>(&mut self, metadata_update: MetadataUpdate) -> Task<Msg<Ui>> {
-        match metadata_update {
+        match &metadata_update {
             MetadataUpdate::Metadata(metadata) => {
-                self.workspace_manifests = workspace_manifests(&metadata);
+                self.workspace_manifests = workspace_manifests(metadata);
             }
             MetadataUpdate::NoCargoToml => {
                 self.workspace_manifests = Vec::new();
@@ -140,11 +140,16 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
             .into_iter()
             .chain(iter::once(self.root_manifest()));
 
-        Task::future(async move {
+        let file_change = Task::future(async move {
             let notifiers = manifests.map(RT::file_changed_notifier);
-            futures::stream::select_all(notifiers).next().await;
+            let ret = futures::stream::select_all(notifiers).next().await;
+            RT::log("Manifest changed".to_string());
+            ret
         })
-        .map(|()| Msg::ManifestUpdate)
+        .and_then(|()| Task::done(Msg::ManifestUpdate));
+        let ui = Task::done(ui::Message::Metadata(metadata_update)).map(Msg::Ui);
+
+        Task::batch([file_change, ui])
     }
 
     pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg<Ui>> {

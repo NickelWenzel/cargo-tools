@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { on_current_dir_changed, on_file_changed } from './wasm/cargo_tools_vscode';
+import { log } from 'console';
 
 let nextHandle = 1;
 const disposables = new Map<number, vscode.Disposable>();
@@ -13,17 +14,12 @@ export async function read_file(file_path: string): Promise<string> {
 export function watch_current_dir(): number {
     const handle = nextHandle++;
 
-    const disposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+    const disposable = vscode.workspace.onDidChangeWorkspaceFolders(async () => {
         const dir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
-        on_current_dir_changed(dir);
+        await on_current_dir_changed(dir);
     });
 
     disposables.set(handle, disposable);
-
-    const initialDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
-    if (initialDir) {
-        on_current_dir_changed(initialDir);
-    }
 
     return handle;
 }
@@ -37,20 +33,24 @@ export function unwatch_current_dir(handle: number): void {
 }
 
 export function watch_file(path: string): number {
+    console.log(`Watch ${path}`);
     const handle = nextHandle++;
 
     const watcher = vscode.workspace.createFileSystemWatcher(path);
 
-    const changeDisposable = watcher.onDidChange(() => {
-        on_file_changed(path);
+    const changeDisposable = watcher.onDidChange(async () => {
+        console.log(`Changed ${path}`);
+        await on_file_changed(path);
     });
 
-    const createDisposable = watcher.onDidCreate(() => {
-        on_file_changed(path);
+    const createDisposable = watcher.onDidCreate(async () => {
+        console.log(`Created ${path}`);
+        await on_file_changed(path);
     });
 
-    const deleteDisposable = watcher.onDidDelete(() => {
-        on_file_changed(path);
+    const deleteDisposable = watcher.onDidDelete(async () => {
+        console.log(`Deleted ${path}`);
+        await on_file_changed(path);
     });
 
     const compositeDisposable = {

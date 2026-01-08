@@ -1,9 +1,12 @@
 .vscode/**
 .github/**
 .vscode-test/**
+.cargo/**
+.serena/**
 out/**
 node_modules/**
 src/**
+packages/**
 test-rust-project/**
 test-rust-project-single-crate/**
 .gitignore
@@ -15,3 +18,4 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+**/target/

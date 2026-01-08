@@ -15,7 +15,7 @@ pub enum CargoMakeMessage<Ui: ui::Ui> {
     RootDirUpdate(String),
     MakefileUpdate,
     MakefileTasksUpdate(MakefileTasksUpdate),
-    Ui(ui::Message<Ui>),
+    Ui(ui::Message<Ui::CustomUpdate>),
 }
 
 use CargoMakeMessage as Msg;
@@ -115,10 +115,12 @@ impl<Ui: ui::Ui + 'static> CargoMake<Ui> {
     fn update_tasks<RT: Runtime>(&mut self, tasks_update: MakefileTasksUpdate) -> Task<Msg<Ui>> {
         let makefile = self.makefile();
         let file_change = Task::future(async move {
-            RT::file_changed_notifier(makefile).next().await;
+            let ret = RT::file_changed_notifier(makefile).next().await;
+            RT::log("Makefile.toml changed".to_string());
+            ret
         })
-        .map(|()| Msg::<Ui>::MakefileUpdate);
-        let ui = Task::done(ui::Message::<Ui>::MakefileTasks(tasks_update)).map(Msg::Ui);
+        .and_then(|()| Task::done(Msg::MakefileUpdate));
+        let ui = Task::done(ui::Message::MakefileTasks(tasks_update)).map(Msg::Ui);
 
         Task::batch([file_change, ui])
     }

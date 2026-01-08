@@ -984,7 +984,7 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "webpack --mode=production --minify",
+    "vscode:prepublish": "webpack --mode=production",
     "package": "vsce package -o cargo-tools.vsix",
     "compile": "webpack",
     "watch": "webpack --watch",

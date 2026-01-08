@@ -80,7 +80,7 @@ impl Runtime for VsCodeRuntime {
         vs_code_api::execute_task(VsCodeTask(task)).await;
     }
 
-    async fn log(msg: String) {
+    fn log(msg: String) {
         vs_code_api::log(&msg);
     }
 
@@ -92,6 +92,7 @@ impl Runtime for VsCodeRuntime {
     }
 
     fn current_dir_notitifier() -> Receiver<String> {
+        vs_code_api::log("In current_dir_notitifier");
         let sender = CURRENT_DIR_TX.lock().unwrap();
         let receiver = sender.new_receiver();
 
@@ -104,6 +105,7 @@ impl Runtime for VsCodeRuntime {
     }
 
     fn file_changed_notifier(file: String) -> Receiver<()> {
+        vs_code_api::log(&format!("In file_changed_notifier({file})"));
         let mut watchers = FILE_WATCHERS.lock().unwrap();
         let entry = watchers.entry(file.clone()).or_insert_with(|| {
             let handle = vs_code_api::watch_file(&file);
@@ -187,9 +189,11 @@ impl VsCodeTask {
 /// Called by TypeScript when the current directory changes.
 #[wasm_bindgen]
 pub async fn on_current_dir_changed(dir: String) {
+    vs_code_api::log(&format!("In on_current_dir_changed({dir})"));
     {
         let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
         if let Some(h) = *handle {
+            vs_code_api::log(&format!("In unwatch_current_dir({h})"));
             vs_code_api::unwatch_current_dir(h);
             *handle = None;
         }
@@ -201,11 +205,21 @@ pub async fn on_current_dir_changed(dir: String) {
 
 /// Called by TypeScript when a watched file changes.
 #[wasm_bindgen]
-pub fn on_file_changed(path: String) {
-    let mut watchers = FILE_WATCHERS.lock().unwrap();
-    if let Some((handle, sender)) = watchers.remove(&path) {
-        vs_code_api::unwatch_file(handle);
-        let _ = sender.try_broadcast(());
+pub async fn on_file_changed(path: String) {
+    vs_code_api::log(&format!("In on_file_changed({path})"));
+    let tx = {
+        let mut watchers = FILE_WATCHERS.lock().unwrap();
+        if let Some((handle, sender)) = watchers.remove(&path) {
+            vs_code_api::log(&format!("In unwatch_file({handle})"));
+            vs_code_api::unwatch_file(handle);
+            Some(sender)
+        } else {
+            None
+        }
+    };
+
+    if let Some(tx) = tx {
+        let _ = tx.broadcast(()).await;
     }
 }
 

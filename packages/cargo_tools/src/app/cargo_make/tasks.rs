@@ -21,7 +21,7 @@ pub enum MakefileTasksUpdate {
 pub async fn parse_tasks<RT: Runtime>(makefile: String) -> MakefileTasksUpdate {
     // Check if cargo-make is available
     if RT::exec("cargo make --version".to_string()).await.is_err() {
-        RT::log("cargo-make not available, skipping task discovery".to_string()).await;
+        RT::log("cargo-make not available, skipping task discovery".to_string());
         return MakefileTasksUpdate::NoMakefile;
     }
 
@@ -33,7 +33,7 @@ pub async fn parse_tasks<RT: Runtime>(makefile: String) -> MakefileTasksUpdate {
     {
         Ok(output) => parse_makefile_output::<RT>(&output).await,
         Err(e) => {
-            RT::log(format!("Failed to list cargo-make tasks: {e}")).await;
+            RT::log(format!("Failed to list cargo-make tasks: {e}"));
             MakefileTasksUpdate::NoMakefile
         }
     }
@@ -72,6 +72,6 @@ async fn parse_makefile_output<RT: Runtime>(output: &str) -> MakefileTasksUpdate
         }
     }
 
-    RT::log(format!("Discovered {} cargo-make tasks", tasks.len())).await;
+    RT::log(format!("Discovered {} cargo-make tasks", tasks.len()));
     MakefileTasksUpdate::New(tasks)
 }

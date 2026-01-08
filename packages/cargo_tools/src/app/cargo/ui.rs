@@ -9,11 +9,11 @@ use crate::app::cargo::{
 use iced_headless::Subscription;
 
 #[derive(Debug, Clone)]
-pub enum Message<State: Ui> {
+pub enum Message<CustomUpdate: Clone> {
     Selection(selection::Update),
     Metadata(MetadataUpdate),
     Task(Task),
-    Custom(State::CustomUpdate),
+    Custom(CustomUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,10 @@ use serde::{Deserialize, Serialize};
 pub trait Ui: Sized {
     type CustomUpdate: Debug + Clone;
 
-    fn update(&mut self, msg: Msg<Self>) -> iced_headless::Task<Msg<Self>>;
+    fn update(
+        &mut self,
+        msg: Msg<Self::CustomUpdate>,
+    ) -> iced_headless::Task<Msg<Self::CustomUpdate>>;
 
-    fn subscription(&self) -> Subscription<Msg<Self>>;
+    fn subscription(&self) -> Subscription<Msg<Self::CustomUpdate>>;
 }

@@ -46,6 +46,7 @@ impl Runtime for TestRuntime {
         let Task { cmd, args, env } = match task {
             CargoTask::Cargo(task) => task,
             CargoTask::CargoMake(task) => task,
+            CargoTask::RustUp(task) => todo!(),
         };
         let env = env
             .into_iter()
@@ -56,7 +57,7 @@ impl Runtime for TestRuntime {
         let _ = cmd_lib::run_cmd!(sh -c "${env} ${cmd} ${args}").map_err(|e| e.to_string());
     }
 
-    async fn log(msg: String) {
+    fn log(msg: String) {
         // Bridge Runtime::log to tracing for test verification
         tracing::info!("{}", msg);
     }
