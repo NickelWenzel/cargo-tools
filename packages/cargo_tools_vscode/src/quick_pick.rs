@@ -52,18 +52,22 @@ impl QuickPickItem {
         self
     }
 
+    #[wasm_bindgen(getter)]
     pub fn label(&self) -> String {
         self.label.clone()
     }
 
+    #[wasm_bindgen(getter)]
     pub fn description(&self) -> Option<String> {
         self.description.clone()
     }
 
+    #[wasm_bindgen(getter)]
     pub fn detail(&self) -> Option<String> {
         self.detail.clone()
     }
 
+    #[wasm_bindgen(getter)]
     pub fn picked(&self) -> Option<bool> {
         self.picked
     }

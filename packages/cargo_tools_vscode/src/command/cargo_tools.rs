@@ -3,8 +3,6 @@ pub mod pinned_makefile_tasks;
 pub mod project_outline;
 pub mod project_status;
 
-use std::iter;
-
 use async_broadcast::Sender;
 use cargo_tools::app::cargo::{
     self,
@@ -13,11 +11,13 @@ use cargo_tools::app::cargo::{
     ui::Task,
 };
 use serde_wasm_bindgen::to_value;
+use std::fmt::Debug;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     app::{self, CargoMsg},
+    command::SelectInput,
     quick_pick::ToQuickPickItem,
     vs_code_api::{
         JsValueExt, execute_async, log, show_quick_pick, show_quick_pick_multiple, showErrorMessage,
@@ -40,14 +40,13 @@ impl IntoCargoMessage for Task {
     }
 }
 
-async fn select<T: ToQuickPickItem + Clone + PartialEq>(
-    items: &[T],
-    current_selection: &[T],
+async fn select<T: ToQuickPickItem + Clone + Debug + PartialEq>(
+    SelectInput { options, current }: SelectInput<T>,
 ) -> Option<T> {
-    let items_array = match items
+    let vccode_options = match options
         .iter()
         .map(|i| {
-            let picked = current_selection.contains(i);
+            let picked = current.contains(i);
             to_value(&i.to_item(picked))
         })
         .collect()
@@ -59,7 +58,7 @@ async fn select<T: ToQuickPickItem + Clone + PartialEq>(
         }
     };
 
-    let selected_index = match show_quick_pick(items_array).await {
+    let selected_index = match show_quick_pick(vccode_options).await {
         Ok(value) => value.as_f64().map(|f| f as usize),
         Err(e) => {
             log(&format!("Quick pick failed: {e:?}"));
@@ -67,17 +66,16 @@ async fn select<T: ToQuickPickItem + Clone + PartialEq>(
         }
     };
 
-    selected_index.and_then(|i| items.get(i)).cloned()
+    selected_index.and_then(|i| options.get(i)).cloned()
 }
 
-async fn select_multiple<T: ToQuickPickItem + Clone + PartialEq>(
-    items: &[T],
-    current_selection: &[T],
+async fn select_multiple<T: ToQuickPickItem + Clone + Debug + PartialEq>(
+    SelectInput { options, current }: SelectInput<T>,
 ) -> Option<Vec<T>> {
-    let items_array = match items
+    let vscode_options = match options
         .iter()
         .map(|i| {
-            let picked = current_selection.contains(i);
+            let picked = current.contains(i);
             to_value(&i.to_item(picked))
         })
         .collect()
@@ -89,7 +87,7 @@ async fn select_multiple<T: ToQuickPickItem + Clone + PartialEq>(
         }
     };
 
-    let selected_indices = match show_quick_pick_multiple(items_array).await {
+    let selected_indices = match show_quick_pick_multiple(vscode_options).await {
         Ok(value) => {
             if value.is_null() || value.is_undefined() {
                 return None;
@@ -110,7 +108,7 @@ async fn select_multiple<T: ToQuickPickItem + Clone + PartialEq>(
     selected_indices.map(|indices| {
         indices
             .into_iter()
-            .filter_map(|i| items.get(i).cloned())
+            .filter_map(|i| options.get(i).cloned())
             .collect()
     })
 }
@@ -123,10 +121,7 @@ pub fn select_profile(
         let tx_send = tx.clone();
         let data = cmd_data.clone();
         spawn_local(async move {
-            let profiles = data.metadata.lock().unwrap().profiles().to_vec();
-            let current = data.selection.lock().unwrap().profile.clone();
-
-            if let Some(profile) = select(&profiles, &[current]).await
+            if let Some(profile) = select(data.profiles()).await
                 && let Err(e) = tx_send
                     .broadcast(Update::SelectedProfile(profile).into_cargo_msg())
                     .await
@@ -145,15 +140,14 @@ pub fn select_package(
         let tx_send = tx.clone();
         let data = data.clone();
         spawn_local(async move {
-            let packages = data.metadata.lock().unwrap().package_options();
-            let current = data.selection.lock().unwrap().package.clone();
-
-            if let Some(selected) = select(&packages, &[current]).await
-                && let Err(e) = tx_send
+            if let Some(selected) = select(data.packages()).await {
+                log(&format!("Sending new package selection: {selected:?}"));
+                if let Err(e) = tx_send
                     .broadcast(Update::SelectedPackage(selected).into_cargo_msg())
                     .await
-            {
-                log(&format!("Failed to queue msg: {e:?}"));
+                {
+                    log(&format!("Failed to queue msg: {e:?}"));
+                }
             }
         });
     })
@@ -167,20 +161,12 @@ pub fn select_build_target(
         let tx_send = tx.clone();
         let data = data.clone();
         spawn_local(async move {
-            let ui_metadata_guard = data.metadata.lock().unwrap();
-            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
-                log(&format!("No metadata to select from."));
+            let Some(input) = data.build_target_options() else {
+                log("No build targets found.");
                 return;
             };
 
-            let selection_guard = data.selection.lock().unwrap();
-
-            let targets = selection_guard.build_target_options(metadata);
-            let current = selection_guard
-                .package_selection()
-                .and_then(|s| s.build_target.clone());
-
-            if let Some(selected) = select(&targets, &[current]).await
+            if let Some(selected) = select(input).await
                 && let Err(e) = tx_send
                     .broadcast(Update::SelectedBuildTarget(selected).into_cargo_msg())
                     .await
@@ -199,20 +185,12 @@ pub fn select_run_target(
         let tx_send = tx.clone();
         let data = data.clone();
         spawn_local(async move {
-            let ui_metadata_guard = data.metadata.lock().unwrap();
-            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
-                log(&format!("No metadata to select from."));
+            let Some(input) = data.run_target_options() else {
+                log("No run targets found.");
                 return;
             };
 
-            let selection_guard = data.selection.lock().unwrap();
-
-            let targets = selection_guard.run_target_options(metadata);
-            let current = selection_guard
-                .package_selection()
-                .and_then(|s| s.run_target.clone());
-
-            if let Some(selected) = select(&targets, &[current]).await
+            if let Some(selected) = select(input).await
                 && let Err(e) = tx_send
                     .broadcast(Update::SelectedRunTarget(selected).into_cargo_msg())
                     .await
@@ -231,20 +209,12 @@ pub fn select_benchmark_target(
         let tx_send = tx.clone();
         let data = data.clone();
         spawn_local(async move {
-            let ui_metadata_guard = data.metadata.lock().unwrap();
-            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
-                log(&format!("No metadata to select from."));
+            let Some(input) = data.bench_target_options() else {
+                log("No benchmark targets found.");
                 return;
             };
 
-            let selection_guard = data.selection.lock().unwrap();
-
-            let targets = selection_guard.bench_target_options(metadata);
-            let current = selection_guard
-                .package_selection()
-                .and_then(|s| s.benchmark_target.clone());
-
-            if let Some(selected) = select(&targets, &[current]).await
+            if let Some(selected) = select(input).await
                 && let Err(e) = tx_send
                     .broadcast(Update::SelectedBenchmarkTarget(selected).into_cargo_msg())
                     .await
@@ -291,9 +261,10 @@ pub fn select_platform_target(
             let mut options = vec![None];
             options.extend(platform_targets);
 
-            let current = data.selection.lock().unwrap().platform_target.clone();
+            let current = vec![data.selection.lock().unwrap().platform_target.clone()];
+            let input = SelectInput { options, current };
 
-            if let Some(selected) = select(&options, &[current]).await
+            if let Some(selected) = select(input).await
                 && let Err(e) = tx_send
                     .broadcast(Update::SelectedPlatformTarget(selected).into_cargo_msg())
                     .await
@@ -308,7 +279,7 @@ pub fn install_platform_target(tx: Sender<CargoMsg>) -> Closure<dyn FnMut(Array)
     Closure::new(move |_args: Array| {
         let tx_send = tx.clone();
         spawn_local(async move {
-            let platform_targets = match execute_async("rustup target list").await {
+            let options = match execute_async("rustup target list").await {
                 Ok(output) => {
                     let output_str = output.as_string().unwrap_or_default();
                     output_str
@@ -332,7 +303,12 @@ pub fn install_platform_target(tx: Sender<CargoMsg>) -> Closure<dyn FnMut(Array)
                 }
             };
 
-            if let Some(selected) = select(&platform_targets, &[]).await
+            let input = SelectInput {
+                options,
+                current: Vec::new(),
+            };
+
+            if let Some(selected) = select(input).await
                 && let Err(e) = tx_send
                     .broadcast(Task::AddPlatformTarget(selected).into_cargo_msg())
                     .await
@@ -374,22 +350,11 @@ pub fn select_features(
         let tx_send = tx.clone();
         let data = cmd_data.clone();
         spawn_local(async move {
-            let ui_metadata_guard = data.metadata.lock().unwrap();
-            let Some(metadata) = ui_metadata_guard.metadata.as_ref() else {
-                log(&format!("No metadata to select from."));
+            let Some(input) = data.feature_options() else {
+                log("No available features found.");
                 return;
             };
-
-            let selection_guard = data.selection.lock().unwrap();
-            let features = iter::once("All features".to_string())
-                .chain(selection_guard.feature_options(metadata))
-                .collect::<Vec<_>>();
-            let current_features = match data.selection.lock().unwrap().selected_features() {
-                Features::All => ["All features".to_string()].to_vec(),
-                Features::Some(features) => features,
-            };
-
-            if let Some(selected_features) = select_multiple(&features, &current_features).await {
+            if let Some(selected_features) = select_multiple(input).await {
                 let features = if selected_features.iter().any(|f| f == "All Features") {
                     Features::All
                 } else {

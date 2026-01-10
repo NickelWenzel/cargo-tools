@@ -45,22 +45,31 @@ impl<Ui: ui::Ui> Cargo<Ui> {
 
 impl<Ui: ui::Ui + 'static> Cargo<Ui> {
     pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
+        RT::log("Cargo update received".to_string());
         match msg {
-            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
+            Msg::RootDirUpdate(root_dir) => {
+                RT::log(format!("Cargo update received: new root dir {root_dir}"));
+                self.update_root_dir::<RT>(root_dir)
+            }
             Msg::ManifestUpdate => {
+                RT::log("Cargo update received: manifest updated".to_string());
                 Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
             }
             Msg::ConfigUpdate => {
+                RT::log("Cargo update received: config updated".to_string());
                 Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
             }
-            Msg::MetadataUpdate(update) => self.update_metadata::<RT>(update),
+            Msg::MetadataUpdate(update) => {
+                RT::log("Cargo update received: metadata updated".to_string());
+                self.update_metadata::<RT>(update)
+            }
             Msg::Ui(msg) => {
                 let task = match &msg {
                     ui::Message::Selection(update) => self.update_state::<RT>(update.clone()),
                     ui::Message::Task(task) => self.exec_task::<RT>(task.clone()),
                     ui::Message::Custom(_) | ui::Message::Metadata(_) => Task::none(),
                 };
-                let ui = self.ui.update(msg).map(Msg::<Ui>::Ui);
+                let ui = self.ui.update(msg).map(Msg::Ui);
 
                 Task::batch([task, ui])
             }
@@ -69,17 +78,11 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
 
     fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg<Ui>> {
         self.root_dir = root_dir;
-        let selection = {
-            if let Some(s) = RT::get_state(self.state_key()) {
-                self.state = s;
-            }
-            Task::none()
-        };
+        if let Some(s) = RT::get_state(self.state_key()) {
+            self.state = s;
+        }
 
-        let metadata =
-            Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate);
-
-        Task::batch([metadata, selection])
+        Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
     }
 
     fn update_state<RT: Runtime>(&mut self, update: selection::Update) -> Task<Msg<Ui>> {

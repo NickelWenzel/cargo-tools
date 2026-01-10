@@ -9,13 +9,14 @@ use cargo_make::ui::Message as Msg;
 use crate::{
     app::StaticHashStream,
     command::{Command, register_cargo_make_commands},
+    vs_code_api::log,
 };
 
 #[derive(Debug)]
 pub struct Ui {
     cmd_data: CommandData,
     rx: Receiver<Msg<()>>,
-    cmds: Vec<Command>,
+    _cmds: Vec<Command>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +36,7 @@ impl Ui {
         Self {
             cmd_data: data.clone(),
             rx,
-            cmds: register_cargo_make_commands(tx, data),
+            _cmds: register_cargo_make_commands(tx, data),
         }
     }
 }
@@ -43,29 +44,38 @@ impl Ui {
 impl cargo_make::ui::Ui for Ui {
     type CustomUpdate = ();
 
-    fn update(&mut self, update: Msg<Self::CustomUpdate>) -> Task<Msg<Self::CustomUpdate>> {
-        match update {
-            cargo_make::ui::Message::Update(update) => match update {
-                cargo_make::ui::Update::AddPinned(makefile_task) => {
-                    let mut state_guard = self.cmd_data.state.lock().unwrap();
-                    state_guard.pinned.push(makefile_task);
-                }
-                cargo_make::ui::Update::RemovePinned(idx) => {
-                    let guard = self.cmd_data.state.lock().unwrap();
-                    if idx < guard.pinned.len() {
-                        self.cmd_data.state.lock().unwrap().pinned.remove(idx);
+    fn update(&mut self, msg: Msg<Self::CustomUpdate>) -> Task<Msg<Self::CustomUpdate>> {
+        log("Cargo make Ui update received");
+        match msg {
+            cargo_make::ui::Message::Update(update) => {
+                log(&format!(
+                    "Cargo make Ui update received: state update '{update:?}'"
+                ));
+                match update {
+                    cargo_make::ui::Update::AddPinned(makefile_task) => {
+                        let mut state_guard = self.cmd_data.state.lock().unwrap();
+                        state_guard.pinned.push(makefile_task);
+                    }
+                    cargo_make::ui::Update::RemovePinned(idx) => {
+                        let guard = self.cmd_data.state.lock().unwrap();
+                        if idx < guard.pinned.len() {
+                            self.cmd_data.state.lock().unwrap().pinned.remove(idx);
+                        }
                     }
                 }
-            },
-            cargo_make::ui::Message::MakefileTasks(update) => match update {
-                cargo_make::tasks::MakefileTasksUpdate::New(makefile_tasks) => {
-                    *self.cmd_data.makefile_tasks.lock().unwrap() = makefile_tasks;
+            }
+            cargo_make::ui::Message::MakefileTasks(update) => {
+                log("Cargo make Ui update received: new tasks");
+                match update {
+                    cargo_make::tasks::MakefileTasksUpdate::New(makefile_tasks) => {
+                        *self.cmd_data.makefile_tasks.lock().unwrap() = makefile_tasks;
+                    }
+                    cargo_make::tasks::MakefileTasksUpdate::NoMakefile => {
+                        *self.cmd_data.makefile_tasks.lock().unwrap() = MakefileTasks::new();
+                    }
+                    cargo_make::tasks::MakefileTasksUpdate::FailedToRetrieve => {}
                 }
-                cargo_make::tasks::MakefileTasksUpdate::NoMakefile => {
-                    *self.cmd_data.makefile_tasks.lock().unwrap() = MakefileTasks::new();
-                }
-                cargo_make::tasks::MakefileTasksUpdate::FailedToRetrieve => {}
-            },
+            }
             cargo_make::ui::Message::Task(_) => {}
             cargo_make::ui::Message::Custom(_) => {}
         }

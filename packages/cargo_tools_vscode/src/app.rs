@@ -25,7 +25,7 @@ use once_cell::sync::Lazy;
 use pin_project::pin_project;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{runtime::VsCodeRuntime, vs_code_api};
+use crate::{runtime::VsCodeRuntime, vs_code_api::log};
 
 pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
     <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
@@ -96,7 +96,7 @@ pub fn run(workspace_root: String) {
             .run_with(|| init(workspace_root))
             .await
         {
-            vs_code_api::log(&format!("Error in Cargo Tools extension: {e}"));
+            log(&format!("Error in Cargo Tools extension: {e}"));
         }
     });
 }
@@ -105,13 +105,14 @@ pub fn run(workspace_root: String) {
 pub async fn exit() {
     let mut tx = EXIT_TX.lock().unwrap().clone();
     if let Err(e) = tx.send(Exit).await {
-        vs_code_api::log(&format!(
+        log(&format!(
             "Failed to send exit signal to Cargo Tools extension: {e}"
         ));
     }
 }
 
 fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
+    log("Initializing Cargo tools");
     let cargo_ui = cargo::Ui::new(
         VsCodeRuntime::get_state(format!("{root_dir}.cargo_tools.cargo.state")).unwrap_or_default(),
     );
@@ -131,6 +132,7 @@ fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
         root_dir,
     )));
+    log("Done initializing Cargo tools");
 
     (app, Task::batch([cargo, cargo_make]))
 }

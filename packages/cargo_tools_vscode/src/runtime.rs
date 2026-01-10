@@ -46,19 +46,14 @@ use wasm_async_trait::wasm_async_trait;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Map;
 
-use crate::{
-    configuration,
-    vs_code_api::{self, JsValueExt},
-};
+use crate::{configuration, vs_code_api::*};
 
 const CHANNEL_CAPACITY: usize = 100;
 
-type FileWatcherEntry = (u32, Sender<()>);
+type FileWatcherEntry = (u32, Sender<()>, Receiver<()>);
 
-static CURRENT_DIR_TX: Lazy<Mutex<Sender<String>>> = Lazy::new(|| {
-    let (tx, _) = broadcast(CHANNEL_CAPACITY);
-    Mutex::new(tx)
-});
+static CURRENT_DIR_CHANNEL: Lazy<Mutex<(Sender<String>, Receiver<String>)>> =
+    Lazy::new(|| Mutex::new(broadcast(CHANNEL_CAPACITY)));
 
 static FILE_WATCHERS: Lazy<Mutex<HashMap<String, FileWatcherEntry>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -70,71 +65,70 @@ pub struct VsCodeRuntime;
 #[wasm_async_trait]
 impl Runtime for VsCodeRuntime {
     async fn exec(command: String) -> Result<String, String> {
-        vs_code_api::execute_async(&command)
+        execute_async(&command)
             .await
             .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
             .map_err(|e| e.to_error_string())
     }
 
     async fn exec_task(task: CargoTask) {
-        vs_code_api::execute_task(VsCodeTask(task)).await;
+        execute_task(VsCodeTask(task)).await;
     }
 
     fn log(msg: String) {
-        vs_code_api::log(&msg);
+        log(&msg);
     }
 
     async fn read_file(file_path: String) -> Result<String, String> {
-        vs_code_api::read_file(&file_path)
+        read_file(&file_path)
             .await
             .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
             .map_err(|e| e.to_error_string())
     }
 
     fn current_dir_notitifier() -> Receiver<String> {
-        vs_code_api::log("In current_dir_notitifier");
-        let sender = CURRENT_DIR_TX.lock().unwrap();
-        let receiver = sender.new_receiver();
+        log("In current_dir_notitifier");
+        let rx = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
 
         let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
         if handle.is_none() {
-            *handle = Some(vs_code_api::watch_current_dir());
+            *handle = Some(watch_current_dir());
         }
 
-        receiver
+        rx
     }
 
     fn file_changed_notifier(file: String) -> Receiver<()> {
-        vs_code_api::log(&format!("In file_changed_notifier({file})"));
+        log(&format!("In file_changed_notifier({file})"));
         let mut watchers = FILE_WATCHERS.lock().unwrap();
         let entry = watchers.entry(file.clone()).or_insert_with(|| {
-            let handle = vs_code_api::watch_file(&file);
-            let (sender, _) = broadcast(CHANNEL_CAPACITY);
-            (handle, sender)
+            let handle = watch_file(&file);
+            let (tx, rx) = broadcast(CHANNEL_CAPACITY);
+            (handle, tx, rx)
         });
-        entry.1.new_receiver()
+        entry.2.clone()
     }
 
     async fn persist_state(key: String, state: impl Serialize) {
         let state = serde_wasm_bindgen::to_value(&state);
         let Ok(state) = state else {
             let e = state.unwrap_err();
-            vs_code_api::log(&format!("Failed to serialize state: {e}"));
+            log(&format!("Failed to serialize state: {e}"));
             return;
         };
 
-        if let Err(e) = vs_code_api::set_state(&key, state).await {
+        if let Err(e) = set_state(&key, state).await {
             let e = e.to_error_string();
-            vs_code_api::log(&format!("Failed to set state: {e}"));
+            log(&format!("Failed to set state: {e}"));
         }
     }
 
     fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T> {
-        let js_value = vs_code_api::get_state(&key);
+        let js_value = get_state(&key);
         let state = serde_wasm_bindgen::from_value(js_value);
         let Ok(state) = state else {
             let e = state.unwrap_err();
-            vs_code_api::log(&format!("Failed to deserialize state: {e}"));
+            log(&format!("Failed to deserialize state: {e}"));
             return None;
         };
         Some(state)
@@ -189,37 +183,43 @@ impl VsCodeTask {
 /// Called by TypeScript when the current directory changes.
 #[wasm_bindgen]
 pub async fn on_current_dir_changed(dir: String) {
-    vs_code_api::log(&format!("In on_current_dir_changed({dir})"));
+    log(&format!("In on_current_dir_changed({dir})"));
     {
         let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
         if let Some(h) = *handle {
-            vs_code_api::log(&format!("In unwatch_current_dir({h})"));
-            vs_code_api::unwatch_current_dir(h);
+            log(&format!("In unwatch_current_dir({h})"));
+            unwatch_current_dir(h);
             *handle = None;
         }
     }
 
-    let sender = CURRENT_DIR_TX.lock().unwrap().clone();
-    let _ = sender.broadcast(dir).await;
+    let tx = CURRENT_DIR_CHANNEL.lock().unwrap().0.clone();
+    if let Err(e) = tx.broadcast(dir).await {
+        log(&format!(
+            "Failed to send root dir changed notification: {e:?}"
+        ));
+    }
 }
 
 /// Called by TypeScript when a watched file changes.
 #[wasm_bindgen]
 pub async fn on_file_changed(path: String) {
-    vs_code_api::log(&format!("In on_file_changed({path})"));
+    log(&format!("In on_file_changed({path})"));
     let tx = {
         let mut watchers = FILE_WATCHERS.lock().unwrap();
-        if let Some((handle, sender)) = watchers.remove(&path) {
-            vs_code_api::log(&format!("In unwatch_file({handle})"));
-            vs_code_api::unwatch_file(handle);
-            Some(sender)
+        if let Some((handle, tx, _)) = watchers.remove(&path) {
+            log(&format!("In unwatch_file({handle})"));
+            unwatch_file(handle);
+            Some(tx)
         } else {
             None
         }
     };
 
-    if let Some(tx) = tx {
-        let _ = tx.broadcast(()).await;
+    if let Some(tx) = tx
+        && let Err(e) = tx.broadcast(()).await
+    {
+        log(&format!("Failed to send file changed notification: {e:?}"));
     }
 }
 
@@ -236,8 +236,8 @@ mod tests {
         *CURRENT_DIR_HANDLE.lock().unwrap() = Some(42);
 
         let (mut receiver1, mut receiver2) = {
-            let sender = CURRENT_DIR_TX.lock().unwrap();
-            (sender.new_receiver(), sender.new_receiver())
+            let rx = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
+            (rx.clone(), rx)
         };
 
         on_current_dir_changed("/test/path".to_string());
@@ -256,16 +256,14 @@ mod tests {
     fn test_on_current_dir_changed_cleans_up_after_event() {
         *CURRENT_DIR_HANDLE.lock().unwrap() = Some(42);
 
-        let sender = CURRENT_DIR_TX.lock().unwrap();
-        let mut receiver1 = sender.new_receiver();
-        let receiver2 = sender.new_receiver();
-        drop(sender);
+        let mut rx1 = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
+        let rx2 = rx1.clone();
 
-        drop(receiver2);
+        drop(rx2);
 
         on_current_dir_changed("/test/path".to_string());
 
-        let msg = receiver1.try_recv();
+        let msg = rx1.try_recv();
         assert_eq!(msg, Ok("/test/path".to_string()));
 
         let handle = *CURRENT_DIR_HANDLE.lock().unwrap();
@@ -276,21 +274,19 @@ mod tests {
     fn test_on_file_changed_distributes_to_correct_watchers() {
         FILE_WATCHERS.lock().unwrap().clear();
 
-        let (sender1, _) = broadcast::<()>(CHANNEL_CAPACITY);
-        let mut receiver1 = sender1.new_receiver();
-        let (sender2, _) = broadcast::<()>(CHANNEL_CAPACITY);
-        let mut receiver2 = sender2.new_receiver();
+        let (tx1, mut rx1) = broadcast::<()>(CHANNEL_CAPACITY);
+        let (tx2, mut rx2) = broadcast::<()>(CHANNEL_CAPACITY);
 
         {
             let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file1.txt".to_string(), (1, sender1));
-            watchers.insert("/path/file2.txt".to_string(), (2, sender2));
+            watchers.insert("/path/file1.txt".to_string(), (1, tx1, rx1.clone()));
+            watchers.insert("/path/file2.txt".to_string(), (2, tx2, rx2.clone()));
         }
 
         on_file_changed("/path/file1.txt".to_string());
 
-        assert_eq!(receiver1.try_recv(), Ok(()));
-        assert!(receiver2.try_recv().is_err(), "Should not receive event");
+        assert_eq!(rx1.try_recv(), Ok(()));
+        assert!(rx2.try_recv().is_err(), "Should not receive event");
 
         let watchers_count = FILE_WATCHERS.lock().unwrap().len();
         assert_eq!(
@@ -303,19 +299,18 @@ mod tests {
     fn test_on_file_changed_handles_multiple_watchers_same_file() {
         FILE_WATCHERS.lock().unwrap().clear();
 
-        let (sender, _) = broadcast::<()>(CHANNEL_CAPACITY);
-        let mut receiver1 = sender.new_receiver();
-        let mut receiver2 = sender.new_receiver();
+        let (tx, mut rx1) = broadcast::<()>(CHANNEL_CAPACITY);
+        let mut rx2 = tx.new_receiver();
 
         {
             let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file.txt".to_string(), (1, sender));
+            watchers.insert("/path/file.txt".to_string(), (1, tx, rx1.clone()));
         }
 
         on_file_changed("/path/file.txt".to_string());
 
-        assert_eq!(receiver1.try_recv(), Ok(()));
-        assert_eq!(receiver2.try_recv(), Ok(()));
+        assert_eq!(rx1.try_recv(), Ok(()));
+        assert_eq!(rx2.try_recv(), Ok(()));
 
         let watchers_count = FILE_WATCHERS.lock().unwrap().len();
         assert_eq!(watchers_count, 0, "Watcher should be removed after event");
@@ -325,20 +320,19 @@ mod tests {
     fn test_on_file_changed_delivers_to_all_including_dead() {
         FILE_WATCHERS.lock().unwrap().clear();
 
-        let (sender, _) = broadcast::<()>(CHANNEL_CAPACITY);
-        let mut receiver1 = sender.new_receiver();
-        let receiver2 = sender.new_receiver();
+        let (tx, mut rx1) = broadcast::<()>(CHANNEL_CAPACITY);
+        let rx2 = tx.new_receiver();
 
         {
             let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file.txt".to_string(), (1, sender));
+            watchers.insert("/path/file.txt".to_string(), (1, tx, rx1.clone()));
         }
 
-        drop(receiver2);
+        drop(rx2);
 
         on_file_changed("/path/file.txt".to_string());
 
-        assert_eq!(receiver1.try_recv(), Ok(()));
+        assert_eq!(rx1.try_recv(), Ok(()));
 
         let watchers_count = FILE_WATCHERS.lock().unwrap().len();
         assert_eq!(watchers_count, 0, "Watcher should be removed after event");
@@ -346,21 +340,19 @@ mod tests {
 
     #[test]
     fn test_channel_capacity_is_bounded() {
-        let sender = CURRENT_DIR_TX.lock().unwrap();
-        let mut receiver = sender.new_receiver();
-        drop(sender);
+        let mut rx = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
 
         for i in 0..CHANNEL_CAPACITY + 10 {
             on_current_dir_changed(format!("/path/{}", i));
         }
 
-        let mut received_count = 0;
-        while receiver.try_recv().is_ok() {
-            received_count += 1;
+        let mut rx_count = 0;
+        while rx.try_recv().is_ok() {
+            rx_count += 1;
         }
 
         assert!(
-            received_count <= CHANNEL_CAPACITY,
+            rx_count <= CHANNEL_CAPACITY,
             "Should not exceed channel capacity"
         );
     }

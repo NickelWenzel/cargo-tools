@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use async_broadcast::Sender;
 use wasm_bindgen::prelude::*;
@@ -6,6 +6,7 @@ use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     app::{CargoMakeMsg, CargoMsg, cargo, cargo_make},
+    quick_pick::ToQuickPickItem,
     vs_code_api::{log, register_command},
 };
 
@@ -220,7 +221,7 @@ fn cargo_command_map(tx: Sender<CargoMsg>, data: cargo::CommandData) -> CommandM
     ])
 }
 
-fn cargo_make_command_map(tx: Sender<CargoMakeMsg>, data: cargo_make::CommandData) -> CommandMap {
+fn cargo_make_command_map(tx: Sender<CargoMakeMsg>, _data: cargo_make::CommandData) -> CommandMap {
     HashMap::from([
         (
             "cargo-tools.makefile.runTask".to_string(),
@@ -289,6 +290,11 @@ fn cargo_make_command_map(tx: Sender<CargoMakeMsg>, data: cargo_make::CommandDat
     ])
 }
 
+#[derive(Debug)]
+pub struct SelectInput<T: ToQuickPickItem + Debug> {
+    pub options: Vec<T>,
+    pub current: Vec<T>,
+}
 #[cfg(test)]
 pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;

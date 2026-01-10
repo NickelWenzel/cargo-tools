@@ -38,19 +38,29 @@ impl<Ui: ui::Ui> CargoMake<Ui> {
 
 impl<Ui: ui::Ui + 'static> CargoMake<Ui> {
     pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
+        RT::log("Cargo make update received".to_string());
         match msg {
-            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
+            Msg::RootDirUpdate(root_dir) => {
+                RT::log(format!(
+                    "Cargo make update received: new root dir {root_dir}"
+                ));
+                self.update_root_dir::<RT>(root_dir)
+            }
             Msg::MakefileUpdate => {
+                RT::log("Cargo make update received: makefile updated".to_string());
                 Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
             }
-            Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT>(tasks_update),
+            Msg::MakefileTasksUpdate(tasks_update) => {
+                RT::log("Cargo make update received: makefile tasks updated".to_string());
+                self.update_tasks::<RT>(tasks_update)
+            }
             Msg::Ui(msg) => {
                 let task = match &msg {
                     ui::Message::Update(update) => self.update_state::<RT>(update),
                     ui::Message::Task(task) => self.exec_task::<RT>(task.clone()),
                     ui::Message::MakefileTasks(_) | ui::Message::Custom(_) => Task::none(),
                 };
-                let ui = self.ui.update(msg).map(Msg::<Ui>::Ui);
+                let ui = self.ui.update(msg).map(Msg::Ui);
 
                 Task::batch([task, ui])
             }
@@ -64,7 +74,7 @@ impl<Ui: ui::Ui + 'static> CargoMake<Ui> {
             self.state = s;
         }
 
-        Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::<Ui>::MakefileTasksUpdate)
+        Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
     }
 
     fn update_state<RT: Runtime>(&mut self, update: &ui::Update) -> Task<Msg<Ui>> {
@@ -116,7 +126,7 @@ impl<Ui: ui::Ui + 'static> CargoMake<Ui> {
         let makefile = self.makefile();
         let file_change = Task::future(async move {
             let ret = RT::file_changed_notifier(makefile).next().await;
-            RT::log("Makefile.toml changed".to_string());
+            RT::log(format!("Makefile.toml changed: {ret:?}"));
             ret
         })
         .and_then(|()| Task::done(Msg::MakefileUpdate));
@@ -126,8 +136,8 @@ impl<Ui: ui::Ui + 'static> CargoMake<Ui> {
     }
 
     pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg<Ui>> {
-        let root = Subscription::run(RT::current_dir_notitifier).map(Msg::<Ui>::RootDirUpdate);
-        let ui = self.ui.subscription().map(Msg::<Ui>::Ui);
+        let root = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
+        let ui = self.ui.subscription().map(Msg::Ui);
 
         Subscription::batch([root, ui])
     }
