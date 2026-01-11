@@ -80,13 +80,13 @@ pub trait HeadlessProgram: Sized {
             runtime.run(stream);
         }
 
-        runtime.track(subscription::into_recipes(
-            runtime.enter(|| self.subscription(&state).map(Action::Output)),
-        ));
+        // We need to track regular and exit subscriptions together for some reason
+        runtime.track(subscription::into_recipes(runtime.enter(|| {
+            let subs = self.subscription(&state).map(Action::Output);
+            let exit = self.exit_on(&state).map(|_| Action::Exit);
 
-        runtime.track(subscription::into_recipes(
-            runtime.enter(|| self.exit_on(&state).map(|_| Action::Exit)),
-        ));
+            Subscription::batch([subs, exit])
+        })));
 
         Ok(event_loop.run(state, move |state, message| {
             let task = self.update(state, message);
@@ -95,13 +95,13 @@ pub trait HeadlessProgram: Sized {
                 runtime.run(stream);
             }
 
-            runtime.track(subscription::into_recipes(
-                runtime.enter(|| self.subscription(state).map(Action::Output)),
-            ));
+            // We need to track regular and exit subscriptions together for some reason
+            runtime.track(subscription::into_recipes(runtime.enter(|| {
+                let subs = self.subscription(&state).map(Action::Output);
+                let exit = self.exit_on(&state).map(|_| Action::Exit);
 
-            runtime.track(subscription::into_recipes(
-                runtime.enter(|| self.exit_on(state).map(|_| Action::Exit)),
-            ));
+                Subscription::batch([subs, exit])
+            })));
         }))
     }
 }
