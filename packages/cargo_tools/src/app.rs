@@ -42,8 +42,9 @@ impl<UiT: Ui + std::fmt::Debug + 'static> App<UiT> {
 
     pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg<UiT>> {
         let cargo = self.cargo.subscription::<RT>().map(Msg::Cargo);
-        let cargo_make = self.cargo_make.subscription::<RT>().map(Msg::CargoMake);
+        // let cargo_make = self.cargo_make.subscription::<RT>().map(Msg::CargoMake);
 
-        Subscription::batch([cargo, cargo_make])
+        // Subscription::batch([cargo, cargo_make])
+        cargo
     }
 }

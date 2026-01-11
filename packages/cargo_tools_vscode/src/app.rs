@@ -8,10 +8,11 @@ use std::{
     task::{Context, Poll},
 };
 
+use async_broadcast::SendError;
 use cargo_tools::{
     app::{
         App, AppMessage,
-        cargo::{Cargo, CargoMessage},
+        cargo::{Cargo, CargoMessage, selection},
         cargo_make::{CargoMake, CargoMakeMessage},
     },
     runtime::Runtime,
@@ -25,15 +26,33 @@ use once_cell::sync::Lazy;
 use pin_project::pin_project;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{runtime::VsCodeRuntime, vs_code_api::log};
+use crate::{app::cargo::command_stream, runtime::VsCodeRuntime, vs_code_api::log};
 
 pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
     <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
 >;
 
+pub trait IntoCargoMessage {
+    fn into_cargo_msg(self) -> CargoMsg;
+}
+
+impl IntoCargoMessage for selection::Update {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Selection(self)
+    }
+}
+
+impl IntoCargoMessage for cargo_tools::app::cargo::ui::Task {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Task(self)
+    }
+}
+
 pub type CargoMakeMsg = ::cargo_tools::app::cargo_make::ui::Message<
     <cargo_make::Ui as ::cargo_tools::app::cargo_make::ui::Ui>::CustomUpdate,
 >;
+
+pub type SendResult<T> = Result<Option<T>, SendError<T>>;
 
 static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     let (tx, _) = channel(10);
@@ -92,6 +111,7 @@ impl cargo_tools::app::Ui for Ui {
 pub fn run(workspace_root: String) {
     wasm_bindgen_futures::spawn_local(async {
         if let Err(e) = async_application(App::update::<VsCodeRuntime>)
+            .subscription(App::subscription::<VsCodeRuntime>)
             .exit_on(exit_on)
             .run_with(|| init(workspace_root))
             .await
@@ -129,12 +149,17 @@ fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     let cargo = Task::done(AppMessage::Cargo(CargoMessage::RootDirUpdate(
         root_dir.clone(),
     )));
-    let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
-        root_dir,
-    )));
+    // let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
+    //     root_dir,
+    // )));
     log("Done initializing Cargo tools");
 
-    (app, Task::batch([cargo, cargo_make]))
+    let cargo_cmds = Task::stream(command_stream())
+        .map(CargoMessage::Ui)
+        .map(AppMessage::Cargo);
+
+    // (app, Task::batch([cargo, cargo_make]))
+    (app, Task::batch([cargo, cargo_cmds]))
 }
 
 fn exit_on(_: &App<Ui>) -> Subscription<Exit> {

@@ -48,7 +48,7 @@ use wasm_bindgen_futures::js_sys::Map;
 
 use crate::{configuration, vs_code_api::*};
 
-const CHANNEL_CAPACITY: usize = 100;
+pub const CHANNEL_CAPACITY: usize = 100;
 
 type FileWatcherEntry = (u32, Sender<()>, Receiver<()>);
 

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use async_broadcast::{Receiver, broadcast};
+use async_broadcast::{Sender, broadcast};
 use cargo_metadata::Metadata;
 use cargo_tools::{
     app::cargo::{
@@ -13,141 +13,126 @@ use cargo_tools::{
     },
     profile::Profile,
 };
-use iced_headless::{Subscription, Task};
+use futures::{SinkExt, Stream, StreamExt};
+use iced_headless::{Subscription, Task, stream};
 
 use cargo::ui::Message as Msg;
 
 use crate::{
-    app::StaticHashStream,
+    app::{CargoMsg, IntoCargoMessage, SendResult},
     command::{Command, SelectInput, register_cargo_commands},
+    runtime::CHANNEL_CAPACITY,
     vs_code_api::log,
 };
 
+#[derive(Debug, Clone)]
+pub enum UiUpdate {
+    CmdTx(Sender<CargoMsg>),
+}
+
 #[derive(Debug)]
 pub struct Ui {
-    cmd_data: CommandData,
-    rx: Receiver<Msg<()>>,
+    cmd_data: Arc<Mutex<CommandData>>,
     _cmds: Vec<Command>,
 }
 
 #[derive(Debug, Clone)]
 pub struct CommandData {
-    pub metadata: Arc<Mutex<UiMetadata>>,
-    pub selection: Arc<Mutex<selection::State>>,
+    pub metadata: UiMetadata,
+    pub selection: selection::State,
+    pub tx: Sender<CargoMsg>,
 }
 
 impl CommandData {
     pub fn profiles(&self) -> SelectInput<Profile> {
-        let options = self.metadata.lock().unwrap().profiles().to_vec();
-        let current = vec![self.selection.lock().unwrap().profile.clone()];
+        let options = self.metadata.profiles().to_vec();
+        let current = vec![self.selection.profile.clone()];
 
         SelectInput { options, current }
     }
 
     pub fn packages(&self) -> SelectInput<Option<String>> {
-        let options = self.metadata.lock().unwrap().package_options();
-        let current = vec![self.selection.lock().unwrap().package.clone()];
+        let options = self.metadata.package_options();
+        let current = vec![self.selection.package.clone()];
 
         SelectInput { options, current }
     }
 
     pub fn build_target_options(&self) -> Option<SelectInput<Option<BuildSubTarget>>> {
-        let ui_metadata_guard = self.metadata.lock().unwrap();
-        let metadata = ui_metadata_guard.metadata.as_ref()?;
+        let metadata = self.metadata.metadata.as_ref()?;
+        let selection = &self.selection;
 
-        let selection_guard = self.selection.lock().unwrap();
-
-        let options = selection_guard.build_target_options(metadata);
+        let options = selection.build_target_options(metadata);
         let current = vec![
-            selection_guard
+            selection
                 .package_selection()
                 .and_then(|s| s.build_target.clone()),
         ];
 
-        let input = SelectInput { options, current };
-        log(&format!(
-            "Build options '{input:?}' for current selection '{selection_guard:?}'"
-        ));
-
-        Some(input)
+        Some(SelectInput { options, current })
     }
 
     pub fn run_target_options(&self) -> Option<SelectInput<Option<RunSubTarget>>> {
-        let ui_metadata_guard = self.metadata.lock().unwrap();
-        let metadata = ui_metadata_guard.metadata.as_ref()?;
+        let metadata = self.metadata.metadata.as_ref()?;
 
-        let selection_guard = self.selection.lock().unwrap();
+        let selection = &self.selection;
 
-        let options = selection_guard.run_target_options(metadata);
+        let options = selection.run_target_options(metadata);
         let current = vec![
-            selection_guard
+            selection
                 .package_selection()
                 .and_then(|s| s.run_target.clone()),
         ];
 
-        let input = SelectInput { options, current };
-        log(&format!(
-            "Run options '{input:?}' for current selection '{selection_guard:?}'"
-        ));
-
-        Some(input)
+        Some(SelectInput { options, current })
     }
 
     pub fn bench_target_options(&self) -> Option<SelectInput<Option<String>>> {
-        let ui_metadata_guard = self.metadata.lock().unwrap();
-        let metadata = ui_metadata_guard.metadata.as_ref()?;
+        let metadata = self.metadata.metadata.as_ref()?;
+        let selection = &self.selection;
 
-        let selection_guard = self.selection.lock().unwrap();
-
-        let options = selection_guard.bench_target_options(metadata);
+        let options = selection.bench_target_options(metadata);
         let current = vec![
-            selection_guard
+            selection
                 .package_selection()
                 .and_then(|s| s.benchmark_target.clone()),
         ];
 
-        let input = SelectInput { options, current };
-        log(&format!(
-            "Benchmark options '{input:?}' for current selection '{selection_guard:?}'"
-        ));
-
-        Some(input)
+        Some(SelectInput { options, current })
     }
 
     pub fn feature_options(&self) -> Option<SelectInput<String>> {
-        let ui_metadata_guard = self.metadata.lock().unwrap();
-        let metadata = ui_metadata_guard.metadata.as_ref()?;
+        let metadata = self.metadata.metadata.as_ref()?;
+        let selection = &self.selection;
 
-        let selection_guard = self.selection.lock().unwrap();
         let options = iter::once("All features".to_string())
-            .chain(selection_guard.feature_options(metadata))
+            .chain(selection.feature_options(metadata))
             .collect::<Vec<_>>();
-        let current = match selection_guard.selected_features() {
+        let current = match selection.selected_features() {
             Features::All => ["All features".to_string()].to_vec(),
             Features::Some(features) => features,
         };
 
-        let input = SelectInput { options, current };
-        log(&format!(
-            "Feature options '{input:?}' for current selection '{selection_guard:?}'"
-        ));
+        Some(SelectInput { options, current })
+    }
 
-        Some(input)
+    pub async fn send<T: IntoCargoMessage>(&self, msg: T) -> SendResult<CargoMsg> {
+        self.tx.broadcast(msg.into_cargo_msg()).await
     }
 }
 
 impl Ui {
     pub fn new(selection: selection::State) -> Self {
-        let (tx, rx) = broadcast(100);
-        let data = CommandData {
-            metadata: Arc::new(Mutex::new(UiMetadata::default())),
-            selection: Arc::new(Mutex::new(selection)),
-        };
+        let (tx, _) = broadcast(100); // Dummy sender until subscription is ready
+        let data = Arc::new(Mutex::new(CommandData {
+            metadata: UiMetadata::default(),
+            selection,
+            tx,
+        }));
 
         Self {
             cmd_data: data.clone(),
-            rx,
-            _cmds: register_cargo_commands(tx, data),
+            _cmds: register_cargo_commands(data),
         }
     }
 }
@@ -179,40 +164,67 @@ impl UiMetadata {
 }
 
 impl cargo::ui::Ui for Ui {
-    type CustomUpdate = ();
+    type CustomUpdate = UiUpdate;
 
     fn update(&mut self, msg: Msg<Self::CustomUpdate>) -> Task<Msg<Self::CustomUpdate>> {
         log("Cargo Ui update received");
+        let mut data = self.cmd_data.lock().unwrap();
         match msg {
             Msg::Selection(update) => {
                 log(&format!(
                     "Cargo Ui update received: new selection '{update:?}'"
                 ));
-                self.cmd_data.selection.lock().unwrap().update(update)
+                data.selection.update(update)
             }
             Msg::Metadata(update) => match update {
                 cargo::metadata::MetadataUpdate::Metadata(metadata) => {
                     log("Cargo Ui update received: new metadata");
-                    self.cmd_data.metadata.lock().unwrap().metadata = Some(metadata)
+                    data.metadata.metadata = Some(metadata)
                 }
                 cargo::metadata::MetadataUpdate::Profiles(profiles) => {
                     log("Cargo Ui update received: new profiles");
-                    self.cmd_data.metadata.lock().unwrap().profiles = profiles
+                    data.metadata.profiles = profiles
                 }
                 cargo::metadata::MetadataUpdate::NoCargoToml => {
-                    *self.cmd_data.metadata.lock().unwrap() = UiMetadata::default()
+                    data.metadata = UiMetadata::default()
                 }
                 cargo::metadata::MetadataUpdate::FailedToRetrieve => {}
             },
             Msg::Task(_) => {}
-            Msg::Custom(_) => {}
+            Msg::Custom(msg) => {
+                log(&format!("Cargo Ui update received: custom '{msg:?}'"));
+                match msg {
+                    UiUpdate::CmdTx(tx) => data.tx = tx,
+                }
+            }
         }
 
         Task::none()
     }
 
     fn subscription(&self) -> Subscription<Msg<Self::CustomUpdate>> {
-        let stream = StaticHashStream::new(self.rx.clone(), "vscode_cargo");
-        Subscription::run_with(stream, |stream| stream.clone())
+        // Subscription::run(command_stream)
+        Subscription::none()
     }
+}
+
+pub fn command_stream() -> impl Stream<Item = Msg<UiUpdate>> {
+    stream::channel(CHANNEL_CAPACITY, async |mut out| {
+        log("Sending command message sender to cargo Ui");
+        let (tx, mut rx) = broadcast(CHANNEL_CAPACITY);
+        if let Err(e) = out.send(Msg::Custom(UiUpdate::CmdTx(tx.clone()))).await {
+            log(&format!(
+                "Failed to send cargo ui command sender back to ui: {e:?}"
+            ));
+        }
+        while let Some(msg) = rx.next().await {
+            log(&format!("Sending command message to cargo Ui'{msg:?}'"));
+            if let Err(e) = out.send(msg).await {
+                log(&format!(
+                    "Failed to send command message to cargo UI '{e:?}'"
+                ));
+            }
+        }
+        log("Cargo Ui command stream closed unexpectedly.");
+    })
 }

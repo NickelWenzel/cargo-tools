@@ -9,7 +9,7 @@ use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
 use crate::{
-    app::cargo::metadata::{MetadataUpdate, parse_metadata, workspace_manifests},
+    app::cargo::metadata::{MetadataUpdate, parse_manual, parse_metadata, workspace_manifests},
     configuration::{self, Configuration},
     runtime::{self, CargoTask, Runtime},
 };
@@ -53,11 +53,11 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
             }
             Msg::ManifestUpdate => {
                 RT::log("Cargo update received: manifest updated".to_string());
-                Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
+                self.parse::<RT>()
             }
             Msg::ConfigUpdate => {
                 RT::log("Cargo update received: config updated".to_string());
-                Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
+                self.parse::<RT>()
             }
             Msg::MetadataUpdate(update) => {
                 RT::log("Cargo update received: metadata updated".to_string());
@@ -76,13 +76,19 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
         }
     }
 
+    fn parse<RT: Runtime>(&self) -> Task<Msg<Ui>> {
+        let metadata = Task::future(parse_metadata::<RT>(self.root_manifest()));
+        let profiles = Task::future(parse_manual::<RT>(self.root_dir.clone()));
+        Task::batch([metadata, profiles]).map(Msg::MetadataUpdate)
+    }
+
     fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg<Ui>> {
         self.root_dir = root_dir;
         if let Some(s) = RT::get_state(self.state_key()) {
             self.state = s;
         }
 
-        Task::future(parse_metadata::<RT>(self.root_manifest())).map(Msg::MetadataUpdate)
+        self.parse::<RT>()
     }
 
     fn update_state<RT: Runtime>(&mut self, update: selection::Update) -> Task<Msg<Ui>> {
@@ -156,10 +162,11 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
     }
 
     pub fn subscription<RT: Runtime>(&self) -> Subscription<Msg<Ui>> {
-        let root = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
+        // let root = Subscription::run(RT::current_dir_notitifier).map(Msg::RootDirUpdate);
         let ui = self.ui.subscription().map(Msg::Ui);
 
-        Subscription::batch([root, ui])
+        // Subscription::batch([root, ui])
+        ui
     }
 
     pub fn state_key(&self) -> String {

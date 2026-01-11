@@ -1,19 +1,25 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    sync::{Arc, Mutex},
+};
 
 use async_broadcast::Sender;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    app::{CargoMakeMsg, CargoMsg, cargo, cargo_make},
+    app::{self, CargoMakeMsg, cargo_make},
     quick_pick::ToQuickPickItem,
     vs_code_api::{log, register_command},
 };
 
 mod cargo_tools;
 
-pub fn register_cargo_commands(tx: Sender<CargoMsg>, data: cargo::CommandData) -> Vec<Command> {
-    cargo_command_map(tx, data)
+type CargoCmdData = Arc<Mutex<app::cargo::CommandData>>;
+
+pub fn register_cargo_commands(data: CargoCmdData) -> Vec<Command> {
+    cargo_command_map(data)
         .into_iter()
         .map(|(command_id, cmd)| {
             if let Err(e) = register_command(&command_id, &cmd) {
@@ -48,175 +54,175 @@ pub fn register_cargo_make_commands(
 pub type Command = Closure<dyn FnMut(Array)>;
 type CommandMap = HashMap<String, Closure<dyn FnMut(Array)>>;
 
-fn cargo_command_map(tx: Sender<CargoMsg>, data: cargo::CommandData) -> CommandMap {
+fn cargo_command_map(data: CargoCmdData) -> CommandMap {
     HashMap::from([
         (
             "cargo-tools.selectProfile".to_string(),
-            cargo_tools::select_profile(tx.clone(), data.clone()),
+            cargo_tools::select_profile(data.clone()),
         ),
         (
             "cargo-tools.selectPackage".to_string(),
-            cargo_tools::select_package(tx.clone(), data.clone()),
+            cargo_tools::select_package(data.clone()),
         ),
         (
             "cargo-tools.selectBuildTarget".to_string(),
-            cargo_tools::select_build_target(tx.clone(), data.clone()),
+            cargo_tools::select_build_target(data.clone()),
         ),
         (
             "cargo-tools.selectRunTarget".to_string(),
-            cargo_tools::select_run_target(tx.clone(), data.clone()),
+            cargo_tools::select_run_target(data.clone()),
         ),
         (
             "cargo-tools.selectBenchmarkTarget".to_string(),
-            cargo_tools::select_benchmark_target(tx.clone(), data.clone()),
+            cargo_tools::select_benchmark_target(data.clone()),
         ),
         (
             "cargo-tools.selectPlatformTarget".to_string(),
-            cargo_tools::select_platform_target(tx.clone(), data.clone()),
+            cargo_tools::select_platform_target(data.clone()),
         ),
         (
             "cargo-tools.installPlatformTarget".to_string(),
-            cargo_tools::install_platform_target(tx.clone()),
+            cargo_tools::install_platform_target(data.clone()),
         ),
         (
             "cargo-tools.setRustAnalyzerCheckTargets".to_string(),
-            cargo_tools::set_rust_analyzer_check_targets(tx.clone()),
+            cargo_tools::set_rust_analyzer_check_targets(data.clone()),
         ),
         (
             "cargo-tools.buildDocs".to_string(),
-            cargo_tools::build_docs(tx.clone()),
+            cargo_tools::build_docs(data.clone()),
         ),
         (
             "cargo-tools.selectFeatures".to_string(),
-            cargo_tools::select_features(tx.clone(), data.clone()),
+            cargo_tools::select_features(data.clone()),
         ),
         (
             "cargo-tools.refresh".to_string(),
-            cargo_tools::refresh(tx.clone()),
+            cargo_tools::refresh(data.clone()),
         ),
         (
             "cargo-tools.clean".to_string(),
-            cargo_tools::clean(tx.clone(), data.clone()),
+            cargo_tools::clean(data.clone()),
         ),
         (
             "cargo-tools.projectStatus.build".to_string(),
-            cargo_tools::project_status::build(tx.clone()),
+            cargo_tools::project_status::build(data.clone()),
         ),
         (
             "cargo-tools.projectStatus.run".to_string(),
-            cargo_tools::project_status::run(tx.clone()),
+            cargo_tools::project_status::run(data.clone()),
         ),
         (
             "cargo-tools.projectStatus.debug".to_string(),
-            cargo_tools::project_status::debug(tx.clone()),
+            cargo_tools::project_status::debug(data.clone()),
         ),
         (
             "cargo-tools.projectStatus.test".to_string(),
-            cargo_tools::project_status::test(tx.clone()),
+            cargo_tools::project_status::test(data.clone()),
         ),
         (
             "cargo-tools.projectStatus.bench".to_string(),
-            cargo_tools::project_status::bench(tx.clone()),
+            cargo_tools::project_status::bench(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.selectPackage".to_string(),
-            cargo_tools::project_outline::select_package(tx.clone()),
+            cargo_tools::project_outline::select_package(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.unselectPackage".to_string(),
-            cargo_tools::project_outline::unselect_package(tx.clone()),
+            cargo_tools::project_outline::unselect_package(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.setBuildTarget".to_string(),
-            cargo_tools::project_outline::set_build_target(tx.clone()),
+            cargo_tools::project_outline::set_build_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.unsetBuildTarget".to_string(),
-            cargo_tools::project_outline::unset_build_target(tx.clone()),
+            cargo_tools::project_outline::unset_build_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.setRunTarget".to_string(),
-            cargo_tools::project_outline::set_run_target(tx.clone()),
+            cargo_tools::project_outline::set_run_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.unsetRunTarget".to_string(),
-            cargo_tools::project_outline::unset_run_target(tx.clone()),
+            cargo_tools::project_outline::unset_run_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.setBenchmarkTarget".to_string(),
-            cargo_tools::project_outline::set_benchmark_target(tx.clone()),
+            cargo_tools::project_outline::set_benchmark_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.unsetBenchmarkTarget".to_string(),
-            cargo_tools::project_outline::unset_benchmark_target(tx.clone()),
+            cargo_tools::project_outline::unset_benchmark_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.buildPackage".to_string(),
-            cargo_tools::project_outline::build_package(tx.clone()),
+            cargo_tools::project_outline::build_package(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.testPackage".to_string(),
-            cargo_tools::project_outline::test_package(tx.clone()),
+            cargo_tools::project_outline::test_package(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.cleanPackage".to_string(),
-            cargo_tools::project_outline::clean_package(tx.clone()),
+            cargo_tools::project_outline::clean_package(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.buildWorkspace".to_string(),
-            cargo_tools::project_outline::build_workspace(tx.clone()),
+            cargo_tools::project_outline::build_workspace(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.testWorkspace".to_string(),
-            cargo_tools::project_outline::test_workspace(tx.clone()),
+            cargo_tools::project_outline::test_workspace(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.cleanWorkspace".to_string(),
-            cargo_tools::project_outline::clean_workspace(tx.clone()),
+            cargo_tools::project_outline::clean_workspace(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.buildTarget".to_string(),
-            cargo_tools::project_outline::build_target(tx.clone()),
+            cargo_tools::project_outline::build_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.runTarget".to_string(),
-            cargo_tools::project_outline::run_target(tx.clone()),
+            cargo_tools::project_outline::run_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.debugTarget".to_string(),
-            cargo_tools::project_outline::debug_target(tx.clone()),
+            cargo_tools::project_outline::debug_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.benchTarget".to_string(),
-            cargo_tools::project_outline::bench_target(tx.clone()),
+            cargo_tools::project_outline::bench_target(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.setWorkspaceMemberFilter".to_string(),
-            cargo_tools::project_outline::set_workspace_member_filter(tx.clone()),
+            cargo_tools::project_outline::set_workspace_member_filter(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.editWorkspaceMemberFilter".to_string(),
-            cargo_tools::project_outline::edit_workspace_member_filter(tx.clone()),
+            cargo_tools::project_outline::edit_workspace_member_filter(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.clearWorkspaceMemberFilter".to_string(),
-            cargo_tools::project_outline::clear_workspace_member_filter(tx.clone()),
+            cargo_tools::project_outline::clear_workspace_member_filter(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.showTargetTypeFilter".to_string(),
-            cargo_tools::project_outline::show_target_type_filter(tx.clone()),
+            cargo_tools::project_outline::show_target_type_filter(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.clearTargetTypeFilter".to_string(),
-            cargo_tools::project_outline::clear_target_type_filter(tx.clone()),
+            cargo_tools::project_outline::clear_target_type_filter(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.clearAllFilters".to_string(),
-            cargo_tools::project_outline::clear_all_filters(tx.clone()),
+            cargo_tools::project_outline::clear_all_filters(data.clone()),
         ),
         (
             "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping".to_string(),
-            cargo_tools::project_outline::toggle_workspace_member_grouping(tx.clone()),
+            cargo_tools::project_outline::toggle_workspace_member_grouping(data.clone()),
         ),
     ])
 }
@@ -304,10 +310,9 @@ pub mod tests {
 
     #[wasm_bindgen_test]
     fn all_commands_are_registered() {
-        let (cargo_tx, _rx) = async_broadcast::broadcast(10);
         let (cargo_make_tx, _rx) = async_broadcast::broadcast(10);
         let closures = {
-            let mut cmds = cargo_command_map(cargo_tx, todo!());
+            let mut cmds = cargo_command_map(todo!());
             cmds.extend(cargo_make_command_map(cargo_make_tx, todo!()));
             cmds
         };
