@@ -14,6 +14,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
+    app::CargoMsgTx,
     command::{CargoCmdData, SelectInput},
     quick_pick::ToQuickPickItem,
     vs_code_api::{
@@ -97,9 +98,12 @@ pub fn select_profile(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            if let Some(profile) = select(data.profiles()).await
-                && let Err(e) = data.send(SelectedProfile(profile)).await
+            let (profiles, tx) = {
+                let data = data.lock().unwrap();
+                (data.profiles(), data.tx.clone())
+            };
+            if let Some(profile) = select(profiles).await
+                && let Err(e) = tx.send(SelectedProfile(profile)).await
             {
                 log(&format!("Failed to queue msg: {}", e));
             }
@@ -111,9 +115,12 @@ pub fn select_package(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            if let Some(selected) = select(data.packages()).await
-                && let Err(e) = data.send(SelectedPackage(selected)).await
+            let (packages, tx) = {
+                let data = data.lock().unwrap();
+                (data.packages(), data.tx.clone())
+            };
+            if let Some(selected) = select(packages).await
+                && let Err(e) = tx.send(SelectedPackage(selected)).await
             {
                 log(&format!("Failed to queue msg: {}", e));
             }
@@ -125,14 +132,17 @@ pub fn select_build_target(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            let Some(input) = data.build_target_options() else {
-                log("No build targets found.");
-                return;
+            let (input, tx) = {
+                let data = data.lock().unwrap();
+                let Some(input) = data.build_target_options() else {
+                    log("No build targets found.");
+                    return;
+                };
+                (input, data.tx.clone())
             };
 
             if let Some(selected) = select(input).await
-                && let Err(e) = data.send(SelectedBuildTarget(selected)).await
+                && let Err(e) = tx.send(SelectedBuildTarget(selected)).await
             {
                 log(&format!("Failed to queue msg: {}", e));
             }
@@ -144,14 +154,17 @@ pub fn select_run_target(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            let Some(input) = data.run_target_options() else {
-                log("No run targets found.");
-                return;
+            let (input, tx) = {
+                let data = data.lock().unwrap();
+                let Some(input) = data.run_target_options() else {
+                    log("No run targets found.");
+                    return;
+                };
+                (input, data.tx.clone())
             };
 
             if let Some(selected) = select(input).await
-                && let Err(e) = data.send(SelectedRunTarget(selected)).await
+                && let Err(e) = tx.send(SelectedRunTarget(selected)).await
             {
                 log(&format!("Failed to queue msg: {}", e));
             }
@@ -163,14 +176,17 @@ pub fn select_benchmark_target(data: CargoCmdData) -> Closure<dyn FnMut(Array)> 
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            let Some(input) = data.bench_target_options() else {
-                log("No benchmark targets found.");
-                return;
+            let (input, tx) = {
+                let data = data.lock().unwrap();
+                let Some(input) = data.bench_target_options() else {
+                    log("No benchmark targets found.");
+                    return;
+                };
+                (input, data.tx.clone())
             };
 
             if let Some(selected) = select(input).await
-                && let Err(e) = data.send(SelectedBenchmarkTarget(selected)).await
+                && let Err(e) = tx.send(SelectedBenchmarkTarget(selected)).await
             {
                 log(&format!("Failed to queue msg: {}", e));
             }
@@ -182,7 +198,6 @@ pub fn select_platform_target(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
             let platform_targets = match execute_async("rustup target list").await {
                 Ok(output) => {
                     let output_str = output.as_string().unwrap_or_default();
@@ -207,14 +222,18 @@ pub fn select_platform_target(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
                     return;
                 }
             };
-            let mut options = vec![None];
-            options.extend(platform_targets);
 
-            let current = vec![data.selection.platform_target.clone()];
-            let input = SelectInput { options, current };
+            let (input, tx) = {
+                let data = data.lock().unwrap();
+
+                let mut options = vec![None];
+                options.extend(platform_targets);
+                let current = vec![data.selection.platform_target.clone()];
+                (SelectInput { options, current }, data.tx.clone())
+            };
 
             if let Some(selected) = select(input).await
-                && let Err(e) = data.send(SelectedPlatformTarget(selected)).await
+                && let Err(e) = tx.send(SelectedPlatformTarget(selected)).await
             {
                 log(&format!("Failed to queue msg: {}", e));
             }
@@ -226,7 +245,7 @@ pub fn install_platform_target(data: CargoCmdData) -> Closure<dyn FnMut(Array)> 
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
+            let tx = data.lock().unwrap().tx.clone();
             let options = match execute_async("rustup target list").await {
                 Ok(output) => {
                     let output_str = output.as_string().unwrap_or_default();
@@ -257,7 +276,7 @@ pub fn install_platform_target(data: CargoCmdData) -> Closure<dyn FnMut(Array)> 
             };
 
             if let Some(selected) = select(input).await
-                && let Err(e) = data.send(Task::AddPlatformTarget(selected)).await
+                && let Err(e) = tx.send(Task::AddPlatformTarget(selected)).await
             {
                 log(&format!("Failed to queue msg: {}", e));
             }
@@ -278,8 +297,8 @@ pub fn build_docs(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            if let Err(e) = data.send(Task::ExplicitCommand(Explicit::Doc)).await {
+            let tx = data.lock().unwrap().tx.clone();
+            if let Err(e) = tx.send(Task::ExplicitCommand(Explicit::Doc)).await {
                 log(&format!("Failed to queue msg: {}", e));
             }
         });
@@ -290,10 +309,13 @@ pub fn select_features(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            let Some(input) = data.feature_options() else {
-                log("No available features found.");
-                return;
+            let (input, tx) = {
+                let data = data.lock().unwrap();
+                let Some(input) = data.feature_options() else {
+                    log("No available features found.");
+                    return;
+                };
+                (input, data.tx.clone())
             };
             if let Some(selected_features) = select_multiple(input).await {
                 let features = if selected_features.iter().any(|f| f == "All Features") {
@@ -302,7 +324,7 @@ pub fn select_features(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
                     Features::Some(selected_features)
                 };
 
-                if let Err(e) = data.send(SelectedFeatures(features)).await {
+                if let Err(e) = tx.send(SelectedFeatures(features)).await {
                     log(&format!("Failed to queue msg: {}", e));
                 }
             }
@@ -320,8 +342,8 @@ pub fn clean(data: CargoCmdData) -> Closure<dyn FnMut(Array)> {
     Closure::new(move |_args: Array| {
         let data = data.clone();
         spawn_local(async move {
-            let data = data.lock().unwrap();
-            if let Err(e) = data.send(Task::ImplicitCommand(Implicit::Clean)).await {
+            let tx = data.lock().unwrap().tx.clone();
+            if let Err(e) = tx.send(Task::ImplicitCommand(Implicit::Clean)).await {
                 log(&format!("Failed to queue msg: {}", e));
             }
         });

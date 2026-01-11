@@ -27,6 +27,7 @@ use pin_project::pin_project;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{runtime::VsCodeRuntime, vs_code_api::log};
+use wasm_async_trait::wasm_async_trait;
 
 pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
     <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
@@ -45,6 +46,18 @@ impl IntoCargoMessage for selection::Update {
 impl IntoCargoMessage for cargo_tools::app::cargo::ui::Task {
     fn into_cargo_msg(self) -> CargoMsg {
         CargoMsg::Task(self)
+    }
+}
+
+#[wasm_async_trait]
+pub trait CargoMsgTx {
+    async fn send<T: IntoCargoMessage>(&self, msg: T) -> SendResult<CargoMsg>;
+}
+
+#[wasm_async_trait]
+impl CargoMsgTx for async_broadcast::Sender<CargoMsg> {
+    async fn send<T: IntoCargoMessage>(&self, msg: T) -> SendResult<CargoMsg> {
+        self.broadcast(msg.into_cargo_msg()).await
     }
 }
 

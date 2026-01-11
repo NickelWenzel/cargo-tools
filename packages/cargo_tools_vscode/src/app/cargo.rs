@@ -115,10 +115,6 @@ impl CommandData {
 
         Some(SelectInput { options, current })
     }
-
-    pub async fn send<T: IntoCargoMessage>(&self, msg: T) -> SendResult<CargoMsg> {
-        self.tx.broadcast(msg.into_cargo_msg()).await
-    }
 }
 
 impl Ui {
