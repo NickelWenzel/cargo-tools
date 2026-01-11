@@ -203,12 +203,11 @@ impl cargo::ui::Ui for Ui {
     }
 
     fn subscription(&self) -> Subscription<Msg<Self::CustomUpdate>> {
-        // Subscription::run(command_stream)
-        Subscription::none()
+        Subscription::run(command_stream)
     }
 }
 
-pub fn command_stream() -> impl Stream<Item = Msg<UiUpdate>> {
+fn command_stream() -> impl Stream<Item = Msg<UiUpdate>> {
     stream::channel(CHANNEL_CAPACITY, async |mut out| {
         log("Sending command message sender to cargo Ui");
         let (tx, mut rx) = broadcast(CHANNEL_CAPACITY);

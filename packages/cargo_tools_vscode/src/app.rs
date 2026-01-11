@@ -26,7 +26,7 @@ use once_cell::sync::Lazy;
 use pin_project::pin_project;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{app::cargo::command_stream, runtime::VsCodeRuntime, vs_code_api::log};
+use crate::{runtime::VsCodeRuntime, vs_code_api::log};
 
 pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
     <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
@@ -149,17 +149,12 @@ fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     let cargo = Task::done(AppMessage::Cargo(CargoMessage::RootDirUpdate(
         root_dir.clone(),
     )));
-    // let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
-    //     root_dir,
-    // )));
+    let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
+        root_dir,
+    )));
     log("Done initializing Cargo tools");
 
-    let cargo_cmds = Task::stream(command_stream())
-        .map(CargoMessage::Ui)
-        .map(AppMessage::Cargo);
-
-    // (app, Task::batch([cargo, cargo_make]))
-    (app, Task::batch([cargo, cargo_cmds]))
+    (app, Task::batch([cargo, cargo_make]))
 }
 
 fn exit_on(_: &App<Ui>) -> Subscription<Exit> {

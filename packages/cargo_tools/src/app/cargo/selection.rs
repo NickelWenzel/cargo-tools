@@ -32,6 +32,7 @@ pub enum Update {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct State {
     pub package: Option<String>,
     pub package_selection: HashMap<String, PackageSelection>,
