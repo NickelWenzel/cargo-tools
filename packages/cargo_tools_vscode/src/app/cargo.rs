@@ -19,7 +19,7 @@ use iced_headless::{Subscription, Task, stream};
 use cargo::ui::Message as Msg;
 
 use crate::{
-    app::{CargoMsg, IntoCargoMessage, SendResult},
+    app::CargoMsg,
     command::{Command, SelectInput, register_cargo_commands},
     runtime::CHANNEL_CAPACITY,
     vs_code_api::log,
