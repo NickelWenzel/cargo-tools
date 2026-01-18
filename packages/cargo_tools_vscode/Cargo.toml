@@ -24,7 +24,6 @@ async-broadcast = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
 once_cell = { workspace = true }
-pin-project = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }

@@ -6,11 +6,7 @@ use iced_headless::{Subscription, Task};
 
 use cargo_make::ui::Message as Msg;
 
-use crate::{
-    app::StaticHashStream,
-    command::{Command, register_cargo_make_commands},
-    vs_code_api::log,
-};
+use crate::{app::Command, vs_code_api::log};
 
 #[derive(Debug)]
 pub struct Ui {
@@ -36,7 +32,7 @@ impl Ui {
         Self {
             cmd_data: data.clone(),
             rx,
-            _cmds: register_cargo_make_commands(tx, data),
+            _cmds: Vec::new(),
         }
     }
 }
@@ -84,7 +80,6 @@ impl cargo_make::ui::Ui for Ui {
     }
 
     fn subscription(&self) -> Subscription<Msg<Self::CustomUpdate>> {
-        let stream = StaticHashStream::new(self.rx.clone(), "vscode_cargo_make");
-        Subscription::run_with(stream, |stream| stream.clone())
+        Subscription::none()
     }
 }

@@ -1,12 +1,7 @@
 pub mod cargo;
 pub mod cargo_make;
 
-use std::{
-    hash::Hash,
-    pin::Pin,
-    sync::Mutex,
-    task::{Context, Poll},
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use async_broadcast::SendError;
 use cargo_tools::{
@@ -18,20 +13,41 @@ use cargo_tools::{
     runtime::Runtime,
 };
 use futures::{
-    SinkExt, Stream,
+    SinkExt,
     channel::mpsc::{Sender, channel},
 };
 use iced_headless::{Subscription, Task, async_application, event_loop::Exit};
 use once_cell::sync::Lazy;
-use pin_project::pin_project;
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::{Closure, wasm_bindgen};
+use wasm_bindgen_futures::js_sys::Array;
 
-use crate::{runtime::VsCodeRuntime, vs_code_api::log};
+use crate::{
+    quick_pick::ToQuickPickItem,
+    runtime::VsCodeRuntime,
+    vs_code_api::{log, register_command},
+};
 use wasm_async_trait::wasm_async_trait;
 
 pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
     <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
 >;
+
+pub type Command = Closure<dyn FnMut(Array)>;
+type CommandMap = HashMap<&'static str, Closure<dyn FnMut(Array)>>;
+
+pub fn register_commands(cmds: CommandMap) -> Vec<Command> {
+    cmds.into_iter()
+        .map(|(command_id, cmd)| {
+            if let Err(e) = register_command(&command_id, &cmd) {
+                log(&format!(
+                    "Failed to register command '{}': {:?}",
+                    command_id, e
+                ));
+            };
+            cmd
+        })
+        .collect()
+}
 
 pub trait IntoCargoMessage {
     fn into_cargo_msg(self) -> CargoMsg;
@@ -65,52 +81,18 @@ pub type CargoMakeMsg = ::cargo_tools::app::cargo_make::ui::Message<
     <cargo_make::Ui as ::cargo_tools::app::cargo_make::ui::Ui>::CustomUpdate,
 >;
 
+#[derive(Debug)]
+pub struct SelectInput<T: ToQuickPickItem + std::fmt::Debug> {
+    pub options: Vec<T>,
+    pub current: Vec<T>,
+}
+
 pub type SendResult<T> = Result<Option<T>, SendError<T>>;
 
 static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     let (tx, _) = channel(10);
     Mutex::new(tx)
 });
-
-#[pin_project]
-pub struct StaticHashStream<T, H> {
-    #[pin]
-    stream: T,
-    hash: H,
-}
-
-impl<T, H> StaticHashStream<T, H> {
-    pub fn new(stream: T, hash: H) -> Self {
-        Self { stream, hash }
-    }
-}
-
-impl<T, HashableT: Hash> Hash for StaticHashStream<T, HashableT> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.hash.hash(state);
-    }
-}
-
-impl<T: Stream, H> Stream for StaticHashStream<T, H> {
-    type Item = T::Item;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.project().stream.poll_next(cx)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.stream.size_hint()
-    }
-}
-
-impl<T: Clone, H: Clone> Clone for StaticHashStream<T, H> {
-    fn clone(&self) -> Self {
-        Self {
-            stream: self.stream.clone(),
-            hash: self.hash.clone(),
-        }
-    }
-}
 
 #[derive(Debug)]
 struct Ui;
@@ -176,4 +158,34 @@ fn exit_on(_: &App<Ui>) -> Subscription<Exit> {
         *EXIT_TX.lock().unwrap() = tx;
         rx
     })
+}
+
+#[cfg(test)]
+pub mod tests {
+    use futures::channel::mpsc::channel;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    use crate::{
+        app::cargo::command::register::cargo_command_map, contributes::data::all_commands,
+    };
+
+    #[wasm_bindgen_test]
+    fn all_commands_are_registered() {
+        let (cargo_tx, _rx) = channel(10);
+        // let (cargo_make_tx, _rx) = channel(10);
+        let closures = {
+            let mut cmds = cargo_command_map(cargo_tx);
+            // cmds.extend(cargo_make_command_map(cargo_make_tx));
+            cmds
+        };
+        let commands = all_commands();
+
+        for cmd in commands {
+            assert!(
+                closures.contains_key(cmd.command.as_str()),
+                "Command '{}' from all_commands() was not registered in COMMAND_CLOSURES",
+                cmd.command
+            );
+        }
+    }
 }

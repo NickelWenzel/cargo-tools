@@ -20,7 +20,7 @@ impl Default for Features {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Update {
     SelectedPackage(Option<String>),
     SelectedBuildTarget(Option<BuildSubTarget>),

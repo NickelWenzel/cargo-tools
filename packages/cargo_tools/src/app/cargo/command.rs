@@ -142,13 +142,13 @@ impl Explicit {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildTarget {
     pub package: String,
     pub target: Option<BuildSubTarget>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunTarget {
     pub package: String,
     pub target: Option<RunSubTarget>,

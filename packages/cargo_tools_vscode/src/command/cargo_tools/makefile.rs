@@ -1,4 +1,4 @@
-use async_broadcast::Sender;
+use futures::channel::mpsc::Sender;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Array;
 

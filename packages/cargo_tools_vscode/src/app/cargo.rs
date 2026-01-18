@@ -1,46 +1,76 @@
-use std::{
-    iter,
-    sync::{Arc, Mutex},
-};
+pub mod command;
 
-use async_broadcast::{Sender, broadcast};
+use std::iter;
+
 use cargo_metadata::Metadata;
 use cargo_tools::{
     app::cargo::{
         self,
         command::{BuildSubTarget, RunSubTarget},
+        metadata::MetadataUpdate,
         selection::{self, Features},
     },
     profile::Profile,
 };
-use futures::{SinkExt, Stream, StreamExt};
+use futures::{
+    SinkExt, Stream, StreamExt,
+    channel::mpsc::{Sender, channel},
+};
 use iced_headless::{Subscription, Task, stream};
 
 use cargo::ui::Message as Msg;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::CargoMsg,
-    command::{Command, SelectInput, register_cargo_commands},
+    app::{
+        Command, SelectInput,
+        cargo::command::{CargoToolsCmd, register::register_cargo_commands},
+    },
     runtime::CHANNEL_CAPACITY,
     vs_code_api::log,
 };
 
 #[derive(Debug, Clone)]
 pub enum UiUpdate {
-    CmdTx(Sender<CargoMsg>),
+    CmdTx(Sender<CargoToolsCmd>),
+    Cmd(CargoToolsCmd),
 }
 
 #[derive(Debug)]
 pub struct Ui {
-    cmd_data: Arc<Mutex<CommandData>>,
-    _cmds: Vec<Command>,
+    data: CommandData,
+    cmds: Vec<Command>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutlineSettings {
+    pub package_filter: PackageFilter,
+    pub target_types_filter: TargetTypesFilter,
+    pub grouping: Grouping,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TargetTypesFilter {
+    bin: bool,
+    lib: bool,
+    example: bool,
+    benchmarks: bool,
+    features: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageFilter(String);
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum Grouping {
+    Packages,
+    TargetTypes,
 }
 
 #[derive(Debug, Clone)]
 pub struct CommandData {
     pub metadata: UiMetadata,
     pub selection: selection::State,
-    pub tx: Sender<CargoMsg>,
 }
 
 impl CommandData {
@@ -119,16 +149,14 @@ impl CommandData {
 
 impl Ui {
     pub fn new(selection: selection::State) -> Self {
-        let (tx, _) = broadcast(100); // Dummy sender until subscription is ready
-        let data = Arc::new(Mutex::new(CommandData {
+        let cmd_data = CommandData {
             metadata: UiMetadata::default(),
             selection,
-            tx,
-        }));
+        };
 
         Self {
-            cmd_data: data.clone(),
-            _cmds: register_cargo_commands(data),
+            data: cmd_data,
+            cmds: Vec::new(),
         }
     }
 }
@@ -164,57 +192,49 @@ impl cargo::ui::Ui for Ui {
 
     fn update(&mut self, msg: Msg<Self::CustomUpdate>) -> Task<Msg<Self::CustomUpdate>> {
         log("Cargo Ui update received");
-        let mut data = self.cmd_data.lock().unwrap();
         match msg {
             Msg::Selection(update) => {
-                log(&format!(
-                    "Cargo Ui update received: new selection '{update:?}'"
-                ));
-                data.selection.update(update)
+                self.data.selection.update(update);
+                Task::none()
             }
-            Msg::Metadata(update) => match update {
-                cargo::metadata::MetadataUpdate::Metadata(metadata) => {
-                    log("Cargo Ui update received: new metadata");
-                    data.metadata.metadata = Some(metadata)
+            Msg::Metadata(update) => {
+                match update {
+                    MetadataUpdate::Metadata(metadata) => {
+                        self.data.metadata.metadata = Some(metadata)
+                    }
+                    MetadataUpdate::Profiles(profiles) => self.data.metadata.profiles = profiles,
+                    MetadataUpdate::NoCargoToml => self.data.metadata = UiMetadata::default(),
+                    MetadataUpdate::FailedToRetrieve => {}
+                };
+                Task::none()
+            }
+            Msg::Task(_) => Task::none(),
+            Msg::Custom(msg) => match msg {
+                UiUpdate::CmdTx(tx) => {
+                    self.cmds = register_cargo_commands(tx);
+                    Task::none()
                 }
-                cargo::metadata::MetadataUpdate::Profiles(profiles) => {
-                    log("Cargo Ui update received: new profiles");
-                    data.metadata.profiles = profiles
-                }
-                cargo::metadata::MetadataUpdate::NoCargoToml => {
-                    data.metadata = UiMetadata::default()
-                }
-                cargo::metadata::MetadataUpdate::FailedToRetrieve => {}
+                UiUpdate::Cmd(cmd) => self.process_cmd(cmd),
             },
-            Msg::Task(_) => {}
-            Msg::Custom(msg) => {
-                log(&format!("Cargo Ui update received: custom '{msg:?}'"));
-                match msg {
-                    UiUpdate::CmdTx(tx) => data.tx = tx,
-                }
-            }
         }
-
-        Task::none()
     }
 
     fn subscription(&self) -> Subscription<Msg<Self::CustomUpdate>> {
-        Subscription::run(command_stream)
+        Subscription::run(command_stream).map(Msg::Custom)
     }
 }
 
-fn command_stream() -> impl Stream<Item = Msg<UiUpdate>> {
+fn command_stream() -> impl Stream<Item = UiUpdate> {
     stream::channel(CHANNEL_CAPACITY, async |mut out| {
-        log("Sending command message sender to cargo Ui");
-        let (tx, mut rx) = broadcast(CHANNEL_CAPACITY);
-        if let Err(e) = out.send(Msg::Custom(UiUpdate::CmdTx(tx.clone()))).await {
+        let (tx, mut rx) = channel(CHANNEL_CAPACITY);
+        if let Err(e) = out.send(UiUpdate::CmdTx(tx.clone())).await {
             log(&format!(
                 "Failed to send cargo ui command sender back to ui: {e:?}"
             ));
         }
         while let Some(msg) = rx.next().await {
             log(&format!("Sending command message to cargo Ui'{msg:?}'"));
-            if let Err(e) = out.send(msg).await {
+            if let Err(e) = out.send(UiUpdate::Cmd(msg)).await {
                 log(&format!(
                     "Failed to send command message to cargo UI '{e:?}'"
                 ));

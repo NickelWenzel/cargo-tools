@@ -510,7 +510,6 @@ dependencies = [
  "futures",
  "iced_headless",
  "once_cell",
- "pin-project",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
