@@ -14,6 +14,7 @@ pub enum Message<CustomUpdate: Clone> {
     Metadata(MetadataUpdate),
     Task(Task),
     Custom(CustomUpdate),
+    RootDirUpdate(String),
 }
 
 #[derive(Debug, Clone)]

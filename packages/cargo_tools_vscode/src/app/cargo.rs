@@ -11,6 +11,7 @@ use cargo_tools::{
         selection::{self, Features},
     },
     profile::Profile,
+    runtime::Runtime as _,
 };
 use futures::{
     SinkExt, Stream, StreamExt,
@@ -23,33 +24,43 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
-        Command, SelectInput,
+        CargoMsg, Command, SelectInput,
         cargo::command::{CargoToolsCmd, register::register_cargo_commands},
     },
-    runtime::CHANNEL_CAPACITY,
+    runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
     vs_code_api::log,
 };
 
 #[derive(Debug, Clone)]
-pub enum UiUpdate {
+pub enum UiMessage {
     CmdTx(Sender<CargoToolsCmd>),
     Cmd(CargoToolsCmd),
+    Settings(SettingsUpdate),
+}
+
+#[derive(Debug, Clone)]
+pub enum SettingsUpdate {
+    PackageFilter(PackageFilter),
+    TargetTypesFilter(TargetTypesFilter),
+    Grouping(Grouping),
 }
 
 #[derive(Debug)]
 pub struct Ui {
     data: CommandData,
+    settings: OutlineSettings,
     cmds: Vec<Command>,
+    root_dir: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OutlineSettings {
     pub package_filter: PackageFilter,
     pub target_types_filter: TargetTypesFilter,
     pub grouping: Grouping,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TargetTypesFilter {
     bin: bool,
     lib: bool,
@@ -58,16 +69,35 @@ pub struct TargetTypesFilter {
     features: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum TargetTypesFilterUpdate {
+    Bin(bool),
+    Lib(bool),
+    Example(bool),
+    Benchmarks(bool),
+    Features(bool),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PackageFilter(String);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Grouping {
+    #[default]
     Packages,
     TargetTypes,
 }
 
-#[derive(Debug, Clone)]
+impl Grouping {
+    pub fn toggle(self) -> Self {
+        match self {
+            Grouping::Packages => Grouping::TargetTypes,
+            Grouping::TargetTypes => Grouping::Packages,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct CommandData {
     pub metadata: UiMetadata,
     pub selection: selection::State,
@@ -148,16 +178,32 @@ impl CommandData {
 }
 
 impl Ui {
-    pub fn new(selection: selection::State) -> Self {
-        let cmd_data = CommandData {
-            metadata: UiMetadata::default(),
-            selection,
-        };
-
+    pub fn new(root_dir: String) -> Self {
         Self {
-            data: cmd_data,
+            data: CommandData::default(),
             cmds: Vec::new(),
+            settings: OutlineSettings::default(),
+            root_dir,
         }
+    }
+
+    fn update_settings(&mut self, update: SettingsUpdate) -> Task<CargoMsg> {
+        let settings = &mut self.settings;
+        match update {
+            SettingsUpdate::PackageFilter(filter) => settings.package_filter = filter,
+            SettingsUpdate::TargetTypesFilter(filter) => settings.target_types_filter = filter,
+            SettingsUpdate::Grouping(grouping) => settings.grouping = grouping,
+        }
+
+        Task::future(Runtime::persist_state(
+            self.settings_key(),
+            self.settings.clone(),
+        ))
+        .discard()
+    }
+
+    pub fn settings_key(&self) -> String {
+        format!("{}.cargo_tools.cargo.ui_settings", self.root_dir)
     }
 }
 
@@ -188,9 +234,9 @@ impl UiMetadata {
 }
 
 impl cargo::ui::Ui for Ui {
-    type CustomUpdate = UiUpdate;
+    type CustomUpdate = UiMessage;
 
-    fn update(&mut self, msg: Msg<Self::CustomUpdate>) -> Task<Msg<Self::CustomUpdate>> {
+    fn update(&mut self, msg: CargoMsg) -> Task<CargoMsg> {
         log("Cargo Ui update received");
         match msg {
             Msg::Selection(update) => {
@@ -210,31 +256,36 @@ impl cargo::ui::Ui for Ui {
             }
             Msg::Task(_) => Task::none(),
             Msg::Custom(msg) => match msg {
-                UiUpdate::CmdTx(tx) => {
+                UiMessage::CmdTx(tx) => {
                     self.cmds = register_cargo_commands(tx);
                     Task::none()
                 }
-                UiUpdate::Cmd(cmd) => self.process_cmd(cmd),
+                UiMessage::Cmd(cmd) => self.process_cmd(cmd),
+                UiMessage::Settings(update) => self.update_settings(update),
             },
+            Msg::RootDirUpdate(root_dir) => {
+                self.root_dir = root_dir;
+                Task::none()
+            }
         }
     }
 
-    fn subscription(&self) -> Subscription<Msg<Self::CustomUpdate>> {
+    fn subscription(&self) -> Subscription<CargoMsg> {
         Subscription::run(command_stream).map(Msg::Custom)
     }
 }
 
-fn command_stream() -> impl Stream<Item = UiUpdate> {
+fn command_stream() -> impl Stream<Item = UiMessage> {
     stream::channel(CHANNEL_CAPACITY, async |mut out| {
         let (tx, mut rx) = channel(CHANNEL_CAPACITY);
-        if let Err(e) = out.send(UiUpdate::CmdTx(tx.clone())).await {
+        if let Err(e) = out.send(UiMessage::CmdTx(tx.clone())).await {
             log(&format!(
                 "Failed to send cargo ui command sender back to ui: {e:?}"
             ));
         }
         while let Some(msg) = rx.next().await {
             log(&format!("Sending command message to cargo Ui'{msg:?}'"));
-            if let Err(e) = out.send(UiUpdate::Cmd(msg)).await {
+            if let Err(e) = out.send(UiMessage::Cmd(msg)).await {
                 log(&format!(
                     "Failed to send command message to cargo UI '{e:?}'"
                 ));

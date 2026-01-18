@@ -5,7 +5,7 @@ use cargo_tools::app::cargo::{
 use serde::de::DeserializeOwned;
 use wasm_bindgen_futures::js_sys::Array;
 
-use crate::vs_code_api::log;
+use crate::{app::cargo::TargetTypesFilterUpdate, vs_code_api::log};
 
 pub mod process;
 pub mod register;
@@ -35,7 +35,7 @@ pub enum CargoToolsCmd {
 pub type CargoCmdFn = fn(Array) -> Option<CargoToolsCmd>;
 
 impl CargoToolsCmd {
-    pub const fn all() -> [(&'static str, CargoCmdFn); 32] {
+    pub const fn all() -> [(&'static str, CargoCmdFn); 31] {
         use ProjectOutline as PO;
         [
             ("cargo-tools.selectProfile", |_| Some(Self::SelectProfile)),
@@ -77,10 +77,10 @@ impl CargoToolsCmd {
                 PO::from_build_target(PO::Build, arg).map(PO::to_cmd)
             }),
             ("cargo-tools.projectOutline.test", |arg| {
-                PO::from_str(PO::Test, arg).map(PO::to_cmd)
+                PO::from_optional_str(PO::Test, arg).map(PO::to_cmd)
             }),
             ("cargo-tools.projectOutline.clean", |arg| {
-                PO::from_str(PO::Clean, arg).map(PO::to_cmd)
+                PO::from_optional_str(PO::Clean, arg).map(PO::to_cmd)
             }),
             ("cargo-tools.projectOutline.run", |arg| {
                 PO::from_run_target(PO::Run, arg).map(PO::to_cmd)
@@ -89,26 +89,26 @@ impl CargoToolsCmd {
                 PO::from_run_target(PO::Debug, arg).map(PO::to_cmd)
             }),
             ("cargo-tools.projectOutline.bench", |arg| {
-                PO::from_str(PO::Bench, arg).map(PO::to_cmd)
+                PO::from_optional_str(PO::Bench, arg).map(PO::to_cmd)
             }),
             (
                 "cargo-tools.projectOutline.setWorkspaceMemberFilter",
-                |_| Some(PO::SetWorkspaceMemberFilter.to_cmd()),
+                |_| Some(PO::SelectWorkspaceMemberFilter.to_cmd()),
             ),
             (
                 "cargo-tools.projectOutline.editWorkspaceMemberFilter",
-                |_| Some(PO::EditWorkspaceMemberFilter.to_cmd()),
-            ),
-            (
-                "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
-                |_| Some(PO::ClearWorkspaceMemberFilter.to_cmd()),
+                |arg| PO::from_str(PO::EditWorkspaceMemberFilter, arg).map(PO::to_cmd),
             ),
             ("cargo-tools.projectOutline.showTargetTypeFilter", |_| {
-                Some(PO::ShowTargetTypeFilter.to_cmd())
+                Some(PO::SelectTargetTypeFilter.to_cmd())
             }),
-            ("cargo-tools.projectOutline.clearTargetTypeFilter", |_| {
-                Some(PO::ClearTargetTypeFilter.to_cmd())
-            }),
+            (
+                "cargo-tools.projectOutline.editWorkspaceMemberFilter",
+                |arg| {
+                    PO::from_target_types_filter_update(PO::EditTargetTypeFilter, arg)
+                        .map(PO::to_cmd)
+                },
+            ),
             ("cargo-tools.projectOutline.clearAllFilters", |_| {
                 Some(PO::ClearAllFilters.to_cmd())
             }),
@@ -130,11 +130,10 @@ pub enum ProjectOutline {
     Run(RunTarget),
     Debug(RunTarget),
     Bench(Option<String>),
-    SetWorkspaceMemberFilter,
-    EditWorkspaceMemberFilter,
-    ClearWorkspaceMemberFilter,
-    ShowTargetTypeFilter,
-    ClearTargetTypeFilter,
+    SelectWorkspaceMemberFilter,
+    EditWorkspaceMemberFilter(String),
+    SelectTargetTypeFilter,
+    EditTargetTypeFilter(TargetTypesFilterUpdate),
     ClearAllFilters,
     ToggleWorkspaceMemberGrouping,
 }
@@ -156,7 +155,18 @@ impl ProjectOutline {
         take_first(arg).map(cmd)
     }
 
-    pub fn from_str(cmd: fn(Option<String>) -> Self, arg: Array) -> Option<Self> {
+    pub fn from_optional_str(cmd: fn(Option<String>) -> Self, arg: Array) -> Option<Self> {
+        take_first(arg).map(cmd)
+    }
+
+    pub fn from_str(cmd: fn(String) -> Self, arg: Array) -> Option<Self> {
+        take_first(arg).map(cmd)
+    }
+
+    pub fn from_target_types_filter_update(
+        cmd: fn(TargetTypesFilterUpdate) -> Self,
+        arg: Array,
+    ) -> Option<Self> {
         take_first(arg).map(cmd)
     }
 }
@@ -166,7 +176,7 @@ fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
         Ok(v) => Some(v),
         Err(e) => {
             log(&format!("Failed to deserialize update: {e}"));
-            return None;
+            None
         }
     }
 }

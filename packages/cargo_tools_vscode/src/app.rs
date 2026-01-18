@@ -10,7 +10,7 @@ use cargo_tools::{
         cargo::{Cargo, CargoMessage, selection},
         cargo_make::{CargoMake, CargoMakeMessage},
     },
-    runtime::Runtime,
+    runtime::Runtime as _,
 };
 use futures::{
     SinkExt,
@@ -22,8 +22,9 @@ use wasm_bindgen::prelude::{Closure, wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
+    app::cargo::{Grouping, PackageFilter, TargetTypesFilter, UiMessage},
     quick_pick::ToQuickPickItem,
-    runtime::VsCodeRuntime,
+    runtime::VsCodeRuntime as Runtime,
     vs_code_api::{log, register_command},
 };
 use wasm_async_trait::wasm_async_trait;
@@ -38,7 +39,7 @@ type CommandMap = HashMap<&'static str, Closure<dyn FnMut(Array)>>;
 pub fn register_commands(cmds: CommandMap) -> Vec<Command> {
     cmds.into_iter()
         .map(|(command_id, cmd)| {
-            if let Err(e) = register_command(&command_id, &cmd) {
+            if let Err(e) = register_command(command_id, &cmd) {
                 log(&format!(
                     "Failed to register command '{}': {:?}",
                     command_id, e
@@ -62,6 +63,28 @@ impl IntoCargoMessage for selection::Update {
 impl IntoCargoMessage for cargo_tools::app::cargo::ui::Task {
     fn into_cargo_msg(self) -> CargoMsg {
         CargoMsg::Task(self)
+    }
+}
+
+impl IntoCargoMessage for PackageFilter {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Custom(UiMessage::Settings(cargo::SettingsUpdate::PackageFilter(
+            self,
+        )))
+    }
+}
+
+impl IntoCargoMessage for TargetTypesFilter {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Custom(UiMessage::Settings(
+            cargo::SettingsUpdate::TargetTypesFilter(self),
+        ))
+    }
+}
+
+impl IntoCargoMessage for Grouping {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Custom(UiMessage::Settings(cargo::SettingsUpdate::Grouping(self)))
     }
 }
 
@@ -105,8 +128,8 @@ impl cargo_tools::app::Ui for Ui {
 #[wasm_bindgen]
 pub fn run(workspace_root: String) {
     wasm_bindgen_futures::spawn_local(async {
-        if let Err(e) = async_application(App::update::<VsCodeRuntime>)
-            .subscription(App::subscription::<VsCodeRuntime>)
+        if let Err(e) = async_application(App::update::<Runtime>)
+            .subscription(App::subscription::<Runtime>)
             .exit_on(exit_on)
             .run_with(|| init(workspace_root))
             .await
@@ -128,12 +151,9 @@ pub async fn exit() {
 
 fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     log("Initializing Cargo tools");
-    let cargo_ui = cargo::Ui::new(
-        VsCodeRuntime::get_state(format!("{root_dir}.cargo_tools.cargo.state")).unwrap_or_default(),
-    );
+    let cargo_ui = cargo::Ui::new(root_dir.clone());
     let cargo_make_ui = cargo_make::Ui::new(
-        VsCodeRuntime::get_state(format!("{root_dir}.cargo_tools.cargo_make.state"))
-            .unwrap_or_default(),
+        Runtime::get_state(format!("{root_dir}.cargo_tools.cargo_make.state")).unwrap_or_default(),
     );
 
     let app = App {

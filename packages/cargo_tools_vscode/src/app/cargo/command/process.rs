@@ -16,8 +16,8 @@ use crate::{
     app::{
         CargoMsg, IntoCargoMessage, SelectInput,
         cargo::{
-            Ui,
-            command::{CargoToolsCmd, ProjectOutline},
+            PackageFilter, TargetTypesFilter, TargetTypesFilterUpdate, Ui,
+            command::{CargoToolsCmd, ProjectOutline as PO},
         },
     },
     quick_pick::ToQuickPickItem,
@@ -159,36 +159,54 @@ impl Ui {
         }
     }
 
-    pub(crate) fn process_outline_cmd(&self, cmd: ProjectOutline) -> IcedTask<CargoMsg> {
+    pub(crate) fn process_outline_cmd(&self, cmd: PO) -> IcedTask<CargoMsg> {
         match cmd {
-            ProjectOutline::Select(update) => IcedTask::done(update.into_cargo_msg()),
-            ProjectOutline::Unselect(update) => IcedTask::done(update.into_cargo_msg()),
-            ProjectOutline::Build(target) => {
+            PO::Select(update) => IcedTask::done(update.into_cargo_msg()),
+            PO::Unselect(update) => IcedTask::done(update.into_cargo_msg()),
+            PO::Build(target) => {
                 IcedTask::done(ExplicitCommand(Explicit::Build(target)).into_cargo_msg())
             }
-            ProjectOutline::Test(package) => {
+            PO::Test(package) => {
                 IcedTask::done(ExplicitCommand(Explicit::Test { package }).into_cargo_msg())
             }
-            ProjectOutline::Clean(package) => {
+            PO::Clean(package) => {
                 IcedTask::done(ExplicitCommand(Explicit::Clean { package }).into_cargo_msg())
             }
-            ProjectOutline::Run(target) => {
+            PO::Run(target) => {
                 IcedTask::done(ExplicitCommand(Explicit::Run(Some(target))).into_cargo_msg())
             }
-            ProjectOutline::Debug(_) => {
+            PO::Debug(_) => {
                 // Not yet implemented
                 IcedTask::none()
             }
-            ProjectOutline::Bench(package) => {
+            PO::Bench(package) => {
                 IcedTask::done(ExplicitCommand(Explicit::Bench { package }).into_cargo_msg())
             }
-            ProjectOutline::SetWorkspaceMemberFilter => todo!(),
-            ProjectOutline::EditWorkspaceMemberFilter => todo!(),
-            ProjectOutline::ClearWorkspaceMemberFilter => todo!(),
-            ProjectOutline::ShowTargetTypeFilter => todo!(),
-            ProjectOutline::ClearTargetTypeFilter => todo!(),
-            ProjectOutline::ClearAllFilters => todo!(),
-            ProjectOutline::ToggleWorkspaceMemberGrouping => todo!(),
+            PO::SelectWorkspaceMemberFilter => todo!(),
+            PO::EditWorkspaceMemberFilter(filter) => {
+                IcedTask::done(PackageFilter(filter).into_cargo_msg())
+            }
+            PO::SelectTargetTypeFilter => todo!(),
+            PO::EditTargetTypeFilter(update) => {
+                let mut filter = self.settings.target_types_filter.clone();
+                match update {
+                    TargetTypesFilterUpdate::Bin(on) => filter.bin = on,
+                    TargetTypesFilterUpdate::Lib(on) => filter.lib = on,
+                    TargetTypesFilterUpdate::Example(on) => filter.example = on,
+                    TargetTypesFilterUpdate::Benchmarks(on) => filter.benchmarks = on,
+                    TargetTypesFilterUpdate::Features(on) => filter.features = on,
+                };
+                IcedTask::done(filter.into_cargo_msg())
+            }
+            PO::ClearAllFilters => {
+                let member_filter = IcedTask::done(PackageFilter::default().into_cargo_msg());
+                let types_filter = IcedTask::done(TargetTypesFilter::default().into_cargo_msg());
+
+                IcedTask::batch([member_filter, types_filter])
+            }
+            PO::ToggleWorkspaceMemberGrouping => {
+                IcedTask::done(self.settings.grouping.toggle().into_cargo_msg())
+            }
         }
     }
 }

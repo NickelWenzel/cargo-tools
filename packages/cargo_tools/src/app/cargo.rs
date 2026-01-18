@@ -14,13 +14,15 @@ use crate::{
     runtime::{self, CargoTask, Runtime},
 };
 
+use ui::Message as UiMsg;
+
 #[derive(Debug, Clone)]
 pub enum CargoMessage<Ui: ui::Ui> {
     RootDirUpdate(String),
     ManifestUpdate,
     ConfigUpdate,
     MetadataUpdate(MetadataUpdate),
-    Ui(ui::Message<Ui::CustomUpdate>),
+    Ui(UiMsg<Ui::CustomUpdate>),
 }
 
 use CargoMessage as Msg;
@@ -65,9 +67,9 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
             }
             Msg::Ui(msg) => {
                 let task = match &msg {
-                    ui::Message::Selection(update) => self.update_state::<RT>(update.clone()),
-                    ui::Message::Task(task) => self.exec_task::<RT>(task.clone()),
-                    ui::Message::Custom(_) | ui::Message::Metadata(_) => Task::none(),
+                    UiMsg::Selection(update) => self.update_state::<RT>(update.clone()),
+                    UiMsg::Task(task) => self.exec_task::<RT>(task.clone()),
+                    UiMsg::Custom(_) | UiMsg::Metadata(_) | UiMsg::RootDirUpdate(_) => Task::none(),
                 };
                 let ui = self.ui.update(msg).map(Msg::Ui);
 
@@ -83,12 +85,16 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
     }
 
     fn update_root_dir<RT: Runtime>(&mut self, root_dir: String) -> Task<Msg<Ui>> {
+        let ui = Task::done(Msg::Ui(UiMsg::RootDirUpdate(root_dir.clone())));
+
         self.root_dir = root_dir;
         if let Some(s) = RT::get_state(self.state_key()) {
             self.state = s;
         }
 
-        self.parse::<RT>()
+        let parse = self.parse::<RT>();
+
+        Task::batch([parse, ui])
     }
 
     fn update_state<RT: Runtime>(&mut self, update: selection::Update) -> Task<Msg<Ui>> {
@@ -98,7 +104,7 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
 
     fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg<Ui>> {
         match task {
-            ui::Task::ImplicitCommand(implicit) => Task::done(Msg::Ui(ui::Message::Task(
+            ui::Task::ImplicitCommand(implicit) => Task::done(Msg::Ui(UiMsg::Task(
                 ui::Task::ExplicitCommand(implicit.to_explicit(&self.state.selection)),
             ))),
             ui::Task::ExplicitCommand(explicit) => {
@@ -156,7 +162,7 @@ impl<Ui: ui::Ui + 'static> Cargo<Ui> {
             ret
         })
         .and_then(|()| Task::done(Msg::ManifestUpdate));
-        let ui = Task::done(ui::Message::Metadata(metadata_update)).map(Msg::Ui);
+        let ui = Task::done(UiMsg::Metadata(metadata_update)).map(Msg::Ui);
 
         Task::batch([file_change, ui])
     }
