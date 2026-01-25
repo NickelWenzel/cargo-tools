@@ -3,7 +3,7 @@
 use cargo_tools::app::cargo::{
     command::{Explicit, Implicit},
     selection::{
-        Features,
+        self, Features,
         Update::{self, *},
     },
     ui::Task::*,
@@ -14,15 +14,50 @@ use std::fmt::Debug;
 
 use crate::{
     app::{
-        CargoMsg, IntoCargoMessage, SelectInput,
+        CargoMsg, SelectInput,
         cargo::{
-            PackageFilter, TargetTypesFilter, TargetTypesFilterUpdate, Ui,
+            Grouping, PackageFilter, SettingsUpdate, TargetTypesFilter, TargetTypesFilterUpdate,
+            Ui, UiMessage,
             command::{Command, ProjectOutline as PO},
         },
     },
     quick_pick::ToQuickPickItem,
     vs_code_api::{JsValueExt, execute_async, log, show_quick_pick, show_quick_pick_multiple},
 };
+
+trait IntoCargoMessage {
+    fn into_cargo_msg(self) -> CargoMsg;
+}
+
+impl IntoCargoMessage for selection::Update {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Selection(self)
+    }
+}
+
+impl IntoCargoMessage for cargo_tools::app::cargo::ui::Task {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Task(self)
+    }
+}
+
+impl IntoCargoMessage for PackageFilter {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Custom(UiMessage::Settings(SettingsUpdate::PackageFilter(self)))
+    }
+}
+
+impl IntoCargoMessage for TargetTypesFilter {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Custom(UiMessage::Settings(SettingsUpdate::TargetTypesFilter(self)))
+    }
+}
+
+impl IntoCargoMessage for Grouping {
+    fn into_cargo_msg(self) -> CargoMsg {
+        CargoMsg::Custom(UiMessage::Settings(SettingsUpdate::Grouping(self)))
+    }
+}
 
 async fn select<T: ToQuickPickItem + Clone + Debug + PartialEq>(
     SelectInput { options, current }: SelectInput<T>,

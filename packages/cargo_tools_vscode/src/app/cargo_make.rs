@@ -5,7 +5,7 @@ use cargo_tools::{
         self,
         tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate},
     },
-    runtime::Runtime,
+    runtime::Runtime as _,
 };
 use futures::{
     SinkExt, Stream, StreamExt,
@@ -19,9 +19,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         CargoMakeMsg, VsCodeTask,
-        cargo_make::command::{Command, register::register_cargo_make_commands},
+        cargo_make::command::{Command, register_cargo_make_commands},
     },
-    runtime::{CHANNEL_CAPACITY, VsCodeRuntime},
+    runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
     vs_code_api::log,
 };
 
@@ -69,7 +69,7 @@ impl Ui {
             SettingsUpdate::TaskFilter(tf) => *task_filter = tf,
             SettingsUpdate::CategoryFilter(cf) => *category_filters = cf,
         };
-        Task::future(VsCodeRuntime::persist_state(
+        Task::future(Runtime::persist_state(
             self.settings_key(),
             self.settings.clone(),
         ))
@@ -79,13 +79,6 @@ impl Ui {
     pub fn settings_key(&self) -> String {
         format!("{}.cargo_tools.cargo.ui_settings", self.root_dir)
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Settings {
-    pinned_makefile_tasks: MakefileTasks,
-    task_filter: String,
-    category_filters: Vec<String>,
 }
 
 impl cargo_make::ui::Ui for Ui {
@@ -104,27 +97,21 @@ impl cargo_make::ui::Ui for Ui {
                 }
                 Task::none()
             }
+            // Task are only created by user interaction but always processed by the parent cargo make component
             Msg::Task(_) => Task::none(),
             Msg::Custom(msg) => match msg {
                 UiMessage::CmdTx(tx) => {
                     self.cmds = register_cargo_make_commands(tx);
                     Task::none()
                 }
-                UiMessage::Cmd(cmd) => match cmd {
-                    Command::RunTask(_) => todo!(),
-                    Command::SelectAndRunTask => todo!(),
-                    Command::SelectTaskFilter => todo!(),
-                    Command::EditTaskFilter(_) => todo!(),
-                    Command::SelectCategoryFilter => todo!(),
-                    Command::EditCategoryFilter(_) => todo!(),
-                    Command::ClearAllFilters => todo!(),
-                    Command::PinTask(makefile_task) => todo!(),
-                    Command::Pinned(pinned) => todo!(),
-                },
+                UiMessage::Cmd(cmd) => self.process_cmd(cmd),
                 UiMessage::Settings(update) => self.update_state(update),
             },
             Msg::RootDirUpdate(root_dir) => {
                 self.root_dir = root_dir;
+                if let Some(s) = Runtime::get_state(self.settings_key()) {
+                    self.settings = s;
+                }
                 Task::none()
             }
         }
@@ -133,6 +120,13 @@ impl cargo_make::ui::Ui for Ui {
     fn subscription(&self) -> Subscription<CargoMakeMsg> {
         Subscription::run(command_stream).map(Msg::Custom)
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Settings {
+    pinned_makefile_tasks: MakefileTasks,
+    task_filter: String,
+    category_filters: Vec<String>,
 }
 
 fn command_stream() -> impl Stream<Item = UiMessage> {

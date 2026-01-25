@@ -20,6 +20,10 @@ impl Task {
     pub fn into_name(self) -> String {
         self.0
     }
+
+    pub fn from_string(s: String) -> Self {
+        Self(s)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]

@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     app::{
         CargoMsg, SelectInput, VsCodeTask,
-        cargo::command::{Command, register::register_cargo_commands},
+        cargo::command::{Command, register_cargo_commands},
     },
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
     vs_code_api::log,
@@ -51,6 +51,73 @@ pub struct Ui {
     settings: OutlineSettings,
     cmds: Vec<VsCodeTask>,
     root_dir: String,
+}
+
+impl Ui {
+    fn update_settings(&mut self, update: SettingsUpdate) -> Task<CargoMsg> {
+        let settings = &mut self.settings;
+        match update {
+            SettingsUpdate::PackageFilter(filter) => settings.package_filter = filter,
+            SettingsUpdate::TargetTypesFilter(filter) => settings.target_types_filter = filter,
+            SettingsUpdate::Grouping(grouping) => settings.grouping = grouping,
+        }
+
+        Task::future(Runtime::persist_state(
+            self.settings_key(),
+            self.settings.clone(),
+        ))
+        .discard()
+    }
+
+    pub fn settings_key(&self) -> String {
+        format!("{}.cargo_tools.cargo.ui_settings", self.root_dir)
+    }
+}
+
+impl cargo::ui::Ui for Ui {
+    type CustomUpdate = UiMessage;
+
+    fn update(&mut self, msg: CargoMsg) -> Task<CargoMsg> {
+        log("Cargo Ui update received");
+        match msg {
+            Msg::Selection(update) => {
+                self.data.selection.update(update);
+                Task::none()
+            }
+            Msg::Metadata(update) => {
+                match update {
+                    MetadataUpdate::Metadata(metadata) => {
+                        self.data.metadata.metadata = Some(metadata)
+                    }
+                    MetadataUpdate::Profiles(profiles) => self.data.metadata.profiles = profiles,
+                    MetadataUpdate::NoCargoToml => self.data.metadata = UiMetadata::default(),
+                    MetadataUpdate::FailedToRetrieve => {}
+                };
+                Task::none()
+            }
+            // Task are only created by user interaction but always processed by the parent cargo component
+            Msg::Task(_) => Task::none(),
+            Msg::Custom(msg) => match msg {
+                UiMessage::CmdTx(tx) => {
+                    self.cmds = register_cargo_commands(tx);
+                    Task::none()
+                }
+                UiMessage::Cmd(cmd) => self.process_cmd(cmd),
+                UiMessage::Settings(update) => self.update_settings(update),
+            },
+            Msg::RootDirUpdate(root_dir) => {
+                self.root_dir = root_dir;
+                if let Some(s) = Runtime::get_state(self.settings_key()) {
+                    self.settings = s;
+                }
+                Task::none()
+            }
+        }
+    }
+
+    fn subscription(&self) -> Subscription<CargoMsg> {
+        Subscription::run(command_stream).map(Msg::Custom)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -177,27 +244,6 @@ impl CommandData {
     }
 }
 
-impl Ui {
-    fn update_settings(&mut self, update: SettingsUpdate) -> Task<CargoMsg> {
-        let settings = &mut self.settings;
-        match update {
-            SettingsUpdate::PackageFilter(filter) => settings.package_filter = filter,
-            SettingsUpdate::TargetTypesFilter(filter) => settings.target_types_filter = filter,
-            SettingsUpdate::Grouping(grouping) => settings.grouping = grouping,
-        }
-
-        Task::future(Runtime::persist_state(
-            self.settings_key(),
-            self.settings.clone(),
-        ))
-        .discard()
-    }
-
-    pub fn settings_key(&self) -> String {
-        format!("{}.cargo_tools.cargo.ui_settings", self.root_dir)
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct UiMetadata {
     pub metadata: Option<Metadata>,
@@ -221,48 +267,6 @@ impl UiMetadata {
                     .map(|p| Some(p.name.to_string())),
             )
             .collect()
-    }
-}
-
-impl cargo::ui::Ui for Ui {
-    type CustomUpdate = UiMessage;
-
-    fn update(&mut self, msg: CargoMsg) -> Task<CargoMsg> {
-        log("Cargo Ui update received");
-        match msg {
-            Msg::Selection(update) => {
-                self.data.selection.update(update);
-                Task::none()
-            }
-            Msg::Metadata(update) => {
-                match update {
-                    MetadataUpdate::Metadata(metadata) => {
-                        self.data.metadata.metadata = Some(metadata)
-                    }
-                    MetadataUpdate::Profiles(profiles) => self.data.metadata.profiles = profiles,
-                    MetadataUpdate::NoCargoToml => self.data.metadata = UiMetadata::default(),
-                    MetadataUpdate::FailedToRetrieve => {}
-                };
-                Task::none()
-            }
-            Msg::Task(_) => Task::none(),
-            Msg::Custom(msg) => match msg {
-                UiMessage::CmdTx(tx) => {
-                    self.cmds = register_cargo_commands(tx);
-                    Task::none()
-                }
-                UiMessage::Cmd(cmd) => self.process_cmd(cmd),
-                UiMessage::Settings(update) => self.update_settings(update),
-            },
-            Msg::RootDirUpdate(root_dir) => {
-                self.root_dir = root_dir;
-                Task::none()
-            }
-        }
-    }
-
-    fn subscription(&self) -> Subscription<CargoMsg> {
-        Subscription::run(command_stream).map(Msg::Custom)
     }
 }
 

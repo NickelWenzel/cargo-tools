@@ -1,5 +1,8 @@
 use cargo_tools::{
-    app::cargo::command::{BuildSubTarget, RunSubTarget},
+    app::{
+        cargo::command::{BuildSubTarget, RunSubTarget},
+        cargo_make::tasks::MakefileTask,
+    },
     profile::Profile,
 };
 use serde::{Deserialize, Serialize};
@@ -132,6 +135,21 @@ impl ToQuickPickItem for Option<RunSubTarget> {
 
         QuickPickItem::new(name)
             .with_description(desc)
+            .with_picked(picked)
+    }
+}
+
+impl ToQuickPickItem for MakefileTask {
+    fn to_item(&self, picked: bool) -> QuickPickItem {
+        let MakefileTask {
+            name,
+            category,
+            description,
+        } = self.clone();
+
+        QuickPickItem::new(name)
+            .with_description(category)
+            .with_detail(description)
             .with_picked(picked)
     }
 }

@@ -4,11 +4,7 @@ pub mod cargo_make;
 use std::{collections::HashMap, sync::Mutex};
 
 use async_broadcast::SendError;
-use cargo_tools::app::{
-    App, AppMessage,
-    cargo::{CargoMessage, selection},
-    cargo_make::CargoMakeMessage,
-};
+use cargo_tools::app::{App, AppMessage, cargo::CargoMessage, cargo_make::CargoMakeMessage};
 use futures::{
     SinkExt,
     channel::mpsc::{Sender, channel},
@@ -19,12 +15,10 @@ use wasm_bindgen::prelude::{Closure, wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    app::cargo::{Grouping, PackageFilter, TargetTypesFilter, UiMessage},
     quick_pick::ToQuickPickItem,
     runtime::VsCodeRuntime as Runtime,
     vs_code_api::{log, register_command},
 };
-use wasm_async_trait::wasm_async_trait;
 
 pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
     <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
@@ -45,56 +39,6 @@ pub fn register_tasks(cmds: TaskMap) -> Vec<VsCodeTask> {
             cmd
         })
         .collect()
-}
-
-pub trait IntoCargoMessage {
-    fn into_cargo_msg(self) -> CargoMsg;
-}
-
-impl IntoCargoMessage for selection::Update {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Selection(self)
-    }
-}
-
-impl IntoCargoMessage for cargo_tools::app::cargo::ui::Task {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Task(self)
-    }
-}
-
-impl IntoCargoMessage for PackageFilter {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Custom(UiMessage::Settings(cargo::SettingsUpdate::PackageFilter(
-            self,
-        )))
-    }
-}
-
-impl IntoCargoMessage for TargetTypesFilter {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Custom(UiMessage::Settings(
-            cargo::SettingsUpdate::TargetTypesFilter(self),
-        ))
-    }
-}
-
-impl IntoCargoMessage for Grouping {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Custom(UiMessage::Settings(cargo::SettingsUpdate::Grouping(self)))
-    }
-}
-
-#[wasm_async_trait]
-pub trait CargoMsgTx {
-    async fn send<T: IntoCargoMessage>(&self, msg: T) -> SendResult<CargoMsg>;
-}
-
-#[wasm_async_trait]
-impl CargoMsgTx for async_broadcast::Sender<CargoMsg> {
-    async fn send<T: IntoCargoMessage>(&self, msg: T) -> SendResult<CargoMsg> {
-        self.broadcast(msg.into_cargo_msg()).await
-    }
 }
 
 pub type CargoMakeMsg = ::cargo_tools::app::cargo_make::ui::Message<
@@ -173,9 +117,7 @@ pub mod tests {
     use futures::channel::mpsc::channel;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{
-        app::cargo::command::register::task_map as cargo_task_map, contributes::data::all_commands,
-    };
+    use crate::{app::cargo::command::task_map as cargo_task_map, contributes::data::all_commands};
 
     #[wasm_bindgen_test]
     fn all_commands_are_registered() {
