@@ -20,23 +20,14 @@ pub enum CargoMakeMessage<Ui: ui::Ui> {
 
 use CargoMakeMessage as Msg;
 
-pub struct CargoMake<Ui: ui::Ui> {
+#[derive(Debug, Default)]
+pub struct CargoMake<Ui: ui::Ui + Default> {
     root_dir: String,
     ui: Ui,
     state: ui::State,
 }
 
-impl<Ui: ui::Ui> CargoMake<Ui> {
-    pub fn new(root_dir: String, ui: Ui) -> Self {
-        Self {
-            root_dir,
-            ui,
-            state: Default::default(),
-        }
-    }
-}
-
-impl<Ui: ui::Ui + 'static> CargoMake<Ui> {
+impl<Ui: ui::Ui + Default + 'static> CargoMake<Ui> {
     pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
         RT::log("Cargo make update received".to_string());
         match msg {

@@ -22,13 +22,14 @@ use crate::app::cargo_make::ui::Ui as CargoMakeUi;
 use AppMessage as Msg;
 
 pub trait Ui {
-    type Cargo: CargoUi + std::fmt::Debug;
-    type CargoMake: CargoMakeUi + std::fmt::Debug;
+    type Cargo: CargoUi + std::fmt::Debug + Default;
+    type CargoMake: CargoMakeUi + std::fmt::Debug + Default;
 }
 
+#[derive(Debug, Default)]
 pub struct App<UiT: Ui> {
-    pub cargo: Cargo<UiT::Cargo>,
-    pub cargo_make: CargoMake<UiT::CargoMake>,
+    cargo: Cargo<UiT::Cargo>,
+    cargo_make: CargoMake<UiT::CargoMake>,
 }
 
 impl<UiT: Ui + std::fmt::Debug + 'static> App<UiT> {

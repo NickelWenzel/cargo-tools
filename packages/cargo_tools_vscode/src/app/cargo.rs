@@ -45,7 +45,7 @@ pub enum SettingsUpdate {
     Grouping(Grouping),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Ui {
     data: CommandData,
     settings: OutlineSettings,
@@ -178,15 +178,6 @@ impl CommandData {
 }
 
 impl Ui {
-    pub fn new(root_dir: String) -> Self {
-        Self {
-            data: CommandData::default(),
-            cmds: Vec::new(),
-            settings: OutlineSettings::default(),
-            root_dir,
-        }
-    }
-
     fn update_settings(&mut self, update: SettingsUpdate) -> Task<CargoMsg> {
         let settings = &mut self.settings;
         match update {

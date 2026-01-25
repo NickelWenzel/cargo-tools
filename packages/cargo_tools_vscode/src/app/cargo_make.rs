@@ -1,85 +1,105 @@
-use std::sync::{Arc, Mutex};
+pub mod command;
 
-use async_broadcast::{Receiver, broadcast};
-use cargo_tools::app::cargo_make::{self, tasks::MakefileTasks};
-use iced_headless::{Subscription, Task};
+use cargo_tools::app::cargo_make::{
+    self,
+    tasks::{MakefileTasks, MakefileTasksUpdate},
+    ui::Update,
+};
+use futures::{
+    SinkExt, Stream, StreamExt,
+    channel::mpsc::{Sender, channel},
+};
+use iced_headless::{Subscription, Task, stream};
 
 use cargo_make::ui::Message as Msg;
 
-use crate::{app::VsCodeTask, vs_code_api::log};
-
-#[derive(Debug)]
-pub struct Ui {
-    cmd_data: CommandData,
-    rx: Receiver<Msg<()>>,
-    _cmds: Vec<VsCodeTask>,
-}
+use crate::{
+    app::{
+        CargoMakeMsg, VsCodeTask,
+        cargo_make::command::{Command, register::register_cargo_make_commands},
+    },
+    runtime::CHANNEL_CAPACITY,
+    vs_code_api::log,
+};
 
 #[derive(Debug, Clone)]
-pub struct CommandData {
-    makefile_tasks: Arc<Mutex<MakefileTasks>>,
-    state: Arc<Mutex<cargo_make::ui::State>>,
+pub enum UiMessage {
+    CmdTx(Sender<Command>),
+    Cmd(Command),
 }
 
-impl Ui {
-    pub fn new(state: cargo_make::ui::State) -> Self {
-        let (tx, rx) = broadcast(100);
-        let data = CommandData {
-            makefile_tasks: Arc::new(Mutex::new(MakefileTasks::new())),
-            state: Arc::new(Mutex::new(state)),
-        };
-
-        Self {
-            cmd_data: data.clone(),
-            rx,
-            _cmds: Vec::new(),
-        }
-    }
+#[derive(Debug, Default)]
+pub struct Ui {
+    makefile_tasks: MakefileTasks,
+    pinnedmakefile_tasks: MakefileTasks,
+    cmds: Vec<VsCodeTask>,
+    root_dir: String,
 }
 
 impl cargo_make::ui::Ui for Ui {
-    type CustomUpdate = ();
+    type CustomUpdate = UiMessage;
 
-    fn update(&mut self, msg: Msg<Self::CustomUpdate>) -> Task<Msg<Self::CustomUpdate>> {
+    fn update(&mut self, msg: CargoMakeMsg) -> Task<CargoMakeMsg> {
         log("Cargo make Ui update received");
         match msg {
-            cargo_make::ui::Message::Update(update) => {
-                log(&format!(
-                    "Cargo make Ui update received: state update '{update:?}'"
-                ));
+            Msg::Update(update) => {
+                let pinned = &mut self.pinnedmakefile_tasks;
                 match update {
-                    cargo_make::ui::Update::AddPinned(makefile_task) => {
-                        let mut state_guard = self.cmd_data.state.lock().unwrap();
-                        state_guard.pinned.push(makefile_task);
+                    Update::AddPinned(makefile_task) => {
+                        if !pinned.contains(&makefile_task) {
+                            pinned.push(makefile_task);
+                        }
                     }
-                    cargo_make::ui::Update::RemovePinned(idx) => {
-                        let guard = self.cmd_data.state.lock().unwrap();
-                        if idx < guard.pinned.len() {
-                            self.cmd_data.state.lock().unwrap().pinned.remove(idx);
+                    Update::RemovePinned(idx) => {
+                        if idx < pinned.len() {
+                            pinned.remove(idx);
                         }
                     }
                 }
+                Task::none()
             }
-            cargo_make::ui::Message::MakefileTasks(update) => {
-                log("Cargo make Ui update received: new tasks");
+            Msg::MakefileTasks(update) => {
                 match update {
-                    cargo_make::tasks::MakefileTasksUpdate::New(makefile_tasks) => {
-                        *self.cmd_data.makefile_tasks.lock().unwrap() = makefile_tasks;
+                    MakefileTasksUpdate::New(makefile_tasks) => {
+                        self.makefile_tasks = makefile_tasks
                     }
-                    cargo_make::tasks::MakefileTasksUpdate::NoMakefile => {
-                        *self.cmd_data.makefile_tasks.lock().unwrap() = MakefileTasks::new();
-                    }
-                    cargo_make::tasks::MakefileTasksUpdate::FailedToRetrieve => {}
+                    MakefileTasksUpdate::NoMakefile => self.makefile_tasks = Vec::new(),
+                    MakefileTasksUpdate::FailedToRetrieve => {}
                 }
+                Task::none()
             }
-            cargo_make::ui::Message::Task(_) => {}
-            cargo_make::ui::Message::Custom(_) => {}
+            Msg::Task(_) => Task::none(),
+            Msg::Custom(msg) => match msg {
+                UiMessage::CmdTx(tx) => {
+                    self.cmds = register_cargo_make_commands(tx);
+                    Task::none()
+                }
+                UiMessage::Cmd(cmd) => match cmd {},
+            },
         }
-
-        Task::none()
     }
 
-    fn subscription(&self) -> Subscription<Msg<Self::CustomUpdate>> {
-        Subscription::none()
+    fn subscription(&self) -> Subscription<CargoMakeMsg> {
+        Subscription::run(command_stream).map(Msg::Custom)
     }
+}
+
+fn command_stream() -> impl Stream<Item = UiMessage> {
+    stream::channel(CHANNEL_CAPACITY, async |mut out| {
+        let (tx, mut rx) = channel(CHANNEL_CAPACITY);
+        if let Err(e) = out.send(UiMessage::CmdTx(tx.clone())).await {
+            log(&format!(
+                "Failed to send cargo ui command sender back to ui: {e:?}"
+            ));
+        }
+        while let Some(msg) = rx.next().await {
+            log(&format!("Sending command message to cargo Ui'{msg:?}'"));
+            if let Err(e) = out.send(UiMessage::Cmd(msg)).await {
+                log(&format!(
+                    "Failed to send command message to cargo UI '{e:?}'"
+                ));
+            }
+        }
+        log("Cargo Ui command stream closed unexpectedly.");
+    })
 }

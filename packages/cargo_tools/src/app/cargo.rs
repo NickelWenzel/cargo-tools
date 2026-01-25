@@ -27,25 +27,15 @@ pub enum CargoMessage<Ui: ui::Ui> {
 
 use CargoMessage as Msg;
 
-pub struct Cargo<Ui: ui::Ui> {
+#[derive(Debug, Default)]
+pub struct Cargo<Ui: ui::Ui + Default> {
     root_dir: String,
     workspace_manifests: Vec<String>,
     ui: Ui,
     state: ui::State,
 }
 
-impl<Ui: ui::Ui> Cargo<Ui> {
-    pub fn new(root_dir: String, ui: Ui) -> Self {
-        Self {
-            root_dir,
-            workspace_manifests: Vec::new(),
-            ui,
-            state: Default::default(),
-        }
-    }
-}
-
-impl<Ui: ui::Ui + 'static> Cargo<Ui> {
+impl<Ui: ui::Ui + Default + 'static> Cargo<Ui> {
     pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
         RT::log("Cargo update received".to_string());
         match msg {

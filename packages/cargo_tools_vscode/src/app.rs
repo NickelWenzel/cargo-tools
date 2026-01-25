@@ -4,13 +4,10 @@ pub mod cargo_make;
 use std::{collections::HashMap, sync::Mutex};
 
 use async_broadcast::SendError;
-use cargo_tools::{
-    app::{
-        App, AppMessage,
-        cargo::{Cargo, CargoMessage, selection},
-        cargo_make::{CargoMake, CargoMakeMessage},
-    },
-    runtime::Runtime as _,
+use cargo_tools::app::{
+    App, AppMessage,
+    cargo::{CargoMessage, selection},
+    cargo_make::CargoMakeMessage,
 };
 use futures::{
     SinkExt,
@@ -117,7 +114,7 @@ static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     Mutex::new(tx)
 });
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Ui;
 
 impl cargo_tools::app::Ui for Ui {
@@ -151,15 +148,6 @@ pub async fn exit() {
 
 fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     log("Initializing Cargo tools");
-    let cargo_ui = cargo::Ui::new(root_dir.clone());
-    let cargo_make_ui = cargo_make::Ui::new(
-        Runtime::get_state(format!("{root_dir}.cargo_tools.cargo_make.state")).unwrap_or_default(),
-    );
-
-    let app = App {
-        cargo: Cargo::new(root_dir.clone(), cargo_ui),
-        cargo_make: CargoMake::new(root_dir.clone(), cargo_make_ui),
-    };
 
     let cargo = Task::done(AppMessage::Cargo(CargoMessage::RootDirUpdate(
         root_dir.clone(),
@@ -167,9 +155,9 @@ fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
     let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
         root_dir,
     )));
+    let ret = (App::default(), Task::batch([cargo, cargo_make]));
     log("Done initializing Cargo tools");
-
-    (app, Task::batch([cargo, cargo_make]))
+    ret
 }
 
 fn exit_on(_: &App<Ui>) -> Subscription<Exit> {
@@ -185,14 +173,16 @@ pub mod tests {
     use futures::channel::mpsc::channel;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{app::cargo::command::register::task_map, contributes::data::all_commands};
+    use crate::{
+        app::cargo::command::register::task_map as cargo_task_map, contributes::data::all_commands,
+    };
 
     #[wasm_bindgen_test]
     fn all_commands_are_registered() {
         let (cargo_tx, _rx) = channel(10);
         // let (cargo_make_tx, _rx) = channel(10);
         let closures = {
-            let mut cmds = task_map(cargo_tx);
+            let mut cmds = cargo_task_map(cargo_tx);
             // cmds.extend(cargo_make_command_map(cargo_make_tx));
             cmds
         };
