@@ -33,7 +33,7 @@ use Message as Msg;
 use serde::{Deserialize, Serialize};
 
 pub trait Ui: Sized {
-    type CustomUpdate: Debug + Clone;
+    type CustomUpdate: Debug + Clone + Send;
 
     fn update(
         &mut self,

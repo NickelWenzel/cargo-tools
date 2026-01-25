@@ -34,7 +34,7 @@ pub struct State {
 use Message as Msg;
 
 pub trait Ui: Sized {
-    type CustomUpdate: Debug + Clone;
+    type CustomUpdate: Debug + Clone + Send;
 
     fn update(
         &mut self,
