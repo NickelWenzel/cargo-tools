@@ -24,8 +24,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
-        CargoMsg, Command, SelectInput,
-        cargo::command::{CargoToolsCmd, register::register_cargo_commands},
+        CargoMsg, SelectInput, VsCodeTask,
+        cargo::command::{Command, register::register_cargo_commands},
     },
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
     vs_code_api::log,
@@ -33,8 +33,8 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub enum UiMessage {
-    CmdTx(Sender<CargoToolsCmd>),
-    Cmd(CargoToolsCmd),
+    CmdTx(Sender<Command>),
+    Cmd(Command),
     Settings(SettingsUpdate),
 }
 
@@ -49,7 +49,7 @@ pub enum SettingsUpdate {
 pub struct Ui {
     data: CommandData,
     settings: OutlineSettings,
-    cmds: Vec<Command>,
+    cmds: Vec<VsCodeTask>,
     root_dir: String,
 }
 

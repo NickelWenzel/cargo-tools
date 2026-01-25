@@ -11,7 +11,7 @@ pub mod process;
 pub mod register;
 
 #[derive(Debug, Clone)]
-pub enum CargoToolsCmd {
+pub enum Command {
     SelectProfile,
     SelectPackage,
     SelectBuildTarget,
@@ -32,9 +32,9 @@ pub enum CargoToolsCmd {
     ProjectOutline(ProjectOutline),
 }
 
-pub type CargoCmdFn = fn(Array) -> Option<CargoToolsCmd>;
+pub type CargoCmdFn = fn(Array) -> Option<Command>;
 
-impl CargoToolsCmd {
+impl Command {
     pub const fn all() -> [(&'static str, CargoCmdFn); 31] {
         use ProjectOutline as PO;
         [
@@ -139,8 +139,8 @@ pub enum ProjectOutline {
 }
 
 impl ProjectOutline {
-    pub const fn to_cmd(self) -> CargoToolsCmd {
-        CargoToolsCmd::ProjectOutline(self)
+    pub const fn to_cmd(self) -> Command {
+        Command::ProjectOutline(self)
     }
 
     pub fn from_update(cmd: fn(Update) -> Self, arg: Array) -> Option<Self> {

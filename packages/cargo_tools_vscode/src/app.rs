@@ -33,15 +33,15 @@ pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
     <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
 >;
 
-pub type Command = Closure<dyn FnMut(Array)>;
-type CommandMap = HashMap<&'static str, Closure<dyn FnMut(Array)>>;
+pub type VsCodeTask = Closure<dyn FnMut(Array)>;
+type TaskMap = HashMap<&'static str, Closure<dyn FnMut(Array)>>;
 
-pub fn register_commands(cmds: CommandMap) -> Vec<Command> {
+pub fn register_tasks(cmds: TaskMap) -> Vec<VsCodeTask> {
     cmds.into_iter()
         .map(|(command_id, cmd)| {
             if let Err(e) = register_command(command_id, &cmd) {
                 log(&format!(
-                    "Failed to register command '{}': {:?}",
+                    "Failed to register task '{}': {:?}",
                     command_id, e
                 ));
             };
@@ -185,16 +185,14 @@ pub mod tests {
     use futures::channel::mpsc::channel;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{
-        app::cargo::command::register::cargo_command_map, contributes::data::all_commands,
-    };
+    use crate::{app::cargo::command::register::task_map, contributes::data::all_commands};
 
     #[wasm_bindgen_test]
     fn all_commands_are_registered() {
         let (cargo_tx, _rx) = channel(10);
         // let (cargo_make_tx, _rx) = channel(10);
         let closures = {
-            let mut cmds = cargo_command_map(cargo_tx);
+            let mut cmds = task_map(cargo_tx);
             // cmds.extend(cargo_make_command_map(cargo_make_tx));
             cmds
         };

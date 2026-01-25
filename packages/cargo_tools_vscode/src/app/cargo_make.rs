@@ -6,13 +6,13 @@ use iced_headless::{Subscription, Task};
 
 use cargo_make::ui::Message as Msg;
 
-use crate::{app::Command, vs_code_api::log};
+use crate::{app::VsCodeTask, vs_code_api::log};
 
 #[derive(Debug)]
 pub struct Ui {
     cmd_data: CommandData,
     rx: Receiver<Msg<()>>,
-    _cmds: Vec<Command>,
+    _cmds: Vec<VsCodeTask>,
 }
 
 #[derive(Debug, Clone)]

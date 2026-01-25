@@ -17,7 +17,7 @@ use crate::{
         CargoMsg, IntoCargoMessage, SelectInput,
         cargo::{
             PackageFilter, TargetTypesFilter, TargetTypesFilterUpdate, Ui,
-            command::{CargoToolsCmd, ProjectOutline as PO},
+            command::{Command, ProjectOutline as PO},
         },
     },
     quick_pick::ToQuickPickItem,
@@ -97,65 +97,57 @@ async fn select_multiple<T: ToQuickPickItem + Clone + Debug + PartialEq>(
 }
 
 impl Ui {
-    pub(crate) fn process_cmd(&self, cmd: CargoToolsCmd) -> IcedTask<CargoMsg> {
+    pub(crate) fn process_cmd(&self, cmd: Command) -> IcedTask<CargoMsg> {
         match cmd {
-            CargoToolsCmd::SelectProfile => {
+            Command::SelectProfile => {
                 let input = self.data.profiles();
                 run_task(async move { select(input).await.map(SelectedProfile) })
             }
-            CargoToolsCmd::SelectPackage => {
+            Command::SelectPackage => {
                 let input = self.data.packages();
                 run_task(async move { select(input).await.map(SelectedPackage) })
             }
-            CargoToolsCmd::SelectBuildTarget => {
+            Command::SelectBuildTarget => {
                 let input = self.data.build_target_options();
                 run_task(async move { select(input?).await.map(SelectedBuildTarget) })
             }
-            CargoToolsCmd::SelectRunTarget => {
+            Command::SelectRunTarget => {
                 let input = self.data.run_target_options();
                 run_task(async move { select(input?).await.map(SelectedRunTarget) })
             }
-            CargoToolsCmd::SelectBenchmarkTarget => {
+            Command::SelectBenchmarkTarget => {
                 let input = self.data.bench_target_options();
                 run_task(async move { select(input?).await.map(SelectedBenchmarkTarget) })
             }
-            CargoToolsCmd::SelectPlatformTarget => {
+            Command::SelectPlatformTarget => {
                 let current = self.data.selection.platform_target.clone();
                 run_task(async move { select_platform_target(current.clone()).await })
             }
-            CargoToolsCmd::InstallPlatformTarget => run_task(install_platform_target()),
-            CargoToolsCmd::SetRustAnalyzerCheckTargets => {
+            Command::InstallPlatformTarget => run_task(install_platform_target()),
+            Command::SetRustAnalyzerCheckTargets => {
                 IcedTask::done(set_rust_analyzer_check_targets())
                     .and_then(IcedTask::done)
                     .map(IntoCargoMessage::into_cargo_msg)
             }
-            CargoToolsCmd::BuildDocs => {
-                IcedTask::done(ExplicitCommand(Explicit::Doc).into_cargo_msg())
-            }
-            CargoToolsCmd::SelectFeatures => {
+            Command::BuildDocs => IcedTask::done(ExplicitCommand(Explicit::Doc).into_cargo_msg()),
+            Command::SelectFeatures => {
                 let input = self.data.feature_options();
                 run_task(async move { select_features(input).await })
             }
-            CargoToolsCmd::Refresh => {
+            Command::Refresh => {
                 // Not yet implemented
                 IcedTask::none()
             }
-            CargoToolsCmd::Clean => {
-                IcedTask::done(ImplicitCommand(Implicit::Clean).into_cargo_msg())
-            }
-            CargoToolsCmd::Build => {
-                IcedTask::done(ImplicitCommand(Implicit::Build).into_cargo_msg())
-            }
-            CargoToolsCmd::Run => IcedTask::done(ImplicitCommand(Implicit::Run).into_cargo_msg()),
-            CargoToolsCmd::Debug => {
+            Command::Clean => IcedTask::done(ImplicitCommand(Implicit::Clean).into_cargo_msg()),
+            Command::Build => IcedTask::done(ImplicitCommand(Implicit::Build).into_cargo_msg()),
+            Command::Run => IcedTask::done(ImplicitCommand(Implicit::Run).into_cargo_msg()),
+            Command::Debug => {
                 // Not yet implemented
                 IcedTask::none()
             }
-            CargoToolsCmd::Test => IcedTask::done(ImplicitCommand(Implicit::Test).into_cargo_msg()),
-            CargoToolsCmd::Bench => {
-                IcedTask::done(ImplicitCommand(Implicit::Bench).into_cargo_msg())
-            }
-            CargoToolsCmd::ProjectOutline(cmd) => self.process_outline_cmd(cmd),
+            Command::Test => IcedTask::done(ImplicitCommand(Implicit::Test).into_cargo_msg()),
+            Command::Bench => IcedTask::done(ImplicitCommand(Implicit::Bench).into_cargo_msg()),
+            Command::ProjectOutline(cmd) => self.process_outline_cmd(cmd),
         }
     }
 

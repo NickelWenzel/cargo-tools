@@ -6,24 +6,21 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     app::{
-        Command, CommandMap,
-        cargo::{
-            CargoToolsCmd::{self},
-            command::CargoCmdFn,
-        },
-        register_commands,
+        TaskMap, VsCodeTask,
+        cargo::command::{CargoCmdFn, Command},
+        register_tasks,
     },
     vs_code_api::log,
 };
 
-pub fn register_cargo_commands(tx: Sender<CargoToolsCmd>) -> Vec<Command> {
-    register_commands(cargo_command_map(tx))
+pub fn register_cargo_commands(tx: Sender<Command>) -> Vec<VsCodeTask> {
+    register_tasks(task_map(tx))
 }
 
-type CmdKeyValuePair = (&'static str, Command);
+type CmdKeyValuePair = (&'static str, VsCodeTask);
 
 fn create_vs_code_command(
-    tx: Sender<CargoToolsCmd>,
+    tx: Sender<Command>,
     key: &'static str,
     cargo_cmd_fn: CargoCmdFn,
 ) -> CmdKeyValuePair {
@@ -44,8 +41,8 @@ fn create_vs_code_command(
     (key, cmd)
 }
 
-pub fn cargo_command_map(tx: Sender<CargoToolsCmd>) -> CommandMap {
+pub fn task_map(tx: Sender<Command>) -> TaskMap {
     HashMap::from(
-        CargoToolsCmd::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
+        Command::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
     )
 }
