@@ -6,7 +6,12 @@ use cargo_tools::{
     profile::Profile,
 };
 use serde::{Deserialize, Serialize};
+use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
+
+use std::fmt::Debug;
+
+use crate::vs_code_api::{log, show_quick_pick, show_quick_pick_multiple};
 
 /// Represents an item in a VS Code quick pick menu.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,5 +156,83 @@ impl ToQuickPickItem for MakefileTask {
             .with_description(category)
             .with_detail(description)
             .with_picked(picked)
+    }
+}
+
+#[derive(Debug)]
+pub struct SelectInput<T> {
+    pub options: Vec<T>,
+    pub current: Vec<T>,
+}
+
+impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
+    pub async fn select(self) -> Option<T> {
+        let Self { options, current } = self;
+        let vccode_options = match options
+            .iter()
+            .map(|i| {
+                let picked = current.contains(i);
+                to_value(&i.to_item(picked))
+            })
+            .collect()
+        {
+            Ok(array) => array,
+            Err(e) => {
+                log(&format!("Failed to serialize quick pick items: {e:?}"));
+                return None;
+            }
+        };
+
+        let selected_index = match show_quick_pick(vccode_options).await {
+            Ok(value) => value.as_f64().map(|f| f as usize),
+            Err(e) => {
+                log(&format!("Quick pick failed: {e:?}"));
+                return None;
+            }
+        }?;
+
+        options.get(selected_index).cloned()
+    }
+
+    pub async fn select_multiple(self) -> Option<Vec<T>> {
+        let Self { options, current } = self;
+        let vscode_options = match options
+            .iter()
+            .map(|i| {
+                let picked = current.contains(i);
+                to_value(&i.to_item(picked))
+            })
+            .collect()
+        {
+            Ok(array) => array,
+            Err(e) => {
+                log(&format!("Failed to serialize quick pick items: {e:?}"));
+                return None;
+            }
+        };
+
+        let selected_indices = match show_quick_pick_multiple(vscode_options).await {
+            Ok(value) => {
+                if value.is_null() || value.is_undefined() {
+                    return None;
+                }
+                let array =
+                    wasm_bindgen::JsCast::dyn_ref::<wasm_bindgen_futures::js_sys::Array>(&value)?;
+                let indices: Vec<usize> = (0..array.length())
+                    .filter_map(|i| array.get(i).as_f64().map(|f| f as usize))
+                    .collect();
+                Some(indices)
+            }
+            Err(e) => {
+                log(&format!("Quick pick multiple failed: {e:?}"));
+                return None;
+            }
+        }?;
+
+        let selected = selected_indices
+            .into_iter()
+            .filter_map(|i| options.get(i).cloned())
+            .collect();
+        Some(selected)
     }
 }

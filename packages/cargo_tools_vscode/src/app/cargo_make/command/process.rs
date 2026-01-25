@@ -2,20 +2,18 @@
 
 use cargo_tools::app::cargo_make::ui::Task;
 use iced_headless::Task as IcedTask;
-use serde_wasm_bindgen::to_value;
-use std::fmt::Debug;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     app::{
-        CargoMakeMsg, SelectInput,
+        CargoMakeMsg,
         cargo_make::{
             SettingsUpdate, Ui, UiMessage,
             command::{Command, Pinned},
         },
     },
-    quick_pick::ToQuickPickItem,
-    vs_code_api::{log, show_quick_pick, showInformationMessage},
+    quick_pick::SelectInput,
+    vs_code_api::showInformationMessage,
 };
 
 trait IntoCargoMakeMessage {
@@ -34,35 +32,6 @@ impl IntoCargoMakeMessage for SettingsUpdate {
     }
 }
 
-async fn select<T: ToQuickPickItem + Clone + Debug + PartialEq>(
-    SelectInput { options, current }: SelectInput<T>,
-) -> Option<T> {
-    let vccode_options = match options
-        .iter()
-        .map(|i| {
-            let picked = current.contains(i);
-            to_value(&i.to_item(picked))
-        })
-        .collect()
-    {
-        Ok(array) => array,
-        Err(e) => {
-            log(&format!("Failed to serialize quick pick items: {e:?}"));
-            return None;
-        }
-    };
-
-    let selected_index = match show_quick_pick(vccode_options).await {
-        Ok(value) => value.as_f64().map(|f| f as usize),
-        Err(e) => {
-            log(&format!("Quick pick failed: {e:?}"));
-            return None;
-        }
-    }?;
-
-    options.get(selected_index).cloned()
-}
-
 impl Ui {
     pub(crate) fn process_cmd(&self, cmd: Command) -> IcedTask<CargoMakeMsg> {
         match cmd {
@@ -72,7 +41,9 @@ impl Ui {
                     options: self.makefile_tasks.clone(),
                     current: Vec::new(),
                 };
-                run_task(async move { select(input).await.map(|task| Command::RunTask(task.name)) })
+                run_task(
+                    async move { input.select().await.map(|task| Command::RunTask(task.name)) },
+                )
             }
             Command::SelectTaskFilter => todo!(),
             Command::EditTaskFilter(filter) => {
@@ -96,7 +67,7 @@ impl Ui {
                         options: self.makefile_tasks.clone(),
                         current: Vec::new(),
                     };
-                    run_task(async move { select(input).await.map(Command::PinTask) })
+                    run_task(async move { input.select().await.map(Command::PinTask) })
                 }
                 Pinned::Remove(idx) => {
                     IcedTask::done(SettingsUpdate::RemovePinned(idx).into_cargo_make_msg())

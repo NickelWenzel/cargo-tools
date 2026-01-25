@@ -24,9 +24,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
-        CargoMsg, SelectInput, VsCodeTask,
+        CargoMsg, VsCodeTask,
         cargo::command::{Command, register_cargo_commands},
     },
+    quick_pick::SelectInput,
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
     vs_code_api::log,
 };

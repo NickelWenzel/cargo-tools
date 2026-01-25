@@ -45,12 +45,6 @@ pub type CargoMakeMsg = ::cargo_tools::app::cargo_make::ui::Message<
     <cargo_make::Ui as ::cargo_tools::app::cargo_make::ui::Ui>::CustomUpdate,
 >;
 
-#[derive(Debug)]
-pub struct SelectInput<T: ToQuickPickItem + std::fmt::Debug> {
-    pub options: Vec<T>,
-    pub current: Vec<T>,
-}
-
 pub type SendResult<T> = Result<Option<T>, SendError<T>>;
 
 static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {

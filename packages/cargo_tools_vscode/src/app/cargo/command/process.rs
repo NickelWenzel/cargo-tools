@@ -2,27 +2,22 @@
 
 use cargo_tools::app::cargo::{
     command::{Explicit, Implicit},
-    selection::{
-        self, Features,
-        Update::{self, *},
-    },
+    selection::{self, Features, Update},
     ui::Task::*,
 };
 use iced_headless::Task as IcedTask;
-use serde_wasm_bindgen::to_value;
-use std::fmt::Debug;
 
 use crate::{
     app::{
-        CargoMsg, SelectInput,
+        CargoMsg,
         cargo::{
             Grouping, PackageFilter, SettingsUpdate, TargetTypesFilter, TargetTypesFilterUpdate,
             Ui, UiMessage,
             command::{Command, ProjectOutline as PO},
         },
     },
-    quick_pick::ToQuickPickItem,
-    vs_code_api::{JsValueExt, execute_async, log, show_quick_pick, show_quick_pick_multiple},
+    quick_pick::SelectInput,
+    vs_code_api::{JsValueExt, execute_async, log},
 };
 
 trait IntoCargoMessage {
@@ -59,100 +54,28 @@ impl IntoCargoMessage for Grouping {
     }
 }
 
-async fn select<T: ToQuickPickItem + Clone + Debug + PartialEq>(
-    SelectInput { options, current }: SelectInput<T>,
-) -> Option<T> {
-    let vccode_options = match options
-        .iter()
-        .map(|i| {
-            let picked = current.contains(i);
-            to_value(&i.to_item(picked))
-        })
-        .collect()
-    {
-        Ok(array) => array,
-        Err(e) => {
-            log(&format!("Failed to serialize quick pick items: {e:?}"));
-            return None;
-        }
-    };
-
-    let selected_index = match show_quick_pick(vccode_options).await {
-        Ok(value) => value.as_f64().map(|f| f as usize),
-        Err(e) => {
-            log(&format!("Quick pick failed: {e:?}"));
-            return None;
-        }
-    }?;
-
-    options.get(selected_index).cloned()
-}
-
-async fn select_multiple<T: ToQuickPickItem + Clone + Debug + PartialEq>(
-    SelectInput { options, current }: SelectInput<T>,
-) -> Option<Vec<T>> {
-    let vscode_options = match options
-        .iter()
-        .map(|i| {
-            let picked = current.contains(i);
-            to_value(&i.to_item(picked))
-        })
-        .collect()
-    {
-        Ok(array) => array,
-        Err(e) => {
-            log(&format!("Failed to serialize quick pick items: {e:?}"));
-            return None;
-        }
-    };
-
-    let selected_indices = match show_quick_pick_multiple(vscode_options).await {
-        Ok(value) => {
-            if value.is_null() || value.is_undefined() {
-                return None;
-            }
-            let array =
-                wasm_bindgen::JsCast::dyn_ref::<wasm_bindgen_futures::js_sys::Array>(&value)?;
-            let indices: Vec<usize> = (0..array.length())
-                .filter_map(|i| array.get(i).as_f64().map(|f| f as usize))
-                .collect();
-            Some(indices)
-        }
-        Err(e) => {
-            log(&format!("Quick pick multiple failed: {e:?}"));
-            return None;
-        }
-    }?;
-
-    let selected = selected_indices
-        .into_iter()
-        .filter_map(|i| options.get(i).cloned())
-        .collect();
-    Some(selected)
-}
-
 impl Ui {
     pub(crate) fn process_cmd(&self, cmd: Command) -> IcedTask<CargoMsg> {
         match cmd {
             Command::SelectProfile => {
                 let input = self.data.profiles();
-                run_task(async move { select(input).await.map(SelectedProfile) })
+                run_task(async move { input.select().await.map(Update::SelectedProfile) })
             }
             Command::SelectPackage => {
                 let input = self.data.packages();
-                run_task(async move { select(input).await.map(SelectedPackage) })
+                run_task(async move { input.select().await.map(Update::SelectedPackage) })
             }
             Command::SelectBuildTarget => {
                 let input = self.data.build_target_options();
-                run_task(async move { select(input?).await.map(SelectedBuildTarget) })
+                run_task(async move { input?.select().await.map(Update::SelectedBuildTarget) })
             }
             Command::SelectRunTarget => {
                 let input = self.data.run_target_options();
-                run_task(async move { select(input?).await.map(SelectedRunTarget) })
+                run_task(async move { input?.select().await.map(Update::SelectedRunTarget) })
             }
             Command::SelectBenchmarkTarget => {
                 let input = self.data.bench_target_options();
-                run_task(async move { select(input?).await.map(SelectedBenchmarkTarget) })
+                run_task(async move { input?.select().await.map(Update::SelectedBenchmarkTarget) })
             }
             Command::SelectPlatformTarget => {
                 let current = self.data.selection.platform_target.clone();
@@ -279,7 +202,7 @@ async fn select_platform_target(current: Option<String>) -> Option<impl IntoCarg
         SelectInput { options, current }
     };
 
-    select(input).await.map(SelectedPlatformTarget)
+    input.select().await.map(Update::SelectedPlatformTarget)
 }
 
 async fn install_platform_target() -> Option<impl IntoCargoMessage> {
@@ -312,7 +235,7 @@ async fn install_platform_target() -> Option<impl IntoCargoMessage> {
         current: Vec::new(),
     };
 
-    select(input).await.map(AddPlatformTarget)
+    input.select().await.map(AddPlatformTarget)
 }
 
 fn set_rust_analyzer_check_targets() -> Option<impl IntoCargoMessage> {
@@ -321,12 +244,12 @@ fn set_rust_analyzer_check_targets() -> Option<impl IntoCargoMessage> {
 }
 
 async fn select_features(input: Option<SelectInput<String>>) -> Option<impl IntoCargoMessage> {
-    let selected_features = select_multiple(input?).await?;
+    let selected_features = input?.select_multiple().await?;
     let features = if selected_features.iter().any(|f| f == "All Features") {
         Features::All
     } else {
         Features::Some(selected_features)
     };
 
-    Some(SelectedFeatures(features))
+    Some(Update::SelectedFeatures(features))
 }
