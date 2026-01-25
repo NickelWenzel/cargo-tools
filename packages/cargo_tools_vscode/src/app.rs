@@ -15,7 +15,6 @@ use wasm_bindgen::prelude::{Closure, wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    quick_pick::ToQuickPickItem,
     runtime::VsCodeRuntime as Runtime,
     vs_code_api::{log, register_command},
 };
@@ -111,15 +110,21 @@ pub mod tests {
     use futures::channel::mpsc::channel;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{app::cargo::command::task_map as cargo_task_map, contributes::data::all_commands};
+    use crate::{
+        app::{
+            cargo::command::task_map as cargo_task_map,
+            cargo_make::command::task_map as cargo_make_task_map,
+        },
+        contributes::data::all_commands,
+    };
 
     #[wasm_bindgen_test]
     fn all_commands_are_registered() {
         let (cargo_tx, _rx) = channel(10);
-        // let (cargo_make_tx, _rx) = channel(10);
+        let (cargo_make_tx, _rx) = channel(10);
         let closures = {
             let mut cmds = cargo_task_map(cargo_tx);
-            // cmds.extend(cargo_make_command_map(cargo_make_tx));
+            cmds.extend(cargo_make_task_map(cargo_make_tx));
             cmds
         };
         let commands = all_commands();
