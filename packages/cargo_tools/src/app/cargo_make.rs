@@ -47,9 +47,10 @@ impl<Ui: ui::Ui + Default + 'static> CargoMake<Ui> {
             }
             Msg::Ui(msg) => {
                 let task = match &msg {
-                    ui::Message::Update(update) => self.update_state::<RT>(update),
                     ui::Message::Task(task) => self.exec_task::<RT>(task.clone()),
-                    ui::Message::MakefileTasks(_) | ui::Message::Custom(_) => Task::none(),
+                    ui::Message::MakefileTasks(_)
+                    | ui::Message::Custom(_)
+                    | ui::Message::RootDirUpdate(_) => Task::none(),
                 };
                 let ui = self.ui.update(msg).map(Msg::Ui);
 
@@ -68,49 +69,24 @@ impl<Ui: ui::Ui + Default + 'static> CargoMake<Ui> {
         Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
     }
 
-    fn update_state<RT: Runtime>(&mut self, update: &ui::Update) -> Task<Msg<Ui>> {
-        match update {
-            ui::Update::AddPinned(task) => {
-                if self.state.pinned.contains(task) {
-                    self.state.pinned.push(task.clone());
-                }
-            }
-            ui::Update::RemovePinned(idx) => {
-                if *idx < self.state.pinned.len() {
-                    self.state.pinned.remove(*idx);
-                }
-            }
-        };
-        Task::future(RT::persist_state(self.state_key(), self.state.clone())).discard()
-    }
-
     fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg<Ui>> {
-        match task {
-            ui::Task::MakeTask(name) => {
-                let (cmd, mut args, env) = {
-                    let config = RT::get_configuration();
-                    let ctx = configuration::Context::General;
-                    let config_cmd = config.get_cargo_command(ctx);
-                    let mut cmd = config_cmd.split_whitespace().map(String::from);
-                    let (cmd, args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
-                    (cmd, args, config.get_env(ctx))
-                };
+        let (cmd, mut args, env) = {
+            let config = RT::get_configuration();
+            let ctx = configuration::Context::General;
+            let config_cmd = config.get_cargo_command(ctx);
+            let mut cmd = config_cmd.split_whitespace().map(String::from);
+            let (cmd, args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
+            (cmd, args, config.get_env(ctx))
+        };
 
-                args.extend(["make".to_string(), name]);
+        args.extend(["make".to_string(), task.into_name()]);
 
-                Task::future(RT::exec_task(CargoTask::CargoMake(runtime::Task {
-                    cmd,
-                    args,
-                    env,
-                })))
-                .discard()
-            }
-            ui::Task::Pinned(idx) => match self.state.pinned.get(idx) {
-                Some(task) => Task::done(task.name.clone())
-                    .map(|name| Msg::Ui(ui::Message::Task(ui::Task::MakeTask(name)))),
-                None => Task::none(),
-            },
-        }
+        Task::future(RT::exec_task(CargoTask::CargoMake(runtime::Task {
+            cmd,
+            args,
+            env,
+        })))
+        .discard()
     }
 
     fn update_tasks<RT: Runtime>(&mut self, tasks_update: MakefileTasksUpdate) -> Task<Msg<Ui>> {

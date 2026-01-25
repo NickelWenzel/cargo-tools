@@ -3,26 +3,23 @@ use std::fmt::Debug;
 use iced_headless::Subscription;
 use serde::{Deserialize, Serialize};
 
-use crate::app::cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate};
+use crate::app::cargo_make::tasks::{MakefileTasks, MakefileTasksUpdate};
 
 #[derive(Debug, Clone)]
 pub enum Message<CustomUpdate: Clone> {
-    Update(Update),
     MakefileTasks(MakefileTasksUpdate),
     Task(Task),
     Custom(CustomUpdate),
+    RootDirUpdate(String),
 }
 
 #[derive(Debug, Clone)]
-pub enum Update {
-    AddPinned(MakefileTask),
-    RemovePinned(usize),
-}
+pub struct Task(String);
 
-#[derive(Debug, Clone)]
-pub enum Task {
-    MakeTask(String),
-    Pinned(usize),
+impl Task {
+    pub fn into_name(self) -> String {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
