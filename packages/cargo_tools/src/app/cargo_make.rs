@@ -59,7 +59,7 @@ impl<Ui: ui::Ui + Default + 'static> CargoMake<Ui> {
         Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
     }
 
-    fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg<Ui>> {
+    fn exec_task<RT: Runtime>(&self, task: ui::Maketask) -> Task<Msg<Ui>> {
         let (cmd, mut args, env) = {
             let config = RT::get_configuration();
             let ctx = configuration::Context::General;

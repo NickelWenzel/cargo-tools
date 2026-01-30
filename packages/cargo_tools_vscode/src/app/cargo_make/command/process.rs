@@ -1,6 +1,6 @@
 // mod project_outline;
 
-use cargo_tools::app::cargo_make::ui::Task;
+use cargo_tools::app::cargo_make::ui::Maketask;
 use iced_headless::Task as IcedTask;
 use wasm_bindgen_futures::js_sys::Array;
 
@@ -35,7 +35,9 @@ impl IntoCargoMakeMessage for SettingsUpdate {
 impl Ui {
     pub(crate) fn process_cmd(&self, cmd: Command) -> IcedTask<CargoMakeMsg> {
         match cmd {
-            Command::RunTask(task) => IcedTask::done(CargoMakeMsg::Task(Task::from_string(task))),
+            Command::RunTask(task) => {
+                IcedTask::done(CargoMakeMsg::Task(Maketask::from_string(task)))
+            }
             Command::SelectAndRunTask => {
                 let input = SelectInput {
                     options: self.makefile_tasks.clone(),
@@ -73,7 +75,7 @@ impl Ui {
                     IcedTask::done(SettingsUpdate::RemovePinned(idx).into_cargo_make_msg())
                 }
                 Pinned::Execute(task) => {
-                    IcedTask::done(CargoMakeMsg::Task(Task::from_string(task)))
+                    IcedTask::done(CargoMakeMsg::Task(Maketask::from_string(task)))
                 }
                 Pinned::Execute1 => self.execute_pinned(0),
                 Pinned::Execute2 => self.execute_pinned(1),
@@ -86,7 +88,9 @@ impl Ui {
 
     fn execute_pinned(&self, idx: usize) -> IcedTask<CargoMakeMsg> {
         match self.settings.pinned_makefile_tasks.get(idx) {
-            Some(task) => IcedTask::done(CargoMakeMsg::Task(Task::from_string(task.name.clone()))),
+            Some(task) => {
+                IcedTask::done(CargoMakeMsg::Task(Maketask::from_string(task.name.clone())))
+            }
             None => IcedTask::future(showInformationMessage(
                 format!("There is no task no. {} pinned ", idx + 1),
                 Array::new(),

@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::app::cargo::selection;
+use crate::{
+    app::cargo::{TaskContext, selection},
+    configuration::Configuration,
+    runtime::{CargoTask, Task},
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Implicit {
@@ -12,6 +16,10 @@ pub enum Implicit {
 }
 
 impl Implicit {
+    pub fn to_task(self, selection: &selection::State, config: &impl Configuration) -> CargoTask {
+        self.to_explicit(selection).to_task(selection, config)
+    }
+
     pub fn to_explicit(self, selection: &selection::State) -> Explicit {
         match self {
             Implicit::Build => {
@@ -59,6 +67,22 @@ pub enum Explicit {
 }
 
 impl Explicit {
+    pub fn to_task(self, selection: &selection::State, config: &impl Configuration) -> CargoTask {
+        let ctx = self.task_context();
+
+        let config_cmd = config.get_cargo_command(ctx);
+        let mut cmd = config_cmd.split_whitespace().map(String::from);
+        let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
+        args.extend(self.into_args(selection));
+        args.extend(config.get_extra_args(ctx));
+
+        CargoTask::Cargo(Task {
+            cmd,
+            args,
+            env: config.get_env(ctx),
+        })
+    }
+
     pub fn into_args(self, selection: &selection::State) -> Vec<String> {
         match self {
             Explicit::Build(build_target) => {

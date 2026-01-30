@@ -3,26 +3,44 @@ use std::fmt::Debug;
 use iced_headless::Subscription;
 use serde::{Deserialize, Serialize};
 
-use crate::app::cargo_make::tasks::{MakefileTasks, MakefileTasksUpdate};
+use crate::{
+    app::cargo_make::tasks::{MakefileTasks, MakefileTasksUpdate},
+    configuration::{Configuration, Context},
+    runtime::{CargoTask, Task},
+};
 
 #[derive(Debug, Clone)]
 pub enum Message<CustomUpdate: Clone> {
     MakefileTasks(MakefileTasksUpdate),
-    Task(Task),
+    Task(Maketask),
     Custom(CustomUpdate),
     RootDirUpdate(String),
 }
 
 #[derive(Debug, Clone)]
-pub struct Task(String);
+pub struct Maketask(String);
 
-impl Task {
+impl Maketask {
     pub fn into_name(self) -> String {
         self.0
     }
 
     pub fn from_string(s: String) -> Self {
         Self(s)
+    }
+
+    pub fn to_task(self, config: &impl Configuration) -> CargoTask {
+        let ctx = Context::General;
+        let config_cmd = config.get_cargo_command(ctx);
+        let mut cmd = config_cmd.split_whitespace().map(String::from);
+        let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
+        args.extend(["make".to_string(), self.into_name()]);
+
+        CargoTask::CargoMake(Task {
+            cmd,
+            args,
+            env: config.get_env(ctx),
+        })
     }
 }
 
