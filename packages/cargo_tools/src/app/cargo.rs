@@ -9,7 +9,7 @@ use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
 use crate::{
-    app::cargo::metadata::{MetadataUpdate, parse_manual, parse_metadata, workspace_manifests},
+    app::cargo::metadata::{MetadataUpdate, parse_metadata, parse_profiles, workspace_manifests},
     configuration::{self, Configuration},
     runtime::{self, CargoTask, Runtime},
 };
@@ -70,7 +70,7 @@ impl<Ui: ui::Ui + Default + 'static> Cargo<Ui> {
 
     fn parse<RT: Runtime>(&self) -> Task<Msg<Ui>> {
         let metadata = Task::future(parse_metadata::<RT>(self.root_manifest()));
-        let profiles = Task::future(parse_manual::<RT>(self.root_dir.clone()));
+        let profiles = Task::future(parse_profiles::<RT>(self.root_dir.clone()));
         Task::batch([metadata, profiles]).map(Msg::MetadataUpdate)
     }
 

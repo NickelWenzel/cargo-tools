@@ -35,14 +35,17 @@ pub async fn parse_metadata<RT: Runtime>(manifest_file: String) -> MetadataUpdat
     }
 }
 
-pub async fn parse_manual<RT: Runtime>(root_dir: String) -> MetadataUpdate {
+pub async fn parse_profiles<RT: Runtime>(root_dir: String) -> MetadataUpdate {
     let mut profiles = Profile::standards_profiles();
 
     let manifest_file = format!("{root_dir}/Cargo.toml");
     let config_file = format!("{root_dir}/.cargo/Config.toml");
 
     for file in [manifest_file, config_file] {
-        for profile in extract_custom_profiles::<RT>(file).await {
+        let Ok(toml) = RT::read_file(file).await else {
+            continue;
+        };
+        for profile in extract_profiles(toml) {
             if !profiles.contains(&profile) {
                 profiles.push(profile);
             }
@@ -68,19 +71,71 @@ async fn extract_raw_metadata<RT: Runtime>(raw_metadata: &str) -> MetadataUpdate
     }
 }
 
-async fn extract_custom_profiles<RT: Runtime>(toml_path: String) -> Vec<Profile> {
-    let Ok(toml) = RT::read_file(toml_path).await else {
-        return Vec::new();
-    };
-
+fn extract_profiles(toml: String) -> Vec<Profile> {
     let Ok(table) = toml.parse::<Table>() else {
         return Vec::new();
     };
+    let Some(profiles) = table.get("profile") else {
+        return Vec::new();
+    };
 
-    table
-        .keys()
-        .filter(|k| k.starts_with("profile."))
-        .map(|k| Profile::from(k.trim_start_matches("profile.")))
-        .filter(Profile::is_standard)
-        .collect::<Vec<_>>()
+    let profiles = match profiles {
+        toml::Value::Table(profiles) => profiles,
+        _ => return Vec::new(),
+    };
+
+    profiles.keys().cloned().map(Profile::from).collect()
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_profiles_valid() {
+        let toml = r#"
+[workspace]
+members = ["cli", "core", "utils", "web-server", "test-cdylib", "test-staticlib", "test-proc-macro", "test-proc-macro-alt"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+
+[profile.debug-optimized]
+inherits = "dev"
+opt-level = 2
+        "#;
+
+        let profiles = extract_profiles(toml.to_string());
+
+        assert_eq!(profiles.len(), 3);
+        assert!(profiles.contains(&Profile::from("debug-optimized")));
+        assert!(profiles.contains(&Profile::from("dev")));
+        assert!(profiles.contains(&Profile::from("release")));
+    }
+
+    #[test]
+    fn extract_profiles_empty() {
+        let toml = r#"
+[package]
+name = "test"
+version = "0.1.0"
+        "#;
+
+        let profiles = extract_profiles(toml.to_string());
+        assert_eq!(profiles.len(), 0);
+    }
+
+    #[test]
+    fn extract_profiles_invalid_toml() {
+        let toml = "not valid toml {{{";
+
+        let profiles = extract_profiles(toml.to_string());
+        assert_eq!(profiles.len(), 0);
+    }
 }
