@@ -85,14 +85,14 @@ impl Ui {
     }
 
     fn execute_pinned(&self, idx: usize) -> IcedTask<CargoMakeMsg> {
-        let Some(task) = self.settings.pinned_makefile_tasks.get(idx) else {
-            showInformationMessage(
+        match self.settings.pinned_makefile_tasks.get(idx) {
+            Some(task) => IcedTask::done(CargoMakeMsg::Task(Task::from_string(task.name.clone()))),
+            None => IcedTask::future(showInformationMessage(
                 format!("There is no task no. {} pinned ", idx + 1),
                 Array::new(),
-            );
-            return IcedTask::none();
-        };
-        IcedTask::done(CargoMakeMsg::Task(Task::from_string(task.name.clone())))
+            ))
+            .discard(),
+        }
     }
 }
 

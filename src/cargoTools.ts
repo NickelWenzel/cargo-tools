@@ -27,3 +27,15 @@ export async function execute_async(command: string): Promise<String> {
     });
     return stdout;
 }
+
+export async function executeCommand(command: string, rest: any[]): Promise<any> {
+    return await vscode.commands.executeCommand(command, ...rest);
+}
+
+export async function showInformationMessage(message: string, items: string[]): Promise<string | undefined> {
+    return await vscode.window.showInformationMessage(message, ...items);
+}
+
+export async function showErrorMessage(message: string, items: string[]): Promise<string | undefined> {
+    return await vscode.window.showErrorMessage(message, ...items);
+}

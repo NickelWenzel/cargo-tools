@@ -9,6 +9,16 @@ extern "C" {
 
     #[wasm_bindgen(catch)]
     pub async fn execute_async(command: &str) -> Result<JsString, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn executeCommand(command: &str, rest: Array) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn showInformationMessage(message: String, items: Array)
+    -> Result<JsString, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn showErrorMessage(message: String, items: Array) -> Result<JsString, JsValue>;
 }
 
 #[wasm_bindgen(raw_module = "../runtime.ts")]
@@ -106,35 +116,34 @@ extern "C" {
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     pub fn log(s: &str);
-
-    #[wasm_bindgen(js_namespace = ["vscode", "commands"])]
-    pub fn execute_command(command: &str, rest: Vec<JsValue>);
-
-    #[wasm_bindgen(js_namespace = ["vscode", "window"])]
-    pub fn showInformationMessage(message: String, items: Array);
-
-    #[wasm_bindgen(js_namespace = ["vscode", "window"])]
-    pub fn showErrorMessage(message: String, items: Array);
 }
 
-pub fn set_cargo_context(has_cargo: bool) {
-    execute_command(
+pub async fn set_cargo_context(has_cargo: bool) {
+    let res = executeCommand(
         "setContext",
-        vec![
-            JsValue::from_str("cargoTools:workspaceHasCargo"),
-            JsValue::from(has_cargo),
-        ],
-    );
+        Array::of2(
+            &JsValue::from_str("cargoTools:workspaceHasCargo"),
+            &JsValue::from_bool(has_cargo),
+        ),
+    )
+    .await;
+    if let Err(e) = res {
+        log(&e.to_error_string());
+    }
 }
 
-pub fn set_makefile_context(has_makefile: bool) {
-    execute_command(
+pub async fn set_makefile_context(has_makefile: bool) {
+    let res = executeCommand(
         "setContext",
-        vec![
-            JsValue::from_str("cargoTools:workspaceHasMakefile"),
-            JsValue::from(has_makefile),
-        ],
-    );
+        Array::of2(
+            &JsValue::from_str("cargoTools:workspaceHasMakefile"),
+            &JsValue::from_bool(has_makefile),
+        ),
+    )
+    .await;
+    if let Err(e) = res {
+        log(&e.to_error_string());
+    }
 }
 
 pub trait JsValueExt {

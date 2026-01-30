@@ -37,24 +37,11 @@ pub struct Cargo<Ui: ui::Ui + Default> {
 
 impl<Ui: ui::Ui + Default + 'static> Cargo<Ui> {
     pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
-        RT::log("Cargo update received".to_string());
         match msg {
-            Msg::RootDirUpdate(root_dir) => {
-                RT::log(format!("Cargo update received: new root dir {root_dir}"));
-                self.update_root_dir::<RT>(root_dir)
-            }
-            Msg::ManifestUpdate => {
-                RT::log("Cargo update received: manifest updated".to_string());
-                self.parse::<RT>()
-            }
-            Msg::ConfigUpdate => {
-                RT::log("Cargo update received: config updated".to_string());
-                self.parse::<RT>()
-            }
-            Msg::MetadataUpdate(update) => {
-                RT::log("Cargo update received: metadata updated".to_string());
-                self.update_metadata::<RT>(update)
-            }
+            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
+            Msg::ManifestUpdate => self.parse::<RT>(),
+            Msg::ConfigUpdate => self.parse::<RT>(),
+            Msg::MetadataUpdate(update) => self.update_metadata::<RT>(update),
             Msg::Ui(msg) => {
                 let task = match &msg {
                     UiMsg::Selection(update) => self.update_state::<RT>(update.clone()),

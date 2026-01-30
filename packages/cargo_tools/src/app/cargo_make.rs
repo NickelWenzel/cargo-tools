@@ -29,22 +29,12 @@ pub struct CargoMake<Ui: ui::Ui + Default> {
 
 impl<Ui: ui::Ui + Default + 'static> CargoMake<Ui> {
     pub fn update<RT: Runtime>(&mut self, msg: Msg<Ui>) -> Task<Msg<Ui>> {
-        RT::log("Cargo make update received".to_string());
         match msg {
-            Msg::RootDirUpdate(root_dir) => {
-                RT::log(format!(
-                    "Cargo make update received: new root dir {root_dir}"
-                ));
-                self.update_root_dir::<RT>(root_dir)
-            }
+            Msg::RootDirUpdate(root_dir) => self.update_root_dir::<RT>(root_dir),
             Msg::MakefileUpdate => {
-                RT::log("Cargo make update received: makefile updated".to_string());
                 Task::future(parse_tasks::<RT>(self.makefile())).map(Msg::MakefileTasksUpdate)
             }
-            Msg::MakefileTasksUpdate(tasks_update) => {
-                RT::log("Cargo make update received: makefile tasks updated".to_string());
-                self.update_tasks::<RT>(tasks_update)
-            }
+            Msg::MakefileTasksUpdate(tasks_update) => self.update_tasks::<RT>(tasks_update),
             Msg::Ui(msg) => {
                 let task = match &msg {
                     ui::Message::Task(task) => self.exec_task::<RT>(task.clone()),

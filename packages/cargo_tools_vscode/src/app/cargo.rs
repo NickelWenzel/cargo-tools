@@ -29,7 +29,7 @@ use crate::{
     },
     quick_pick::SelectInput,
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
-    vs_code_api::log,
+    vs_code_api::{log, set_cargo_context},
 };
 
 #[derive(Debug, Clone)]
@@ -79,23 +79,26 @@ impl cargo::ui::Ui for Ui {
     type CustomUpdate = UiMessage;
 
     fn update(&mut self, msg: CargoMsg) -> Task<CargoMsg> {
-        log("Cargo Ui update received");
         match msg {
             Msg::Selection(update) => {
                 self.data.selection.update(update);
                 Task::none()
             }
-            Msg::Metadata(update) => {
-                match update {
-                    MetadataUpdate::Metadata(metadata) => {
-                        self.data.metadata.metadata = Some(metadata)
-                    }
-                    MetadataUpdate::Profiles(profiles) => self.data.metadata.profiles = profiles,
-                    MetadataUpdate::NoCargoToml => self.data.metadata = UiMetadata::default(),
-                    MetadataUpdate::FailedToRetrieve => {}
-                };
-                Task::none()
-            }
+            Msg::Metadata(update) => match update {
+                MetadataUpdate::Metadata(metadata) => {
+                    self.data.metadata.metadata = Some(metadata);
+                    Task::future(set_cargo_context(true)).discard()
+                }
+                MetadataUpdate::Profiles(profiles) => {
+                    self.data.metadata.profiles = profiles;
+                    Task::none()
+                }
+                MetadataUpdate::NoCargoToml => {
+                    self.data.metadata = UiMetadata::default();
+                    Task::future(set_cargo_context(false)).discard()
+                }
+                MetadataUpdate::FailedToRetrieve => Task::none(),
+            },
             // Task are only created by user interaction but always processed by the parent cargo component
             Msg::Task(_) => Task::none(),
             Msg::Custom(msg) => match msg {

@@ -34,7 +34,7 @@ pub struct App<UiT: Ui> {
 
 impl<UiT: Ui + std::fmt::Debug + 'static> App<UiT> {
     pub fn update<RT: Runtime>(&mut self, msg: Msg<UiT>) -> Task<Msg<UiT>> {
-        RT::log("App update received".to_string());
+        RT::log(format!("Received message:\n{msg:?}"));
         match msg {
             Msg::Cargo(msg) => self.cargo.update::<RT>(msg).map(Msg::Cargo),
             Msg::CargoMake(msg) => self.cargo_make.update::<RT>(msg).map(Msg::CargoMake),

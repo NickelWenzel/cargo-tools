@@ -22,7 +22,7 @@ use crate::{
         cargo_make::command::{Command, register_cargo_make_commands},
     },
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
-    vs_code_api::log,
+    vs_code_api::{log, set_makefile_context},
 };
 
 #[derive(Debug, Clone)]
@@ -85,18 +85,18 @@ impl cargo_make::ui::Ui for Ui {
     type CustomUpdate = UiMessage;
 
     fn update(&mut self, msg: CargoMakeMsg) -> Task<CargoMakeMsg> {
-        log("Cargo make Ui update received");
         match msg {
-            Msg::MakefileTasks(update) => {
-                match update {
-                    MakefileTasksUpdate::New(makefile_tasks) => {
-                        self.makefile_tasks = makefile_tasks
-                    }
-                    MakefileTasksUpdate::NoMakefile => self.makefile_tasks = Vec::new(),
-                    MakefileTasksUpdate::FailedToRetrieve => {}
+            Msg::MakefileTasks(update) => match update {
+                MakefileTasksUpdate::New(makefile_tasks) => {
+                    self.makefile_tasks = makefile_tasks;
+                    Task::future(set_makefile_context(true)).discard()
                 }
-                Task::none()
-            }
+                MakefileTasksUpdate::NoMakefile => {
+                    self.makefile_tasks = Vec::new();
+                    Task::future(set_makefile_context(false)).discard()
+                }
+                MakefileTasksUpdate::FailedToRetrieve => Task::none(),
+            },
             // Task are only created by user interaction but always processed by the parent cargo make component
             Msg::Task(_) => Task::none(),
             Msg::Custom(msg) => match msg {
