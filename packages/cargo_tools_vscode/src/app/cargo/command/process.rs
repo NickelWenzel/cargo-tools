@@ -1,140 +1,124 @@
 // mod project_outline;
 
-use cargo_tools::app::cargo::{
-    command::{Explicit, Implicit},
-    selection::{self, Features, Update},
-    ui::Task::*,
+use std::collections::HashMap;
+
+use cargo_tools::{
+    app::cargo::{
+        command::{Explicit, Implicit},
+        selection::{self, Features, Update},
+    },
+    runtime::{self, CargoTask, Runtime as _},
 };
-use iced_headless::Task as IcedTask;
+use iced_headless::Task;
 
 use crate::{
-    app::{
-        CargoMsg,
-        cargo::{
-            Grouping, PackageFilter, SettingsUpdate, TargetTypesFilter, TargetTypesFilterUpdate,
-            Ui, UiMessage,
-            command::{Command, ProjectOutline as PO},
-        },
+    app::cargo::{
+        Grouping, Message, PackageFilter, SettingsUpdate, TargetTypesFilter,
+        TargetTypesFilterUpdate, Ui,
+        command::{Command, ProjectOutline as PO},
     },
     quick_pick::SelectInput,
+    runtime::VsCodeRuntime as Runtime,
     vs_code_api::{JsValueExt, execute_async, log},
 };
 
-trait IntoCargoMessage {
-    fn into_cargo_msg(self) -> CargoMsg;
+trait IntoMessage {
+    fn into_cargo_msg(self) -> Message;
 }
 
-impl IntoCargoMessage for selection::Update {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Selection(self)
+impl IntoMessage for selection::Update {
+    fn into_cargo_msg(self) -> Message {
+        Message::SelectionChanged(self)
     }
 }
 
-impl IntoCargoMessage for cargo_tools::app::cargo::ui::Task {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Task(self)
+impl IntoMessage for PackageFilter {
+    fn into_cargo_msg(self) -> Message {
+        Message::SettingsChanged(SettingsUpdate::PackageFilter(self))
     }
 }
 
-impl IntoCargoMessage for PackageFilter {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Custom(UiMessage::Settings(SettingsUpdate::PackageFilter(self)))
+impl IntoMessage for TargetTypesFilter {
+    fn into_cargo_msg(self) -> Message {
+        Message::SettingsChanged(SettingsUpdate::TargetTypesFilter(self))
     }
 }
 
-impl IntoCargoMessage for TargetTypesFilter {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Custom(UiMessage::Settings(SettingsUpdate::TargetTypesFilter(self)))
-    }
-}
-
-impl IntoCargoMessage for Grouping {
-    fn into_cargo_msg(self) -> CargoMsg {
-        CargoMsg::Custom(UiMessage::Settings(SettingsUpdate::Grouping(self)))
+impl IntoMessage for Grouping {
+    fn into_cargo_msg(self) -> Message {
+        Message::SettingsChanged(SettingsUpdate::Grouping(self))
     }
 }
 
 impl Ui {
-    pub(crate) fn process_cmd(&self, cmd: Command) -> IcedTask<CargoMsg> {
+    pub(crate) fn process_cmd(&self, cmd: Command) -> Task<Message> {
         match cmd {
             Command::SelectProfile => {
                 let input = self.data.profiles();
-                run_task(async move { input.select().await.map(Update::SelectedProfile) })
+                done(async move { input.select().await.map(Update::SelectedProfile) })
             }
             Command::SelectPackage => {
                 let input = self.data.packages();
-                run_task(async move { input.select().await.map(Update::SelectedPackage) })
+                done(async move { input.select().await.map(Update::SelectedPackage) })
             }
             Command::SelectBuildTarget => {
                 let input = self.data.build_target_options();
-                run_task(async move { input?.select().await.map(Update::SelectedBuildTarget) })
+                done(async move { input?.select().await.map(Update::SelectedBuildTarget) })
             }
             Command::SelectRunTarget => {
                 let input = self.data.run_target_options();
-                run_task(async move { input?.select().await.map(Update::SelectedRunTarget) })
+                done(async move { input?.select().await.map(Update::SelectedRunTarget) })
             }
             Command::SelectBenchmarkTarget => {
                 let input = self.data.bench_target_options();
-                run_task(async move { input?.select().await.map(Update::SelectedBenchmarkTarget) })
+                done(async move { input?.select().await.map(Update::SelectedBenchmarkTarget) })
             }
             Command::SelectPlatformTarget => {
                 let current = self.data.selection.platform_target.clone();
-                run_task(async move { select_platform_target(current.clone()).await })
+                done(async move { select_platform_target(current.clone()).await })
             }
-            Command::InstallPlatformTarget => run_task(install_platform_target()),
-            Command::SetRustAnalyzerCheckTargets => {
-                IcedTask::done(set_rust_analyzer_check_targets())
-                    .and_then(IcedTask::done)
-                    .map(IntoCargoMessage::into_cargo_msg)
-            }
-            Command::BuildDocs => IcedTask::done(ExplicitCommand(Explicit::Doc).into_cargo_msg()),
+            Command::InstallPlatformTarget => Task::future(install_platform_target()).discard(),
+            Command::SetRustAnalyzerCheckTargets => Task::done(set_rust_analyzer_check_targets())
+                .and_then(Task::done)
+                .map(IntoMessage::into_cargo_msg),
+            Command::BuildDocs => self.cmd_exec(Explicit::Doc),
             Command::SelectFeatures => {
                 let input = self.data.feature_options();
-                run_task(async move { select_features(input).await })
+                done(async move { select_features(input).await })
             }
             Command::Refresh => {
                 // Not yet implemented
-                IcedTask::none()
+                Task::none()
             }
-            Command::Clean => IcedTask::done(ImplicitCommand(Implicit::Clean).into_cargo_msg()),
-            Command::Build => IcedTask::done(ImplicitCommand(Implicit::Build).into_cargo_msg()),
-            Command::Run => IcedTask::done(ImplicitCommand(Implicit::Run).into_cargo_msg()),
+            Command::Clean => self.cmd_exec(Implicit::Clean),
+            Command::Build => self.cmd_exec(Implicit::Build),
+            Command::Run => self.cmd_exec(Implicit::Run),
             Command::Debug => {
                 // Not yet implemented
-                IcedTask::none()
+                Task::none()
             }
-            Command::Test => IcedTask::done(ImplicitCommand(Implicit::Test).into_cargo_msg()),
-            Command::Bench => IcedTask::done(ImplicitCommand(Implicit::Bench).into_cargo_msg()),
+            Command::Test => self.cmd_exec(Implicit::Test),
+            Command::Bench => self.cmd_exec(Implicit::Bench),
             Command::ProjectOutline(cmd) => self.process_outline_cmd(cmd),
         }
     }
 
-    pub(crate) fn process_outline_cmd(&self, cmd: PO) -> IcedTask<CargoMsg> {
+    pub(crate) fn process_outline_cmd(&self, cmd: PO) -> Task<Message> {
         match cmd {
-            PO::Select(update) => IcedTask::done(update.into_cargo_msg()),
-            PO::Unselect(update) => IcedTask::done(update.into_cargo_msg()),
-            PO::Build(target) => {
-                IcedTask::done(ExplicitCommand(Explicit::Build(target)).into_cargo_msg())
-            }
-            PO::Test(package) => {
-                IcedTask::done(ExplicitCommand(Explicit::Test { package }).into_cargo_msg())
-            }
-            PO::Clean(package) => {
-                IcedTask::done(ExplicitCommand(Explicit::Clean { package }).into_cargo_msg())
-            }
-            PO::Run(target) => {
-                IcedTask::done(ExplicitCommand(Explicit::Run(Some(target))).into_cargo_msg())
-            }
+            PO::Select(update) => Task::done(update.into_cargo_msg()),
+            PO::Unselect(update) => Task::done(update.into_cargo_msg()),
+            PO::Build(target) => self.cmd_exec(Explicit::Build(target)),
+            PO::Test(package) => self.cmd_exec(Explicit::Test { package }),
+            PO::Clean(package) => self.cmd_exec(Explicit::Clean { package }),
+            PO::Run(target) => self.cmd_exec(Explicit::Run(Some(target))),
             PO::Debug(_) => {
                 // Not yet implemented
-                IcedTask::none()
+                Task::none()
             }
-            PO::Bench(package) => {
-                IcedTask::done(ExplicitCommand(Explicit::Bench { package }).into_cargo_msg())
-            }
+            PO::Bench(package) => self.cmd_exec(Explicit::Bench { package }),
             PO::SelectWorkspaceMemberFilter => todo!(),
             PO::EditWorkspaceMemberFilter(filter) => {
-                IcedTask::done(PackageFilter(filter).into_cargo_msg())
+                Task::done(PackageFilter(filter).into_cargo_msg())
             }
             PO::SelectTargetTypeFilter => todo!(),
             PO::EditTargetTypeFilter(update) => {
@@ -146,30 +130,48 @@ impl Ui {
                     TargetTypesFilterUpdate::Benchmarks(on) => filter.benchmarks = on,
                     TargetTypesFilterUpdate::Features(on) => filter.features = on,
                 };
-                IcedTask::done(filter.into_cargo_msg())
+                Task::done(filter.into_cargo_msg())
             }
             PO::ClearAllFilters => {
-                let member_filter = IcedTask::done(PackageFilter::default().into_cargo_msg());
-                let types_filter = IcedTask::done(TargetTypesFilter::default().into_cargo_msg());
+                let member_filter = Task::done(PackageFilter::default().into_cargo_msg());
+                let types_filter = Task::done(TargetTypesFilter::default().into_cargo_msg());
 
-                IcedTask::batch([member_filter, types_filter])
+                Task::batch([member_filter, types_filter])
             }
             PO::ToggleWorkspaceMemberGrouping => {
-                IcedTask::done(self.settings.grouping.toggle().into_cargo_msg())
+                Task::done(self.settings.grouping.toggle().into_cargo_msg())
             }
         }
     }
+
+    fn cmd_exec(&self, cmd: impl ToTask) -> Task<Message> {
+        Task::future(Runtime::exec_task(cmd.into_task(&self.data.selection))).discard()
+    }
 }
 
-fn run_task(
-    fut: impl Future<Output = Option<impl IntoCargoMessage + 'static>> + 'static,
-) -> IcedTask<CargoMsg> {
-    IcedTask::future(fut)
-        .and_then(IcedTask::done)
-        .map(IntoCargoMessage::into_cargo_msg)
+fn done(fut: impl Future<Output = Option<impl IntoMessage + 'static>> + 'static) -> Task<Message> {
+    Task::future(fut)
+        .and_then(Task::done)
+        .map(IntoMessage::into_cargo_msg)
 }
 
-async fn select_platform_target(current: Option<String>) -> Option<impl IntoCargoMessage> {
+trait ToTask {
+    fn into_task(self, selection: &selection::State) -> CargoTask;
+}
+
+impl ToTask for Implicit {
+    fn into_task(self, selection: &selection::State) -> CargoTask {
+        self.to_task(selection, &Runtime::get_configuration())
+    }
+}
+
+impl ToTask for Explicit {
+    fn into_task(self, selection: &selection::State) -> CargoTask {
+        self.to_task(selection, &Runtime::get_configuration())
+    }
+}
+
+async fn select_platform_target(current: Option<String>) -> Option<impl IntoMessage> {
     let platform_targets = match execute_async("rustup target list").await {
         Ok(output) => {
             let output_str = output.as_string().unwrap_or_default();
@@ -205,7 +207,7 @@ async fn select_platform_target(current: Option<String>) -> Option<impl IntoCarg
     input.select().await.map(Update::SelectedPlatformTarget)
 }
 
-async fn install_platform_target() -> Option<impl IntoCargoMessage> {
+async fn install_platform_target() {
     let options = match execute_async("rustup target list").await {
         Ok(output) => {
             let output_str = output.as_string().unwrap_or_default();
@@ -226,7 +228,7 @@ async fn install_platform_target() -> Option<impl IntoCargoMessage> {
                 "Failed to get platform targets from rustup: {}",
                 e.to_error_string()
             ));
-            return None;
+            return;
         }
     };
 
@@ -235,15 +237,24 @@ async fn install_platform_target() -> Option<impl IntoCargoMessage> {
         current: Vec::new(),
     };
 
-    input.select().await.map(AddPlatformTarget)
+    let Some(target) = input.select().await else {
+        return;
+    };
+
+    Runtime::exec_task(CargoTask::Cargo(runtime::Task {
+        cmd: "rustup".to_string(),
+        args: vec!["target".to_string(), "add".to_string(), target],
+        env: HashMap::new(),
+    }))
+    .await
 }
 
-fn set_rust_analyzer_check_targets() -> Option<impl IntoCargoMessage> {
+fn set_rust_analyzer_check_targets() -> Option<impl IntoMessage> {
     log("'Set rust-analyzer check targets' not yet implemented");
     Option::<Update>::None
 }
 
-async fn select_features(input: Option<SelectInput<String>>) -> Option<impl IntoCargoMessage> {
+async fn select_features(input: Option<SelectInput<String>>) -> Option<impl IntoMessage> {
     let selected_features = input?.select_multiple().await?;
     let features = if selected_features.iter().any(|f| f == "All Features") {
         Features::All

@@ -1,10 +1,11 @@
+pub mod base;
 pub mod cargo;
 pub mod cargo_make;
 
 use std::{collections::HashMap, sync::Mutex};
 
 use async_broadcast::SendError;
-use cargo_tools::app::{App, AppMessage, cargo::CargoMessage, cargo_make::CargoMakeMessage};
+use cargo_tools::runtime::Runtime as _;
 use futures::{
     SinkExt,
     channel::mpsc::{Sender, channel},
@@ -25,6 +26,8 @@ pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
 
 pub type VsCodeTask = Closure<dyn FnMut(Array)>;
 type TaskMap = HashMap<&'static str, Closure<dyn FnMut(Array)>>;
+
+pub type OnFileChanged = Closure<dyn FnMut()>;
 
 pub fn register_tasks(cmds: TaskMap) -> Vec<VsCodeTask> {
     cmds.into_iter()
@@ -51,19 +54,34 @@ static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
     Mutex::new(tx)
 });
 
-#[derive(Debug, Default)]
-struct Ui;
+#[derive(Debug)]
+enum Message {
+    Cargo(cargo::Message),
+    CargoMake(cargo_make::Message),
+}
 
-impl cargo_tools::app::Ui for Ui {
-    type Cargo = cargo::Ui;
-    type CargoMake = cargo_make::Ui;
+use Message::Cargo;
+use Message::CargoMake;
+
+struct Extension {
+    pub cargo: cargo::Ui,
+    pub cargo_make: cargo_make::Ui,
+}
+
+impl Extension {
+    pub fn update(&mut self, msg: Message) -> Task<Message> {
+        Runtime::log(format!("Cargo tools extension received message:\n{msg:?}"));
+        match msg {
+            Cargo(msg) => self.cargo.update(msg).map(Cargo),
+            CargoMake(msg) => self.cargo_make.update(msg).map(CargoMake),
+        }
+    }
 }
 
 #[wasm_bindgen]
 pub fn run(workspace_root: String) {
     wasm_bindgen_futures::spawn_local(async {
-        if let Err(e) = async_application(App::update::<Runtime>)
-            .subscription(App::subscription::<Runtime>)
+        if let Err(e) = async_application(Extension::update)
             .exit_on(exit_on)
             .run_with(|| init(workspace_root))
             .await
@@ -83,21 +101,20 @@ pub async fn exit() {
     }
 }
 
-fn init(root_dir: String) -> (App<Ui>, Task<AppMessage<Ui>>) {
+fn init(root_dir: String) -> (Extension, Task<Message>) {
     log("Initializing Cargo tools");
 
-    let cargo = Task::done(AppMessage::Cargo(CargoMessage::RootDirUpdate(
-        root_dir.clone(),
-    )));
-    let cargo_make = Task::done(AppMessage::CargoMake(CargoMakeMessage::RootDirUpdate(
-        root_dir,
-    )));
-    let ret = (App::default(), Task::batch([cargo, cargo_make]));
+    let (cargo, cargo_task) = cargo::Ui::new(root_dir.clone());
+    let (cargo_make, cargo_make_task) = cargo_make::Ui::new(root_dir.clone());
+
+    let ext = Extension { cargo, cargo_make };
+    let task = Task::batch([cargo_task.map(Cargo), cargo_make_task.map(CargoMake)]);
+
     log("Done initializing Cargo tools");
-    ret
+    (ext, task)
 }
 
-fn exit_on(_: &App<Ui>) -> Subscription<Exit> {
+fn exit_on(_: &Extension) -> Subscription<Exit> {
     Subscription::run(|| {
         let (tx, rx) = channel::<Exit>(10);
         *EXIT_TX.lock().unwrap() = tx;

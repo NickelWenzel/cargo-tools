@@ -5,38 +5,36 @@ use std::iter;
 use cargo_metadata::Metadata;
 use cargo_tools::{
     app::cargo::{
-        self,
         command::{BuildSubTarget, RunSubTarget},
-        metadata::MetadataUpdate,
+        metadata::{MetadataUpdate, parse_metadata, parse_profiles},
         selection::{self, Features},
     },
     profile::Profile,
     runtime::Runtime as _,
 };
-use futures::{
-    SinkExt, Stream, StreamExt,
-    channel::mpsc::{Sender, channel},
-};
-use iced_headless::{Subscription, Task, stream};
+use futures::channel::mpsc::channel;
+use iced_headless::Task;
 
-use cargo::ui::Message as Msg;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{
-        CargoMsg, VsCodeTask,
+        base::{Base, send_file_changed},
         cargo::command::{Command, register_cargo_commands},
     },
     quick_pick::SelectInput,
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
-    vs_code_api::{log, set_cargo_context},
+    vs_code_api::{TsFileWatcher, set_cargo_context},
 };
 
 #[derive(Debug, Clone)]
-pub enum UiMessage {
-    CmdTx(Sender<Command>),
+pub enum Message {
+    ManifestChanged,
+    ConfigChanged,
+    MetadataChanged(MetadataUpdate),
+    SelectionChanged(selection::Update),
+    SettingsChanged(SettingsUpdate),
     Cmd(Command),
-    Settings(SettingsUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -46,45 +44,59 @@ pub enum SettingsUpdate {
     Grouping(Grouping),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Ui {
     data: CommandData,
     settings: OutlineSettings,
-    cmds: Vec<VsCodeTask>,
-    root_dir: String,
+    base: Base,
 }
 
 impl Ui {
-    fn update_settings(&mut self, update: SettingsUpdate) -> Task<CargoMsg> {
-        let settings = &mut self.settings;
-        match update {
-            SettingsUpdate::PackageFilter(filter) => settings.package_filter = filter,
-            SettingsUpdate::TargetTypesFilter(filter) => settings.target_types_filter = filter,
-            SettingsUpdate::Grouping(grouping) => settings.grouping = grouping,
-        }
+    /// Inits all data and update channels
+    pub fn new(root_dir: String) -> (Self, Task<Message>) {
+        // Init manifest file updates
+        let (manifest_changed_tx, manifest_changed_rx) = channel(CHANNEL_CAPACITY);
+        let file_watcher = TsFileWatcher::new(send_file_changed(manifest_changed_tx));
 
-        Task::future(Runtime::persist_state(
-            self.settings_key(),
-            self.settings.clone(),
-        ))
-        .discard()
+        let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
+        let cmds = register_cargo_commands(cmd_tx);
+
+        let settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
+        let selection = Runtime::get_state(state_key(&root_dir)).unwrap_or_default();
+        let data = CommandData {
+            metadata: UiMetadata::default(),
+            selection,
+        };
+
+        let base = Base {
+            cmds,
+            file_watcher,
+            root_dir,
+        };
+
+        let this = Self {
+            data,
+            settings,
+            base,
+        };
+
+        // manifest update and cmd will run for the lifetime of the extension
+        let manifest_update = Task::stream(manifest_changed_rx).map(|()| Message::ManifestChanged);
+        let cmd = Task::stream(cmd_rx).map(Message::Cmd);
+        // metadata is to initially parse the Cargo.toml
+        let metadata = this.parse();
+        let tasks = Task::batch([manifest_update, cmd, metadata]);
+
+        (this, tasks)
     }
 
-    pub fn settings_key(&self) -> String {
-        format!("{}.cargo_tools.cargo.ui_settings", self.root_dir)
-    }
-}
-
-impl cargo::ui::Ui for Ui {
-    type CustomUpdate = UiMessage;
-
-    fn update(&mut self, msg: CargoMsg) -> Task<CargoMsg> {
+    pub fn update(&mut self, msg: Message) -> Task<Message> {
         match msg {
-            Msg::Selection(update) => {
+            Message::SelectionChanged(update) => {
                 self.data.selection.update(update);
                 Task::none()
             }
-            Msg::Metadata(update) => match update {
+            Message::MetadataChanged(update) => match update {
                 MetadataUpdate::Metadata(metadata) => {
                     self.data.metadata.metadata = Some(metadata);
                     Task::future(set_cargo_context(true)).discard()
@@ -97,31 +109,48 @@ impl cargo::ui::Ui for Ui {
                     self.data.metadata = UiMetadata::default();
                     Task::future(set_cargo_context(false)).discard()
                 }
+                // For invalid makefiles leave everything as is
                 MetadataUpdate::FailedToRetrieve => Task::none(),
             },
-            // Task are only created by user interaction but always processed by the parent cargo component
-            Msg::Task(_) => Task::none(),
-            Msg::Custom(msg) => match msg {
-                UiMessage::CmdTx(tx) => {
-                    self.cmds = register_cargo_commands(tx);
-                    Task::none()
-                }
-                UiMessage::Cmd(cmd) => self.process_cmd(cmd),
-                UiMessage::Settings(update) => self.update_settings(update),
-            },
-            Msg::RootDirUpdate(root_dir) => {
-                self.root_dir = root_dir;
-                if let Some(s) = Runtime::get_state(self.settings_key()) {
-                    self.settings = s;
-                }
-                Task::none()
-            }
+            Message::ManifestChanged => todo!(),
+            Message::ConfigChanged => todo!(),
+            Message::SettingsChanged(update) => self.update_settings(update),
+            Message::Cmd(cmd) => self.process_cmd(cmd),
         }
     }
 
-    fn subscription(&self) -> Subscription<CargoMsg> {
-        Subscription::run(command_stream).map(Msg::Custom)
+    fn update_settings(&mut self, update: SettingsUpdate) -> Task<Message> {
+        let settings = &mut self.settings;
+        match update {
+            SettingsUpdate::PackageFilter(filter) => settings.package_filter = filter,
+            SettingsUpdate::TargetTypesFilter(filter) => settings.target_types_filter = filter,
+            SettingsUpdate::Grouping(grouping) => settings.grouping = grouping,
+        }
+
+        Task::future(Runtime::persist_state(
+            settings_key(&self.base.root_dir),
+            self.settings.clone(),
+        ))
+        .discard()
     }
+
+    fn parse(&self) -> Task<Message> {
+        let metadata = Task::future(parse_metadata::<Runtime>(self.root_manifest()));
+        let profiles = Task::future(parse_profiles::<Runtime>(self.base.root_dir.clone()));
+        Task::batch([metadata, profiles]).map(Message::MetadataChanged)
+    }
+
+    fn root_manifest(&self) -> String {
+        format!("{}/Cargo.toml", self.base.root_dir)
+    }
+}
+
+pub fn settings_key(root_dir: &str) -> String {
+    format!("{root_dir}.cargo_tools.cargo.ui_settings")
+}
+
+pub fn state_key(root_dir: &str) -> String {
+    format!("{root_dir}.cargo_tools.cargo.state")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -169,27 +198,27 @@ impl Grouping {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct CommandData {
-    pub metadata: UiMetadata,
-    pub selection: selection::State,
+struct CommandData {
+    metadata: UiMetadata,
+    selection: selection::State,
 }
 
 impl CommandData {
-    pub fn profiles(&self) -> SelectInput<Profile> {
+    fn profiles(&self) -> SelectInput<Profile> {
         let options = self.metadata.profiles().to_vec();
         let current = vec![self.selection.profile.clone()];
 
         SelectInput { options, current }
     }
 
-    pub fn packages(&self) -> SelectInput<Option<String>> {
+    fn packages(&self) -> SelectInput<Option<String>> {
         let options = self.metadata.package_options();
         let current = vec![self.selection.package.clone()];
 
         SelectInput { options, current }
     }
 
-    pub fn build_target_options(&self) -> Option<SelectInput<Option<BuildSubTarget>>> {
+    fn build_target_options(&self) -> Option<SelectInput<Option<BuildSubTarget>>> {
         let metadata = self.metadata.metadata.as_ref()?;
         let selection = &self.selection;
 
@@ -203,7 +232,7 @@ impl CommandData {
         Some(SelectInput { options, current })
     }
 
-    pub fn run_target_options(&self) -> Option<SelectInput<Option<RunSubTarget>>> {
+    fn run_target_options(&self) -> Option<SelectInput<Option<RunSubTarget>>> {
         let metadata = self.metadata.metadata.as_ref()?;
 
         let selection = &self.selection;
@@ -218,7 +247,7 @@ impl CommandData {
         Some(SelectInput { options, current })
     }
 
-    pub fn bench_target_options(&self) -> Option<SelectInput<Option<String>>> {
+    fn bench_target_options(&self) -> Option<SelectInput<Option<String>>> {
         let metadata = self.metadata.metadata.as_ref()?;
         let selection = &self.selection;
 
@@ -232,7 +261,7 @@ impl CommandData {
         Some(SelectInput { options, current })
     }
 
-    pub fn feature_options(&self) -> Option<SelectInput<String>> {
+    fn feature_options(&self) -> Option<SelectInput<String>> {
         let metadata = self.metadata.metadata.as_ref()?;
         let selection = &self.selection;
 
@@ -272,24 +301,4 @@ impl UiMetadata {
             )
             .collect()
     }
-}
-
-fn command_stream() -> impl Stream<Item = UiMessage> {
-    stream::channel(CHANNEL_CAPACITY, async |mut out| {
-        let (tx, mut rx) = channel(CHANNEL_CAPACITY);
-        if let Err(e) = out.send(UiMessage::CmdTx(tx.clone())).await {
-            log(&format!(
-                "Failed to send cargo ui command sender back to ui: {e:?}"
-            ));
-        }
-        while let Some(msg) = rx.next().await {
-            log(&format!("Sending command message to cargo Ui'{msg:?}'"));
-            if let Err(e) = out.send(UiMessage::Cmd(msg)).await {
-                log(&format!(
-                    "Failed to send command message to cargo UI '{e:?}'"
-                ));
-            }
-        }
-        log("Cargo Ui command stream closed unexpectedly.");
-    })
 }

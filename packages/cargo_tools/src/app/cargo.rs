@@ -3,15 +3,15 @@ pub mod metadata;
 pub mod selection;
 pub mod ui;
 
-use std::{collections::HashMap, iter};
+use std::iter;
 
 use futures::StreamExt;
 use iced_headless::{Subscription, Task};
 
 use crate::{
     app::cargo::metadata::{MetadataUpdate, parse_metadata, parse_profiles, workspace_manifests},
-    configuration::{self, Configuration},
-    runtime::{self, CargoTask, Runtime},
+    configuration::{self},
+    runtime::Runtime,
 };
 
 use ui::Message as UiMsg;
@@ -45,7 +45,6 @@ impl<Ui: ui::Ui + Default + 'static> Cargo<Ui> {
             Msg::Ui(msg) => {
                 let task = match &msg {
                     UiMsg::Selection(update) => self.update_state::<RT>(update.clone()),
-                    UiMsg::Task(task) => self.exec_task::<RT>(task.clone()),
                     UiMsg::Custom(_) | UiMsg::Metadata(_) | UiMsg::RootDirUpdate(_) => Task::none(),
                 };
                 let ui = self.ui.update(msg).map(Msg::Ui);
@@ -77,42 +76,6 @@ impl<Ui: ui::Ui + Default + 'static> Cargo<Ui> {
     fn update_state<RT: Runtime>(&mut self, update: selection::Update) -> Task<Msg<Ui>> {
         self.state.selection.update(update);
         Task::future(RT::persist_state(self.state_key(), self.state.clone())).discard()
-    }
-
-    fn exec_task<RT: Runtime>(&self, task: ui::Task) -> Task<Msg<Ui>> {
-        match task {
-            ui::Task::ImplicitCommand(implicit) => Task::done(Msg::Ui(UiMsg::Task(
-                ui::Task::ExplicitCommand(implicit.to_explicit(&self.state.selection)),
-            ))),
-            ui::Task::ExplicitCommand(explicit) => {
-                let (cmd, args, env) = {
-                    let config = RT::get_configuration();
-                    let ctx = explicit.task_context();
-
-                    let config_cmd = config.get_cargo_command(ctx);
-                    let mut cmd = config_cmd.split_whitespace().map(String::from);
-                    let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
-                    args.extend(explicit.into_args(&self.state.selection));
-                    args.extend(config.get_extra_args(ctx));
-
-                    (cmd, args, config.get_env(ctx))
-                };
-                Task::future(RT::exec_task(CargoTask::Cargo(runtime::Task {
-                    cmd,
-                    args,
-                    env,
-                })))
-                .discard()
-            }
-            ui::Task::AddPlatformTarget(target) => {
-                Task::future(RT::exec_task(CargoTask::Cargo(runtime::Task {
-                    cmd: "rustup".to_string(),
-                    args: vec!["target".to_string(), "add".to_string(), target],
-                    env: HashMap::new(),
-                })))
-                .discard()
-            }
-        }
     }
 
     fn update_metadata<RT: Runtime>(&mut self, metadata_update: MetadataUpdate) -> Task<Msg<Ui>> {

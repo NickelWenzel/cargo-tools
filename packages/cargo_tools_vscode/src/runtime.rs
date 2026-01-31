@@ -58,8 +58,6 @@ static CURRENT_DIR_CHANNEL: Lazy<Mutex<(Sender<String>, Receiver<String>)>> =
 static FILE_WATCHERS: Lazy<Mutex<HashMap<String, FileWatcherEntry>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-static CURRENT_DIR_HANDLE: Lazy<Mutex<Option<u32>>> = Lazy::new(|| Mutex::new(None));
-
 pub struct VsCodeRuntime;
 
 #[wasm_async_trait]
@@ -88,23 +86,16 @@ impl Runtime for VsCodeRuntime {
 
     fn current_dir_notitifier() -> Receiver<String> {
         log("In current_dir_notitifier");
-        let rx = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
 
-        let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
-        if handle.is_none() {
-            *handle = Some(watch_current_dir());
-        }
-
-        rx
+        CURRENT_DIR_CHANNEL.lock().unwrap().1.clone()
     }
 
     fn file_changed_notifier(file: String) -> Receiver<()> {
         log(&format!("In file_changed_notifier({file})"));
         let mut watchers = FILE_WATCHERS.lock().unwrap();
         let entry = watchers.entry(file.clone()).or_insert_with(|| {
-            let handle = watch_file(&file);
             let (tx, rx) = broadcast(CHANNEL_CAPACITY);
-            (handle, tx, rx)
+            (0, tx, rx)
         });
         entry.2.clone()
     }
@@ -177,183 +168,5 @@ impl VsCodeTask {
             CargoTask::CargoMake(task) => task,
             CargoTask::RustUp(task) => task,
         }
-    }
-}
-
-/// Called by TypeScript when the current directory changes.
-#[wasm_bindgen]
-pub async fn on_current_dir_changed(dir: String) {
-    log(&format!("In on_current_dir_changed({dir})"));
-    {
-        let mut handle = CURRENT_DIR_HANDLE.lock().unwrap();
-        if let Some(h) = *handle {
-            log(&format!("In unwatch_current_dir({h})"));
-            unwatch_current_dir(h);
-            *handle = None;
-        }
-    }
-
-    let tx = CURRENT_DIR_CHANNEL.lock().unwrap().0.clone();
-    if let Err(e) = tx.broadcast(dir).await {
-        log(&format!(
-            "Failed to send root dir changed notification: {e:?}"
-        ));
-    }
-}
-
-/// Called by TypeScript when a watched file changes.
-#[wasm_bindgen]
-pub async fn on_file_changed(path: String) {
-    log(&format!("In on_file_changed({path})"));
-    let tx = {
-        let mut watchers = FILE_WATCHERS.lock().unwrap();
-        if let Some((handle, tx, _)) = watchers.remove(&path) {
-            log(&format!("In unwatch_file({handle})"));
-            unwatch_file(handle);
-            Some(tx)
-        } else {
-            None
-        }
-    };
-
-    if let Some(tx) = tx
-        && let Err(e) = tx.broadcast(()).await
-    {
-        log(&format!("Failed to send file changed notification: {e:?}"));
-    }
-}
-
-#[cfg(all(test, target_arch = "wasm32"))]
-mod tests {
-    //! Tests for VsCodeRuntime event distribution.
-    //!
-    //! These tests verify the channel-based event distribution for directory and file watchers.
-    //! Tests only run on wasm32 target as the Runtime trait uses WASM-specific async primitives.
-    use super::*;
-
-    #[test]
-    fn test_on_current_dir_changed_distributes_to_all_receivers() {
-        *CURRENT_DIR_HANDLE.lock().unwrap() = Some(42);
-
-        let (mut receiver1, mut receiver2) = {
-            let rx = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
-            (rx.clone(), rx)
-        };
-
-        on_current_dir_changed("/test/path".to_string());
-
-        let msg1 = receiver1.try_recv();
-        let msg2 = receiver2.try_recv();
-
-        assert_eq!(msg1, Ok("/test/path".to_string()));
-        assert_eq!(msg2, Ok("/test/path".to_string()));
-
-        let handle = *CURRENT_DIR_HANDLE.lock().unwrap();
-        assert_eq!(handle, None, "Watcher handle should be cleared after event");
-    }
-
-    #[test]
-    fn test_on_current_dir_changed_cleans_up_after_event() {
-        *CURRENT_DIR_HANDLE.lock().unwrap() = Some(42);
-
-        let mut rx1 = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
-        let rx2 = rx1.clone();
-
-        drop(rx2);
-
-        on_current_dir_changed("/test/path".to_string());
-
-        let msg = rx1.try_recv();
-        assert_eq!(msg, Ok("/test/path".to_string()));
-
-        let handle = *CURRENT_DIR_HANDLE.lock().unwrap();
-        assert_eq!(handle, None, "Watcher handle should be cleared after event");
-    }
-
-    #[test]
-    fn test_on_file_changed_distributes_to_correct_watchers() {
-        FILE_WATCHERS.lock().unwrap().clear();
-
-        let (tx1, mut rx1) = broadcast::<()>(CHANNEL_CAPACITY);
-        let (tx2, mut rx2) = broadcast::<()>(CHANNEL_CAPACITY);
-
-        {
-            let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file1.txt".to_string(), (1, tx1, rx1.clone()));
-            watchers.insert("/path/file2.txt".to_string(), (2, tx2, rx2.clone()));
-        }
-
-        on_file_changed("/path/file1.txt".to_string());
-
-        assert_eq!(rx1.try_recv(), Ok(()));
-        assert!(rx2.try_recv().is_err(), "Should not receive event");
-
-        let watchers_count = FILE_WATCHERS.lock().unwrap().len();
-        assert_eq!(
-            watchers_count, 1,
-            "Watcher for file1 should be removed after event"
-        );
-    }
-
-    #[test]
-    fn test_on_file_changed_handles_multiple_watchers_same_file() {
-        FILE_WATCHERS.lock().unwrap().clear();
-
-        let (tx, mut rx1) = broadcast::<()>(CHANNEL_CAPACITY);
-        let mut rx2 = tx.new_receiver();
-
-        {
-            let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file.txt".to_string(), (1, tx, rx1.clone()));
-        }
-
-        on_file_changed("/path/file.txt".to_string());
-
-        assert_eq!(rx1.try_recv(), Ok(()));
-        assert_eq!(rx2.try_recv(), Ok(()));
-
-        let watchers_count = FILE_WATCHERS.lock().unwrap().len();
-        assert_eq!(watchers_count, 0, "Watcher should be removed after event");
-    }
-
-    #[test]
-    fn test_on_file_changed_delivers_to_all_including_dead() {
-        FILE_WATCHERS.lock().unwrap().clear();
-
-        let (tx, mut rx1) = broadcast::<()>(CHANNEL_CAPACITY);
-        let rx2 = tx.new_receiver();
-
-        {
-            let mut watchers = FILE_WATCHERS.lock().unwrap();
-            watchers.insert("/path/file.txt".to_string(), (1, tx, rx1.clone()));
-        }
-
-        drop(rx2);
-
-        on_file_changed("/path/file.txt".to_string());
-
-        assert_eq!(rx1.try_recv(), Ok(()));
-
-        let watchers_count = FILE_WATCHERS.lock().unwrap().len();
-        assert_eq!(watchers_count, 0, "Watcher should be removed after event");
-    }
-
-    #[test]
-    fn test_channel_capacity_is_bounded() {
-        let mut rx = CURRENT_DIR_CHANNEL.lock().unwrap().1.clone();
-
-        for i in 0..CHANNEL_CAPACITY + 10 {
-            on_current_dir_changed(format!("/path/{}", i));
-        }
-
-        let mut rx_count = 0;
-        while rx.try_recv().is_ok() {
-            rx_count += 1;
-        }
-
-        assert!(
-            rx_count <= CHANNEL_CAPACITY,
-            "Should not exceed channel capacity"
-        );
     }
 }

@@ -2,26 +2,15 @@ use std::fmt::Debug;
 
 pub use super::selection;
 
-use crate::app::cargo::{
-    command::{Explicit, Implicit},
-    metadata::MetadataUpdate,
-};
+use crate::app::cargo::metadata::MetadataUpdate;
 use iced_headless::Subscription;
 
 #[derive(Debug, Clone)]
 pub enum Message<CustomUpdate: Clone> {
     Selection(selection::Update),
     Metadata(MetadataUpdate),
-    Task(Task),
     Custom(CustomUpdate),
     RootDirUpdate(String),
-}
-
-#[derive(Debug, Clone)]
-pub enum Task {
-    ImplicitCommand(Implicit),
-    ExplicitCommand(Explicit),
-    AddPlatformTarget(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]

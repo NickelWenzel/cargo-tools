@@ -1,7 +1,9 @@
+use std::{fmt::Debug, ops::Deref};
+
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::{Array, JsString};
 
-use crate::runtime::VsCodeTask;
+use crate::{app::OnFileChanged, runtime::VsCodeTask};
 
 #[wasm_bindgen(raw_module = "../cargoTools.ts")]
 extern "C" {
@@ -23,22 +25,49 @@ extern "C" {
 
 #[wasm_bindgen(raw_module = "../runtime.ts")]
 extern "C" {
+    pub type FileWatcher;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> FileWatcher;
+
+    #[wasm_bindgen(method)]
+    fn on_changed(this: &FileWatcher, callback: &OnFileChanged);
+
+    #[wasm_bindgen(method)]
+    pub fn watch_files(this: &FileWatcher, paths: Vec<String>);
+
     #[wasm_bindgen(catch)]
     pub async fn read_file(file_path: &str) -> Result<JsString, JsValue>;
+}
 
-    /// Start watching the current directory for changes.
-    /// Returns a handle that can be used to stop watching.
-    pub fn watch_current_dir() -> u32;
+pub struct TsFileWatcher {
+    file_watcher: FileWatcher,
+    on_file_changed: OnFileChanged,
+}
 
-    /// Stop watching the current directory.
-    pub fn unwatch_current_dir(handle: u32);
+impl TsFileWatcher {
+    pub fn new(callback: OnFileChanged) -> Self {
+        let file_watcher = FileWatcher::new();
+        file_watcher.on_changed(&callback);
+        Self {
+            file_watcher,
+            on_file_changed: callback,
+        }
+    }
+}
 
-    /// Start watching a specific file for changes.
-    /// Returns a handle that can be used to stop watching.
-    pub fn watch_file(path: &str) -> u32;
+impl Deref for TsFileWatcher {
+    type Target = FileWatcher;
 
-    /// Stop watching a specific file.
-    pub fn unwatch_file(handle: u32);
+    fn deref(&self) -> &Self::Target {
+        &self.file_watcher
+    }
+}
+
+impl Debug for TsFileWatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TsFileWatcher").finish()
+    }
 }
 
 #[wasm_bindgen(raw_module = "../task.ts")]

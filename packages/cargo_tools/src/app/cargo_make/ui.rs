@@ -29,7 +29,7 @@ impl Maketask {
         Self(s)
     }
 
-    pub fn to_task(self, config: &impl Configuration) -> CargoTask {
+    pub fn into_task(self, config: &impl Configuration) -> CargoTask {
         let ctx = Context::General;
         let config_cmd = config.get_cargo_command(ctx);
         let mut cmd = config_cmd.split_whitespace().map(String::from);

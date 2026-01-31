@@ -1,67 +1,61 @@
 // mod project_outline;
 
-use cargo_tools::app::cargo_make::ui::Maketask;
-use iced_headless::Task as IcedTask;
+use cargo_tools::{app::cargo_make::ui::Maketask, runtime::Runtime as _};
+use iced_headless::Task;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    app::{
-        CargoMakeMsg,
-        cargo_make::{
-            SettingsUpdate, Ui, UiMessage,
-            command::{Command, Pinned},
-        },
+    app::cargo_make::{
+        Message, SettingsUpdate, Ui,
+        command::{Command, Pinned},
     },
     quick_pick::SelectInput,
+    runtime::VsCodeRuntime as Runtime,
     vs_code_api::showInformationMessage,
 };
 
 trait IntoCargoMakeMessage {
-    fn into_cargo_make_msg(self) -> CargoMakeMsg;
+    fn into_cargo_make_msg(self) -> Message;
 }
 
 impl IntoCargoMakeMessage for Command {
-    fn into_cargo_make_msg(self) -> CargoMakeMsg {
-        CargoMakeMsg::Custom(UiMessage::Cmd(self))
+    fn into_cargo_make_msg(self) -> Message {
+        Message::Cmd(self)
     }
 }
 
 impl IntoCargoMakeMessage for SettingsUpdate {
-    fn into_cargo_make_msg(self) -> CargoMakeMsg {
-        CargoMakeMsg::Custom(UiMessage::Settings(self))
+    fn into_cargo_make_msg(self) -> Message {
+        Message::SettingsChanged(self)
     }
 }
 
 impl Ui {
-    pub(crate) fn process_cmd(&self, cmd: Command) -> IcedTask<CargoMakeMsg> {
+    pub(crate) fn process_cmd(&self, cmd: Command) -> Task<Message> {
         match cmd {
-            Command::RunTask(task) => {
-                IcedTask::done(CargoMakeMsg::Task(Maketask::from_string(task)))
-            }
+            Command::RunTask(task) => self.make_task_exec(Maketask::from_string(task)),
             Command::SelectAndRunTask => {
                 let input = SelectInput {
                     options: self.makefile_tasks.clone(),
                     current: Vec::new(),
                 };
-                run_task(
-                    async move { input.select().await.map(|task| Command::RunTask(task.name)) },
-                )
+                done(async move { input.select().await.map(|task| Command::RunTask(task.name)) })
             }
             Command::SelectTaskFilter => todo!(),
             Command::EditTaskFilter(filter) => {
-                IcedTask::done(SettingsUpdate::TaskFilter(filter).into_cargo_make_msg())
+                Task::done(SettingsUpdate::TaskFilter(filter).into_cargo_make_msg())
             }
             Command::SelectCategoryFilter => todo!(),
             Command::EditCategoryFilter(filters) => {
-                IcedTask::done(SettingsUpdate::CategoryFilter(filters).into_cargo_make_msg())
+                Task::done(SettingsUpdate::CategoryFilter(filters).into_cargo_make_msg())
             }
             Command::ClearAllFilters => {
-                let task = IcedTask::done(Command::EditTaskFilter(String::new()));
-                let category = IcedTask::done(Command::EditCategoryFilter(Vec::new()));
-                IcedTask::batch([task, category]).map(Command::into_cargo_make_msg)
+                let task = Task::done(Command::EditTaskFilter(String::new()));
+                let category = Task::done(Command::EditCategoryFilter(Vec::new()));
+                Task::batch([task, category]).map(Command::into_cargo_make_msg)
             }
             Command::PinTask(task) => {
-                IcedTask::done(SettingsUpdate::AddPinned(task).into_cargo_make_msg())
+                Task::done(SettingsUpdate::AddPinned(task).into_cargo_make_msg())
             }
             Command::Pinned(pinned) => match pinned {
                 Pinned::Add => {
@@ -69,14 +63,12 @@ impl Ui {
                         options: self.makefile_tasks.clone(),
                         current: Vec::new(),
                     };
-                    run_task(async move { input.select().await.map(Command::PinTask) })
+                    done(async move { input.select().await.map(Command::PinTask) })
                 }
                 Pinned::Remove(idx) => {
-                    IcedTask::done(SettingsUpdate::RemovePinned(idx).into_cargo_make_msg())
+                    Task::done(SettingsUpdate::RemovePinned(idx).into_cargo_make_msg())
                 }
-                Pinned::Execute(task) => {
-                    IcedTask::done(CargoMakeMsg::Task(Maketask::from_string(task)))
-                }
+                Pinned::Execute(task) => self.make_task_exec(Maketask::from_string(task)),
                 Pinned::Execute1 => self.execute_pinned(0),
                 Pinned::Execute2 => self.execute_pinned(1),
                 Pinned::Execute3 => self.execute_pinned(2),
@@ -86,24 +78,27 @@ impl Ui {
         }
     }
 
-    fn execute_pinned(&self, idx: usize) -> IcedTask<CargoMakeMsg> {
+    fn execute_pinned(&self, idx: usize) -> Task<Message> {
         match self.settings.pinned_makefile_tasks.get(idx) {
-            Some(task) => {
-                IcedTask::done(CargoMakeMsg::Task(Maketask::from_string(task.name.clone())))
-            }
-            None => IcedTask::future(showInformationMessage(
+            Some(task) => self.make_task_exec(Maketask::from_string(task.name.clone())),
+            None => Task::future(showInformationMessage(
                 format!("There is no task no. {} pinned ", idx + 1),
                 Array::new(),
             ))
             .discard(),
         }
     }
+
+    fn make_task_exec(&self, make_task: Maketask) -> Task<Message> {
+        let task = make_task.into_task(&Runtime::get_configuration());
+        Task::future(Runtime::exec_task(task)).discard()
+    }
 }
 
-fn run_task(
+fn done(
     fut: impl Future<Output = Option<impl IntoCargoMakeMessage + 'static>> + 'static,
-) -> IcedTask<CargoMakeMsg> {
-    IcedTask::future(fut)
-        .and_then(IcedTask::done)
+) -> Task<Message> {
+    Task::future(fut)
+        .and_then(Task::done)
         .map(IntoCargoMakeMessage::into_cargo_make_msg)
 }

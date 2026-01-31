@@ -168,7 +168,7 @@ pub struct SelectInput<T> {
 impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
     pub async fn select(self) -> Option<T> {
         let Self { options, current } = self;
-        let vccode_options = match options
+        let vscode_options = match options
             .iter()
             .map(|i| {
                 let picked = current.contains(i);
@@ -183,7 +183,7 @@ impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
             }
         };
 
-        let selected_index = match show_quick_pick(vccode_options).await {
+        let selected_index = match show_quick_pick(vscode_options).await {
             Ok(value) => value.as_f64().map(|f| f as usize),
             Err(e) => {
                 log(&format!("Quick pick failed: {e:?}"));
