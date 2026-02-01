@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use async_broadcast::Receiver;
 use serde::{Serialize, de::DeserializeOwned};
 use wasm_async_trait::wasm_async_trait;
 
@@ -25,9 +24,6 @@ pub trait Runtime: 'static {
     fn log(msg: String);
 
     async fn read_file(file_path: String) -> Result<String, String>;
-
-    fn current_dir_notitifier() -> Receiver<String>;
-    fn file_changed_notifier(file: String) -> Receiver<()>;
 
     async fn persist_state(key: String, state: impl Serialize + Send);
     fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T>;

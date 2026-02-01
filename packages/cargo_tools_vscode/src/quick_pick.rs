@@ -1,8 +1,6 @@
 use cargo_tools::{
-    app::{
-        cargo::command::{BuildSubTarget, RunSubTarget},
-        cargo_make::tasks::MakefileTask,
-    },
+    cargo::command::{BuildSubTarget, RunSubTarget},
+    cargo_make::tasks::MakefileTask,
     profile::Profile,
 };
 use serde::{Deserialize, Serialize};

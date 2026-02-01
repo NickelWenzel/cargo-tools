@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cargo_tools::app::cargo::{
+use cargo_tools::cargo::{
     command::{BuildTarget, RunTarget},
     selection::Update,
 };
@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
-    app::{TaskMap, VsCodeTask, cargo::TargetTypesFilterUpdate, register_tasks},
+    extension::{TaskMap, VsCodeTask, cargo::TargetTypesFilterUpdate, register_tasks},
     vs_code_api::log,
 };
 

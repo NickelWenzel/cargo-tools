@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use cargo_tools::app::cargo_make::tasks::MakefileTask;
+use cargo_tools::cargo_make::tasks::MakefileTask;
 use futures::{SinkExt, channel::mpsc::Sender};
 use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
-    app::{TaskMap, VsCodeTask, register_tasks},
+    extension::{TaskMap, VsCodeTask, register_tasks},
     vs_code_api::log,
 };
 
@@ -15,7 +15,7 @@ pub mod process;
 
 #[derive(Debug, Clone)]
 pub enum Command {
-    RunTask(String),
+    RunTask(MakefileTask),
     SelectAndRunTask,
     SelectTaskFilter,
     EditTaskFilter(String),
@@ -87,7 +87,7 @@ pub type CargoMakeCmdFn = fn(Array) -> Option<Command>;
 pub enum Pinned {
     Add,
     Remove(usize),
-    Execute(String),
+    Execute(MakefileTask),
     Execute1,
     Execute2,
     Execute3,

@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    app::{OnFileChanged, VsCodeTask},
+    extension::{OnFileChanged, VsCodeTask},
     vs_code_api::{TsFileWatcher, log},
 };
 

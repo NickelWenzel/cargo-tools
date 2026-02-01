@@ -4,9 +4,9 @@ use std::iter;
 
 use cargo_metadata::Metadata;
 use cargo_tools::{
-    app::cargo::{
+    cargo::{
         command::{BuildSubTarget, RunSubTarget},
-        metadata::{MetadataUpdate, parse_metadata, parse_profiles},
+        metadata::{MetadataUpdate, parse_metadata, parse_profiles, workspace_manifests},
         selection::{self, Features},
     },
     profile::Profile,
@@ -18,7 +18,7 @@ use iced_headless::Task;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::{
+    extension::{
         base::{Base, send_file_changed},
         cargo::command::{Command, register_cargo_commands},
     },
@@ -30,7 +30,6 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum Message {
     ManifestChanged,
-    ConfigChanged,
     MetadataChanged(MetadataUpdate),
     SelectionChanged(selection::Update),
     SettingsChanged(SettingsUpdate),
@@ -84,7 +83,7 @@ impl Ui {
         let manifest_update = Task::stream(manifest_changed_rx).map(|()| Message::ManifestChanged);
         let cmd = Task::stream(cmd_rx).map(Message::Cmd);
         // metadata is to initially parse the Cargo.toml
-        let metadata = this.parse();
+        let metadata = this.parse_manifest();
         let tasks = Task::batch([manifest_update, cmd, metadata]);
 
         (this, tasks)
@@ -98,7 +97,13 @@ impl Ui {
             }
             Message::MetadataChanged(update) => match update {
                 MetadataUpdate::Metadata(metadata) => {
+                    // Update file watcher
+                    let mut manifests = workspace_manifests(&metadata);
+                    manifests.push(self.root_manifest());
+                    self.base.file_watcher.watch_files(manifests);
+
                     self.data.metadata.metadata = Some(metadata);
+
                     Task::future(set_cargo_context(true)).discard()
                 }
                 MetadataUpdate::Profiles(profiles) => {
@@ -106,14 +111,19 @@ impl Ui {
                     Task::none()
                 }
                 MetadataUpdate::NoCargoToml => {
+                    // Always check for mainfest in root dir
+                    self.base
+                        .file_watcher
+                        .watch_files(vec![self.root_manifest()]);
+
                     self.data.metadata = UiMetadata::default();
+
                     Task::future(set_cargo_context(false)).discard()
                 }
                 // For invalid makefiles leave everything as is
                 MetadataUpdate::FailedToRetrieve => Task::none(),
             },
-            Message::ManifestChanged => todo!(),
-            Message::ConfigChanged => todo!(),
+            Message::ManifestChanged => self.parse_manifest(),
             Message::SettingsChanged(update) => self.update_settings(update),
             Message::Cmd(cmd) => self.process_cmd(cmd),
         }
@@ -134,7 +144,7 @@ impl Ui {
         .discard()
     }
 
-    fn parse(&self) -> Task<Message> {
+    fn parse_manifest(&self) -> Task<Message> {
         let metadata = Task::future(parse_metadata::<Runtime>(self.root_manifest()));
         let profiles = Task::future(parse_profiles::<Runtime>(self.base.root_dir.clone()));
         Task::batch([metadata, profiles]).map(Message::MetadataChanged)

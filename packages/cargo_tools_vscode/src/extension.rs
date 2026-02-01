@@ -20,10 +20,6 @@ use crate::{
     vs_code_api::{log, register_command},
 };
 
-pub type CargoMsg = ::cargo_tools::app::cargo::ui::Message<
-    <cargo::Ui as ::cargo_tools::app::cargo::ui::Ui>::CustomUpdate,
->;
-
 pub type VsCodeTask = Closure<dyn FnMut(Array)>;
 type TaskMap = HashMap<&'static str, Closure<dyn FnMut(Array)>>;
 
@@ -42,10 +38,6 @@ pub fn register_tasks(cmds: TaskMap) -> Vec<VsCodeTask> {
         })
         .collect()
 }
-
-pub type CargoMakeMsg = ::cargo_tools::app::cargo_make::ui::Message<
-    <cargo_make::Ui as ::cargo_tools::app::cargo_make::ui::Ui>::CustomUpdate,
->;
 
 pub type SendResult<T> = Result<Option<T>, SendError<T>>;
 
@@ -128,11 +120,11 @@ pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::{
-        app::{
+        contributes::data::all_commands,
+        extension::{
             cargo::command::task_map as cargo_task_map,
             cargo_make::command::task_map as cargo_make_task_map,
         },
-        contributes::data::all_commands,
     };
 
     #[wasm_bindgen_test]

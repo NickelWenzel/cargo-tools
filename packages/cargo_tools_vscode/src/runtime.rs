@@ -31,17 +31,13 @@
 //! Unit tests are provided but cannot be executed directly on wasm32 target.
 //! They serve as documentation and can be validated through integration tests
 //! or manual testing in the VS Code extension.
-use async_broadcast::{Receiver, Sender, broadcast};
 use cargo_tools::{
     configuration::Configuration,
     runtime::{CargoTask, Runtime, Task},
 };
-use once_cell::sync::Lazy;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_wasm_bindgen::to_value;
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Mutex;
 use wasm_async_trait::wasm_async_trait;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Map;
@@ -49,14 +45,6 @@ use wasm_bindgen_futures::js_sys::Map;
 use crate::{configuration, vs_code_api::*};
 
 pub const CHANNEL_CAPACITY: usize = 100;
-
-type FileWatcherEntry = (u32, Sender<()>, Receiver<()>);
-
-static CURRENT_DIR_CHANNEL: Lazy<Mutex<(Sender<String>, Receiver<String>)>> =
-    Lazy::new(|| Mutex::new(broadcast(CHANNEL_CAPACITY)));
-
-static FILE_WATCHERS: Lazy<Mutex<HashMap<String, FileWatcherEntry>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub struct VsCodeRuntime;
 
@@ -82,22 +70,6 @@ impl Runtime for VsCodeRuntime {
             .await
             .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
             .map_err(|e| e.to_error_string())
-    }
-
-    fn current_dir_notitifier() -> Receiver<String> {
-        log("In current_dir_notitifier");
-
-        CURRENT_DIR_CHANNEL.lock().unwrap().1.clone()
-    }
-
-    fn file_changed_notifier(file: String) -> Receiver<()> {
-        log(&format!("In file_changed_notifier({file})"));
-        let mut watchers = FILE_WATCHERS.lock().unwrap();
-        let entry = watchers.entry(file.clone()).or_insert_with(|| {
-            let (tx, rx) = broadcast(CHANNEL_CAPACITY);
-            (0, tx, rx)
-        });
-        entry.2.clone()
     }
 
     async fn persist_state(key: String, state: impl Serialize) {

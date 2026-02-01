@@ -1,12 +1,31 @@
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::Runtime;
+use crate::{
+    configuration::{Configuration, Context},
+    runtime::{CargoTask, Runtime, Task},
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MakefileTask {
     pub name: String,
     pub category: String,
     pub description: String,
+}
+
+impl MakefileTask {
+    pub fn into_task(self, config: &impl Configuration) -> CargoTask {
+        let ctx = Context::General;
+        let config_cmd = config.get_cargo_command(ctx);
+        let mut cmd = config_cmd.split_whitespace().map(String::from);
+        let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
+        args.extend(["make".to_string(), self.name]);
+
+        CargoTask::CargoMake(Task {
+            cmd,
+            args,
+            env: config.get_env(ctx),
+        })
+    }
 }
 
 pub type MakefileTasks = Vec<MakefileTask>;

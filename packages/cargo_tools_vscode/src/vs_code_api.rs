@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::Deref};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::{Array, JsString};
 
-use crate::{app::OnFileChanged, runtime::VsCodeTask};
+use crate::{extension::OnFileChanged, runtime::VsCodeTask};
 
 #[wasm_bindgen(raw_module = "../cargoTools.ts")]
 extern "C" {
@@ -42,7 +42,7 @@ extern "C" {
 
 pub struct TsFileWatcher {
     file_watcher: FileWatcher,
-    on_file_changed: OnFileChanged,
+    _on_file_changed: OnFileChanged,
 }
 
 impl TsFileWatcher {
@@ -51,7 +51,7 @@ impl TsFileWatcher {
         file_watcher.on_changed(&callback);
         Self {
             file_watcher,
-            on_file_changed: callback,
+            _on_file_changed: callback,
         }
     }
 }

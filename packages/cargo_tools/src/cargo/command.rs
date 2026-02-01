@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::cargo::{TaskContext, selection},
-    configuration::Configuration,
+    cargo::selection,
+    configuration::{Configuration, Context},
     runtime::{CargoTask, Task},
 };
 
@@ -162,6 +162,17 @@ impl Explicit {
                 args.extend(selection.profile.cargo_args());
                 args
             }
+        }
+    }
+
+    fn task_context(&self) -> Context {
+        match self {
+            Explicit::Run(_) => Context::Run,
+            Explicit::Test { package: _ } => Context::Test,
+            Explicit::Build(_)
+            | Explicit::Bench { package: _ }
+            | Explicit::Doc
+            | Explicit::Clean { package: _ } => Context::General,
         }
     }
 }

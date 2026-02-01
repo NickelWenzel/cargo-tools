@@ -4,7 +4,7 @@ use cargo_metadata::{Metadata, Package, TargetKind};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::cargo::command::{BuildSubTarget, RunSubTarget},
+    cargo::command::{BuildSubTarget, RunSubTarget},
     profile::Profile,
 };
 

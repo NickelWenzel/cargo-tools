@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use cargo_tools::{
-    app::cargo::{
+    cargo::{
         command::{Explicit, Implicit},
         selection::{self, Features, Update},
     },
@@ -12,7 +12,7 @@ use cargo_tools::{
 use iced_headless::Task;
 
 use crate::{
-    app::cargo::{
+    extension::cargo::{
         Grouping, Message, PackageFilter, SettingsUpdate, TargetTypesFilter,
         TargetTypesFilterUpdate, Ui,
         command::{Command, ProjectOutline as PO},

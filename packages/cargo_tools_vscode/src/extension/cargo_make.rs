@@ -1,7 +1,7 @@
 pub mod command;
 
 use cargo_tools::{
-    app::cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},
+    cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},
     runtime::Runtime as _,
 };
 use futures::channel::mpsc::channel;
@@ -10,7 +10,7 @@ use iced_headless::Task;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app::{
+    extension::{
         base::{Base, send_file_changed},
         cargo_make::command::{Command, register_cargo_make_commands},
     },
@@ -47,6 +47,7 @@ impl Ui {
         // Init makefile updates
         let (makefile_changed_tx, makefile_changed_rx) = channel(CHANNEL_CAPACITY);
         let file_watcher = TsFileWatcher::new(send_file_changed(makefile_changed_tx));
+        file_watcher.watch_files(vec![makefile(&root_dir)]);
 
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
         let cmds = register_cargo_make_commands(cmd_tx);

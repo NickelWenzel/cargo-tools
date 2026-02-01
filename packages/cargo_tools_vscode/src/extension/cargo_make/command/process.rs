@@ -1,11 +1,11 @@
 // mod project_outline;
 
-use cargo_tools::{app::cargo_make::ui::Maketask, runtime::Runtime as _};
+use cargo_tools::{cargo_make::tasks::MakefileTask, runtime::Runtime as _};
 use iced_headless::Task;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    app::cargo_make::{
+    extension::cargo_make::{
         Message, SettingsUpdate, Ui,
         command::{Command, Pinned},
     },
@@ -33,13 +33,13 @@ impl IntoCargoMakeMessage for SettingsUpdate {
 impl Ui {
     pub(crate) fn process_cmd(&self, cmd: Command) -> Task<Message> {
         match cmd {
-            Command::RunTask(task) => self.make_task_exec(Maketask::from_string(task)),
+            Command::RunTask(task) => self.make_task_exec(task),
             Command::SelectAndRunTask => {
                 let input = SelectInput {
                     options: self.makefile_tasks.clone(),
                     current: Vec::new(),
                 };
-                done(async move { input.select().await.map(|task| Command::RunTask(task.name)) })
+                done(async move { input.select().await.map(Command::RunTask) })
             }
             Command::SelectTaskFilter => todo!(),
             Command::EditTaskFilter(filter) => {
@@ -68,7 +68,7 @@ impl Ui {
                 Pinned::Remove(idx) => {
                     Task::done(SettingsUpdate::RemovePinned(idx).into_cargo_make_msg())
                 }
-                Pinned::Execute(task) => self.make_task_exec(Maketask::from_string(task)),
+                Pinned::Execute(task) => self.make_task_exec(task),
                 Pinned::Execute1 => self.execute_pinned(0),
                 Pinned::Execute2 => self.execute_pinned(1),
                 Pinned::Execute3 => self.execute_pinned(2),
@@ -80,7 +80,7 @@ impl Ui {
 
     fn execute_pinned(&self, idx: usize) -> Task<Message> {
         match self.settings.pinned_makefile_tasks.get(idx) {
-            Some(task) => self.make_task_exec(Maketask::from_string(task.name.clone())),
+            Some(task) => self.make_task_exec(task.clone()),
             None => Task::future(showInformationMessage(
                 format!("There is no task no. {} pinned ", idx + 1),
                 Array::new(),
@@ -89,7 +89,7 @@ impl Ui {
         }
     }
 
-    fn make_task_exec(&self, make_task: Maketask) -> Task<Message> {
+    fn make_task_exec(&self, make_task: MakefileTask) -> Task<Message> {
         let task = make_task.into_task(&Runtime::get_configuration());
         Task::future(Runtime::exec_task(task)).discard()
     }
