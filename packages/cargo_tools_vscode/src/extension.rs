@@ -2,21 +2,19 @@ pub mod base;
 pub mod cargo;
 pub mod cargo_make;
 
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 
-use async_broadcast::SendError;
 use cargo_tools::runtime::Runtime as _;
 use futures::{
     SinkExt,
-    channel::mpsc::{Sender, channel},
+    channel::mpsc::{Receiver, Sender, channel},
 };
-use iced_headless::{Subscription, Task, async_application, event_loop::Exit};
-use once_cell::sync::Lazy;
+use iced_headless::{Subscription, Task, async_application, event_loop::Exit, stream};
 use wasm_bindgen::prelude::{Closure, wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    runtime::VsCodeRuntime as Runtime,
+    runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
     vs_code_api::{log, register_command},
 };
 
@@ -39,79 +37,99 @@ pub fn register_tasks(cmds: TaskMap) -> Vec<VsCodeTask> {
         .collect()
 }
 
-pub type SendResult<T> = Result<Option<T>, SendError<T>>;
+#[wasm_bindgen]
+pub struct ExitToken(Sender<()>);
 
-static EXIT_TX: Lazy<Mutex<Sender<Exit>>> = Lazy::new(|| {
-    let (tx, _) = channel(10);
-    Mutex::new(tx)
-});
+#[wasm_bindgen]
+impl ExitToken {
+    #[wasm_bindgen]
+    pub async fn exit(&mut self) {
+        if let Err(e) = self.0.send(()).await {
+            log(&format!(
+                "Failed to signal exit to Cargo Tools extension: {e:?}"
+            ));
+        }
+    }
+}
 
 #[derive(Debug)]
 enum Message {
     Cargo(cargo::Message),
     CargoMake(cargo_make::Message),
+    Exit,
 }
 
-use Message::Cargo;
-use Message::CargoMake;
-
 struct Extension {
-    pub cargo: cargo::Ui,
-    pub cargo_make: cargo_make::Ui,
+    cargo: cargo::Ui,
+    cargo_make: cargo_make::Ui,
+    exit: bool,
 }
 
 impl Extension {
-    pub fn update(&mut self, msg: Message) -> Task<Message> {
+    fn update(&mut self, msg: Message) -> Task<Message> {
         Runtime::log(format!("Cargo tools extension received message:\n{msg:?}"));
         match msg {
-            Cargo(msg) => self.cargo.update(msg).map(Cargo),
-            CargoMake(msg) => self.cargo_make.update(msg).map(CargoMake),
+            Message::Cargo(msg) => self.cargo.update(msg).map(Message::Cargo),
+            Message::CargoMake(msg) => self.cargo_make.update(msg).map(Message::CargoMake),
+            Message::Exit => {
+                self.exit = true;
+                Task::none()
+            }
+        }
+    }
+
+    fn exit(&self) -> Subscription<Exit> {
+        if self.exit {
+            log("Signal to exit Cargo Tools extension");
+            Subscription::run(|| {
+                stream::channel(1, |mut tx: Sender<Exit>| async move {
+                    if let Err(e) = tx.send(Exit).await {
+                        log(&format!("Signal to exit Cargo Tools extension: {e}"));
+                    };
+                })
+            })
+        } else {
+            Subscription::none()
         }
     }
 }
 
 #[wasm_bindgen]
-pub fn run(workspace_root: String) {
-    wasm_bindgen_futures::spawn_local(async {
+pub fn run(workspace_root: String) -> ExitToken {
+    let (exit_tx, exit_rx) = channel(CHANNEL_CAPACITY);
+    wasm_bindgen_futures::spawn_local(async move {
         if let Err(e) = async_application(Extension::update)
-            .exit_on(exit_on)
-            .run_with(|| init(workspace_root))
+            .exit_on(Extension::exit)
+            .run_with(|| init(workspace_root, exit_rx))
             .await
         {
             log(&format!("Error in Cargo Tools extension: {e}"));
         }
     });
+
+    ExitToken(exit_tx)
 }
 
-#[wasm_bindgen]
-pub async fn exit() {
-    let mut tx = EXIT_TX.lock().unwrap().clone();
-    if let Err(e) = tx.send(Exit).await {
-        log(&format!(
-            "Failed to send exit signal to Cargo Tools extension: {e}"
-        ));
-    }
-}
-
-fn init(root_dir: String) -> (Extension, Task<Message>) {
+fn init(root_dir: String, exit_rx: Receiver<()>) -> (Extension, Task<Message>) {
     log("Initializing Cargo tools");
 
     let (cargo, cargo_task) = cargo::Ui::new(root_dir.clone());
     let (cargo_make, cargo_make_task) = cargo_make::Ui::new(root_dir.clone());
 
-    let ext = Extension { cargo, cargo_make };
-    let task = Task::batch([cargo_task.map(Cargo), cargo_make_task.map(CargoMake)]);
+    let ext = Extension {
+        cargo,
+        cargo_make,
+        exit: false,
+    };
 
-    log("Done initializing Cargo tools");
+    let task = Task::batch([
+        cargo_task.map(Message::Cargo),
+        cargo_make_task.map(Message::CargoMake),
+        Task::stream(exit_rx).map(|()| Message::Exit),
+    ]);
+
+    log("Finished initializing Cargo tools");
     (ext, task)
-}
-
-fn exit_on(_: &Extension) -> Subscription<Exit> {
-    Subscription::run(|| {
-        let (tx, rx) = channel::<Exit>(10);
-        *EXIT_TX.lock().unwrap() = tx;
-        rx
-    })
 }
 
 #[cfg(test)]
