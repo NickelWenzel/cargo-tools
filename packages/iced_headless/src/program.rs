@@ -97,8 +97,8 @@ pub trait HeadlessProgram: Sized {
 
             // We need to track regular and exit subscriptions together for some reason
             runtime.track(subscription::into_recipes(runtime.enter(|| {
-                let subs = self.subscription(&state).map(Action::Output);
-                let exit = self.exit_on(&state).map(|_| Action::Exit);
+                let subs = self.subscription(state).map(Action::Output);
+                let exit = self.exit_on(state).map(|_| Action::Exit);
 
                 Subscription::batch([subs, exit])
             })));

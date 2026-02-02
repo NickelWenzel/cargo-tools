@@ -62,18 +62,6 @@ impl Runtime for TestRuntime {
         tracing::info!("{}", msg);
     }
 
-    fn current_dir_notitifier() -> Receiver<String> {
-        // Return a mock receiver for testing
-        let (_, rx) = async_broadcast::broadcast(1);
-        rx
-    }
-
-    fn file_changed_notifier(_file: String) -> Receiver<()> {
-        // Return a mock receiver for testing
-        let (_, rx) = async_broadcast::broadcast(1);
-        rx
-    }
-
     async fn persist_state(_key: String, _state: impl Serialize + Send) {}
 
     fn get_state<T: DeserializeOwned + Debug>(_key: String) -> Option<T> {
@@ -82,6 +70,10 @@ impl Runtime for TestRuntime {
 
     fn get_configuration() -> impl configuration::Configuration {
         TestConfig
+    }
+
+    async fn read_file(file_path: String) -> Result<String, String> {
+        todo!()
     }
 }
 

@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
 
@@ -15,16 +15,38 @@ export async function echo_task(msg: string) {
     vscode.window.showInformationMessage(`Running echo cmd...`);
 }
 
-export async function execute_async(command: string): Promise<String> {
+function spawnWithOutput(
+    cmd: string,
+    args: string[]
+): Promise<{ stdout: string; stderr: string }> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
         throw new Error('No workspace folder found');
     }
 
-    const { stdout } = await promisify(exec)(command, {
-        cwd: workspaceFolder.uri.fsPath,
-        timeout: 10000 // 10 second timeout
+    return new Promise((resolve, reject) => {
+        const child = spawn(cmd, args, { cwd: workspaceFolder.uri.fsPath });
+
+        let stdout = "";
+        let stderr = "";
+
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+
+        child.stdout.on("data", d => (stdout += d));
+        child.stderr.on("data", d => (stderr += d));
+
+        child.on("error", reject);
+        child.on("close", code => {
+            code === 0
+                ? resolve({ stdout, stderr })
+                : reject(new Error(stderr || `exit ${code}`));
+        });
     });
+}
+
+export async function execute_async(command: string, rest: string[]): Promise<String> {
+    const { stdout } = await spawnWithOutput(command, rest);
     return stdout;
 }
 

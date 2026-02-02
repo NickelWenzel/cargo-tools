@@ -50,8 +50,8 @@ pub struct VsCodeRuntime;
 
 #[wasm_async_trait]
 impl Runtime for VsCodeRuntime {
-    async fn exec(command: String) -> Result<String, String> {
-        execute_async(&command)
+    async fn exec(command: String, args: Vec<String>) -> Result<String, String> {
+        execute_async(&command, args)
             .await
             .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
             .map_err(|e| e.to_error_string())

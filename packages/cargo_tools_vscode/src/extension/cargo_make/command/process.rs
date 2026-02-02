@@ -2,7 +2,6 @@
 
 use cargo_tools::{cargo_make::tasks::MakefileTask, runtime::Runtime as _};
 use iced_headless::Task;
-use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     extension::cargo_make::{
@@ -83,7 +82,7 @@ impl Ui {
             Some(task) => self.make_task_exec(task.clone()),
             None => Task::future(showInformationMessage(
                 format!("There is no task no. {} pinned ", idx + 1),
-                Array::new(),
+                Vec::new(),
             ))
             .discard(),
         }

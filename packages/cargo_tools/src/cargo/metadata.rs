@@ -22,11 +22,17 @@ pub fn workspace_manifests(metadata: &Metadata) -> Vec<String> {
 
 pub async fn parse_metadata<RT: Runtime>(manifest_file: String) -> MetadataUpdate {
     // Construct cargo metadata command with manifest path
-    let command =
-        format!("cargo metadata --format-version 1 --manifest-path {manifest_file} --no-deps");
+    let cargo_args = vec![
+        "metadata".to_string(),
+        "--format-version".to_string(),
+        "1".to_string(),
+        "--manifest-path".to_string(),
+        manifest_file,
+        "--no-deps".to_string(),
+    ];
 
     // Execute command via runtime
-    match RT::exec(command).await {
+    match RT::exec("cargo".to_string(), cargo_args).await {
         Ok(metadata) => extract_raw_metadata::<RT>(&metadata).await,
         Err(e) => {
             RT::log(format!("Failed to generate cargo metadata: {e}"));

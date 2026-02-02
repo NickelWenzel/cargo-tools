@@ -1,15 +1,17 @@
 // mod project_outline;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, iter};
 
 use cargo_tools::{
     cargo::{
-        command::{Explicit, Implicit},
+        command::{BuildSubTarget, BuildTarget, Explicit, Implicit, RunSubTarget, RunTarget},
         selection::{self, Features, Update},
     },
+    profile::Profile,
     runtime::{self, CargoTask, Runtime as _},
 };
 use iced_headless::Task;
+use std::path::PathBuf;
 
 use crate::{
     extension::cargo::{
@@ -19,7 +21,7 @@ use crate::{
     },
     quick_pick::SelectInput,
     runtime::VsCodeRuntime as Runtime,
-    vs_code_api::{JsValueExt, execute_async, log},
+    vs_code_api::{JsValueExt, debug, execute_async, host_platform, log},
 };
 
 trait IntoMessage {
@@ -86,16 +88,17 @@ impl Ui {
                 let input = self.data.feature_options();
                 done(async move { select_features(input).await })
             }
-            Command::Refresh => {
-                // Not yet implemented
-                Task::none()
-            }
+            Command::Refresh => Task::done(Message::ManifestChanged),
             Command::Clean => self.cmd_exec(Implicit::Clean),
             Command::Build => self.cmd_exec(Implicit::Build),
             Command::Run => self.cmd_exec(Implicit::Run),
             Command::Debug => {
-                // Not yet implemented
-                Task::none()
+                let Explicit::Debug(Some(target)) =
+                    Implicit::Debug.to_explicit(&self.data.selection)
+                else {
+                    return Task::none();
+                };
+                self.debug(target)
             }
             Command::Test => self.cmd_exec(Implicit::Test),
             Command::Bench => self.cmd_exec(Implicit::Bench),
@@ -111,16 +114,13 @@ impl Ui {
             PO::Test(package) => self.cmd_exec(Explicit::Test { package }),
             PO::Clean(package) => self.cmd_exec(Explicit::Clean { package }),
             PO::Run(target) => self.cmd_exec(Explicit::Run(Some(target))),
-            PO::Debug(_) => {
-                // Not yet implemented
-                Task::none()
-            }
+            PO::Debug(target) => self.debug(target),
             PO::Bench(package) => self.cmd_exec(Explicit::Bench { package }),
-            PO::SelectWorkspaceMemberFilter => todo!(),
+            PO::SelectWorkspaceMemberFilter => todo!(), // TODO
             PO::EditWorkspaceMemberFilter(filter) => {
                 Task::done(PackageFilter(filter).into_cargo_msg())
             }
-            PO::SelectTargetTypeFilter => todo!(),
+            PO::SelectTargetTypeFilter => todo!(), // TODO
             PO::EditTargetTypeFilter(update) => {
                 let mut filter = self.settings.target_types_filter.clone();
                 match update {
@@ -147,6 +147,46 @@ impl Ui {
     fn cmd_exec(&self, cmd: impl ToTask) -> Task<Message> {
         Task::future(Runtime::exec_task(cmd.into_task(&self.data.selection))).discard()
     }
+
+    fn debug(&self, target: RunTarget) -> Task<Message> {
+        let Some(run_target) = target.target.as_ref() else {
+            return Task::none();
+        };
+        let build_sub_target = match run_target {
+            RunSubTarget::Bin(t) => BuildSubTarget::Bin(t.clone()),
+            RunSubTarget::Example(t) => BuildSubTarget::Example(t.clone()),
+        };
+        let build_target = BuildTarget {
+            package: target.package.clone(),
+            target: Some(build_sub_target),
+        };
+        let mut selection = self.data.selection.clone();
+        selection.profile = Profile::Dev; // For now always use standard dev profile
+        // TODO: make it possible to run shell commands with env arguments
+        let build_debug_task =
+            Explicit::Build(Some(build_target)).to_task(&selection, &Runtime::get_configuration());
+
+        let Some(target_dir) = self
+            .data
+            .metadata
+            .metadata
+            .as_ref()
+            .map(|metadata| metadata.target_directory.to_string())
+        else {
+            return Task::none();
+        };
+
+        let target_exe_path = exec_path(run_target, &self.data.selection, &target_dir);
+
+        Task::future(async move {
+            Runtime::exec_task(build_debug_task).await;
+
+            if let Err(e) = debug(&target_exe_path, &target.package).await {
+                log(&format!("Error while dbugging: {}", e.to_error_string()));
+            }
+        })
+        .discard()
+    }
 }
 
 fn done(fut: impl Future<Output = Option<impl IntoMessage + 'static>> + 'static) -> Task<Message> {
@@ -172,7 +212,8 @@ impl ToTask for Explicit {
 }
 
 async fn select_platform_target(current: Option<String>) -> Option<impl IntoMessage> {
-    let platform_targets = match execute_async("rustup target list").await {
+    let rustup_args = vec!["target".to_string(), "list".to_string()];
+    let platform_targets = match execute_async("rustup", rustup_args).await {
         Ok(output) => {
             let output_str = output.as_string().unwrap_or_default();
             output_str
@@ -208,7 +249,8 @@ async fn select_platform_target(current: Option<String>) -> Option<impl IntoMess
 }
 
 async fn install_platform_target() {
-    let options = match execute_async("rustup target list").await {
+    let rustup_args = Vec::from_iter(["target", "list"].map(ToString::to_string));
+    let options = match execute_async("rustup", rustup_args).await {
         Ok(output) => {
             let output_str = output.as_string().unwrap_or_default();
             output_str
@@ -250,6 +292,7 @@ async fn install_platform_target() {
 }
 
 fn set_rust_analyzer_check_targets() -> Option<impl IntoMessage> {
+    // TODO
     log("'Set rust-analyzer check targets' not yet implemented");
     Option::<Update>::None
 }
@@ -263,4 +306,21 @@ async fn select_features(input: Option<SelectInput<String>>) -> Option<impl Into
     };
 
     Some(Update::SelectedFeatures(features))
+}
+
+fn exec_path(target: &RunSubTarget, selection: &selection::State, target_dir: &str) -> String {
+    let path_components = iter::once(target_dir.to_string())
+        .chain(iter::once("debug".to_string())) // For now always assume debug profile
+        .chain(selection.platform_target.as_ref().map(|t| t.to_string()))
+        .chain(match target {
+            RunSubTarget::Bin(bin) => vec![bin.clone()],
+            RunSubTarget::Example(example) => {
+                vec!["example".to_string(), example.to_string()]
+            }
+        })
+        .chain((host_platform() == "windows").then_some(".exe".to_string()));
+
+    PathBuf::from_iter(path_components)
+        .to_string_lossy()
+        .to_string()
 }

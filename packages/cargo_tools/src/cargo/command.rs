@@ -10,6 +10,7 @@ use crate::{
 pub enum Implicit {
     Build,
     Run,
+    Debug,
     Test,
     Bench,
     Clean,
@@ -40,6 +41,15 @@ impl Implicit {
                 };
                 Explicit::Run(target)
             }
+            Implicit::Debug => {
+                let target = if let Some(package) = selection.package.clone() {
+                    let target = selection.get(&package, |s| s.run_target.clone());
+                    Some(RunTarget { package, target })
+                } else {
+                    None
+                };
+                Explicit::Debug(target)
+            }
             Implicit::Test => {
                 let package = selection.package.clone();
                 Explicit::Test { package }
@@ -60,6 +70,7 @@ impl Implicit {
 pub enum Explicit {
     Build(Option<BuildTarget>),
     Run(Option<RunTarget>),
+    Debug(Option<RunTarget>),
     Test { package: Option<String> },
     Bench { package: Option<String> },
     Doc,
@@ -129,6 +140,8 @@ impl Explicit {
                 args.extend(selection_args);
                 args
             }
+            // Debug is special and does not translate into arguments
+            Explicit::Debug(_) => Vec::new(),
             Explicit::Test { package } => {
                 let mut args: Vec<_> = vec!["test".to_string()];
                 let selection_args = selection.args(package.is_some());
@@ -167,7 +180,7 @@ impl Explicit {
 
     fn task_context(&self) -> Context {
         match self {
-            Explicit::Run(_) => Context::Run,
+            Explicit::Run(_) | Explicit::Debug(_) => Context::Run,
             Explicit::Test { package: _ } => Context::Test,
             Explicit::Build(_)
             | Explicit::Bench { package: _ }

@@ -19,7 +19,7 @@ pub struct Task {
 
 #[wasm_async_trait]
 pub trait Runtime: 'static {
-    async fn exec(command: String) -> Result<String, String>;
+    async fn exec(command: String, args: Vec<String>) -> Result<String, String>;
     async fn exec_task(task: CargoTask);
     fn log(msg: String);
 

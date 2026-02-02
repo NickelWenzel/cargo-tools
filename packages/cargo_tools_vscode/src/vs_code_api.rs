@@ -10,17 +10,20 @@ extern "C" {
     pub async fn echo_task(msg: &str);
 
     #[wasm_bindgen(catch)]
-    pub async fn execute_async(command: &str) -> Result<JsString, JsValue>;
+    pub async fn execute_async(command: &str, args: Vec<String>) -> Result<JsString, JsValue>;
 
     #[wasm_bindgen(catch)]
     pub async fn executeCommand(command: &str, rest: Array) -> Result<JsValue, JsValue>;
 
     #[wasm_bindgen(catch)]
-    pub async fn showInformationMessage(message: String, items: Array)
-    -> Result<JsString, JsValue>;
+    pub async fn showInformationMessage(
+        message: String,
+        items: Vec<String>,
+    ) -> Result<JsString, JsValue>;
 
     #[wasm_bindgen(catch)]
-    pub async fn showErrorMessage(message: String, items: Array) -> Result<JsString, JsValue>;
+    pub async fn showErrorMessage(message: String, items: Vec<String>)
+    -> Result<JsString, JsValue>;
 }
 
 #[wasm_bindgen(raw_module = "../runtime.ts")]
@@ -38,6 +41,11 @@ extern "C" {
 
     #[wasm_bindgen(catch)]
     pub async fn read_file(file_path: &str) -> Result<JsString, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn debug(target_exe_path: &str, target_name: &str) -> Result<JsValue, JsValue>;
+
+    pub fn host_platform() -> String;
 }
 
 pub struct TsFileWatcher {

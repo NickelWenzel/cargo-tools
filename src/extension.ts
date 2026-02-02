@@ -4,7 +4,7 @@ import { ProjectOutlineTreeProvider } from './projectOutlineTreeProvider';
 import { MakefileTreeProvider } from './makefileTreeProvider';
 import { PinnedMakefileTasksTreeProvider } from './pinnedMakefileTasksTreeProvider';
 import { CargoExtensionManager } from './cargoExtensionManager';
-import { run, exit } from './wasm/cargo_tools_vscode';
+import { run, ExitToken } from './wasm/cargo_tools_vscode';
 import { initializeStateModule } from './context';
 
 let extensionManager: CargoExtensionManager | undefined;
@@ -12,6 +12,8 @@ let extensionManager: CargoExtensionManager | undefined;
  * Global extension context - accessible throughout the extension
  */
 export let extension_context: vscode.ExtensionContext | undefined;
+
+let exit: ExitToken | undefined;
 
 /**
  * Main extension activation function.
@@ -32,7 +34,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<any> {
 			throw new Error('No workspace folder found');
 		}
 
-		run(workspaceFolder);
+		exit = run(workspaceFolder);
 
 		console.log('Cargo Tools extension fully initialized!');
 		return {};
@@ -535,7 +537,7 @@ export async function deactivate(): Promise<void> {
 		// 	await extensionManager.asyncDispose();
 		// 	extensionManager = undefined;
 		// }
-		await exit();
+		exit?.exit();
 
 		console.log('Cargo Tools extension deactivated successfully');
 	} catch (error) {
