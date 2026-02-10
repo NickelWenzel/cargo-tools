@@ -212,66 +212,31 @@ impl ToTask for Explicit {
 }
 
 async fn select_platform_target(current: Option<String>) -> Option<impl IntoMessage> {
-    let rustup_args = vec!["target".to_string(), "list".to_string()];
-    let platform_targets = match execute_async("rustup", rustup_args).await {
-        Ok(output) => {
-            let output_str = output.as_string().unwrap_or_default();
-            output_str
-                .lines()
-                .filter_map(|line| {
-                    let line = line.trim();
-                    if line.ends_with("(installed)") {
-                        Some(line.trim_end_matches("(installed)").trim().to_string())
-                    } else {
-                        None
-                    }
-                })
-                .map(Some)
-                .collect::<Vec<_>>()
-        }
-        Err(e) => {
-            log(&format!(
-                "Failed to get platform targets from rustup: {}",
-                e.to_error_string()
-            ));
-            return None;
-        }
+    let options = match platform_targets().await {
+        Some(targets) => targets.into_iter().filter_map(|t| {
+            (!t.ends_with("(installed)"))
+                .then_some(Some(t.trim_end_matches("(installed)").trim().to_string()))
+        }),
+        None => return None,
     };
 
     let input = {
-        let mut options = vec![None];
-        options.extend(platform_targets);
-        let current = vec![current];
-        SelectInput { options, current }
+        SelectInput {
+            options: iter::once(None).chain(options).collect(),
+            current: vec![current],
+        }
     };
 
     input.select().await.map(Update::SelectedPlatformTarget)
 }
 
 async fn install_platform_target() {
-    let rustup_args = Vec::from_iter(["target", "list"].map(ToString::to_string));
-    let options = match execute_async("rustup", rustup_args).await {
-        Ok(output) => {
-            let output_str = output.as_string().unwrap_or_default();
-            output_str
-                .lines()
-                .filter_map(|line| {
-                    let line = line.trim();
-                    if line.ends_with("(installed)") {
-                        None
-                    } else {
-                        Some(line.to_string())
-                    }
-                })
-                .collect::<Vec<_>>()
-        }
-        Err(e) => {
-            log(&format!(
-                "Failed to get platform targets from rustup: {}",
-                e.to_error_string()
-            ));
-            return;
-        }
+    let options = match platform_targets().await {
+        Some(targets) => targets
+            .into_iter()
+            .filter(|t| !t.ends_with("(installed)"))
+            .collect(),
+        None => return,
     };
 
     let input = SelectInput {
@@ -295,6 +260,22 @@ fn set_rust_analyzer_check_targets() -> Option<impl IntoMessage> {
     // TODO
     log("'Set rust-analyzer check targets' not yet implemented");
     Option::<Update>::None
+}
+
+async fn platform_targets() -> Option<Vec<String>> {
+    let rustup_args = Vec::from_iter(["target", "list"].map(ToString::to_string));
+    match execute_async("rustup", rustup_args).await {
+        Ok(output) => output
+            .as_string()
+            .map(|s| s.lines().map(|l| l.trim().to_string()).collect()),
+        Err(e) => {
+            log(&format!(
+                "Failed to get platform targets from rustup: {}",
+                e.to_error_string()
+            ));
+            None
+        }
+    }
 }
 
 async fn select_features(input: Option<SelectInput<String>>) -> Option<impl IntoMessage> {
