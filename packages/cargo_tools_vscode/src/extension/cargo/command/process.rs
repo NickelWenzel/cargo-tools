@@ -10,8 +10,12 @@ use cargo_tools::{
     profile::Profile,
     runtime::{self, CargoTask, Runtime as _},
 };
+use futures::SinkExt;
 use iced_headless::Task;
+use serde_wasm_bindgen::to_value;
 use std::path::PathBuf;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     extension::cargo::{
@@ -19,9 +23,9 @@ use crate::{
         TargetTypesFilterUpdate, Ui,
         command::{Command, ProjectOutline as PO},
     },
-    quick_pick::SelectInput,
+    quick_pick::{SelectInput, ToQuickPickItem},
     runtime::VsCodeRuntime as Runtime,
-    vs_code_api::{JsValueExt, debug, execute_async, host_platform, log},
+    vs_code_api::{JsValueExt, debug, execute_async, host_platform, log, show_quick_pick_type},
 };
 
 trait IntoMessage {
@@ -116,7 +120,7 @@ impl Ui {
             PO::Run(target) => self.cmd_exec(Explicit::Run(Some(target))),
             PO::Debug(target) => self.debug(target),
             PO::Bench(package) => self.cmd_exec(Explicit::Bench { package }),
-            PO::SelectWorkspaceMemberFilter => todo!(), // TODO
+            PO::SelectWorkspaceMemberFilter => self.select_workspace_member_filter(),
             PO::EditWorkspaceMemberFilter(filter) => {
                 Task::done(PackageFilter(filter).into_cargo_msg())
             }
@@ -186,6 +190,48 @@ impl Ui {
             }
         })
         .discard()
+    }
+
+    fn select_workspace_member_filter(&self) -> Task<Message> {
+        let current = self.settings.package_filter.clone().into_string();
+        let Some(Ok(options)) = self.data.metadata.metadata.as_ref().map(|m| {
+            m.workspace_packages()
+                .into_iter()
+                .map(|p| to_value(&p.name.to_string().to_item(false)))
+                .collect::<Result<Array, _>>()
+        }) else {
+            return Task::none();
+        };
+
+        if options.length() < 2 {
+            return Task::none();
+        }
+
+        let cmd_tx = self.cmd_tx.clone();
+
+        Task::future(async move {
+            // Closure only needs to live while the quickpick is active
+            let filter_update = Closure::new(move |filter: String| {
+                let mut tx = cmd_tx.clone();
+                spawn_local(async move {
+                    log(&format!("Sending workspace member filter '{filter}'"));
+                    if let Err(e) = tx
+                        .send(PO::EditWorkspaceMemberFilter(filter).to_cmd())
+                        .await
+                    {
+                        log(&format!("Failed to queue msg: {}", e));
+                    }
+                });
+            });
+
+            let filter = show_quick_pick_type(current.clone(), options, &filter_update)
+                .await
+                .map(|f| f.as_string().unwrap_or(current.clone()))
+                .unwrap_or(current);
+
+            PackageFilter(filter)
+        })
+        .map(PackageFilter::into_cargo_msg)
     }
 }
 

@@ -147,6 +147,13 @@ extern "C" {
     /// - `Err(JsValue)`: Error if the operation fails
     #[wasm_bindgen(catch)]
     pub async fn show_quick_pick_multiple(items: Array) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn show_quick_pick_type(
+        current: String,
+        items: Array,
+        callback: &Closure<dyn FnMut(String)>,
+    ) -> Result<JsValue, JsValue>;
 }
 
 #[wasm_bindgen]

@@ -12,7 +12,7 @@ use cargo_tools::{
     profile::Profile,
     runtime::Runtime as _,
 };
-use futures::channel::mpsc::channel;
+use futures::channel::mpsc::{Sender, channel};
 use iced_headless::Task;
 
 use serde::{Deserialize, Serialize};
@@ -48,6 +48,7 @@ pub struct Ui {
     data: CommandData,
     settings: OutlineSettings,
     base: Base,
+    cmd_tx: Sender<Command>,
 }
 
 impl Ui {
@@ -58,7 +59,7 @@ impl Ui {
         let file_watcher = TsFileWatcher::new(send_file_changed(manifest_changed_tx));
 
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
-        let cmds = register_cargo_commands(cmd_tx);
+        let cmds = register_cargo_commands(cmd_tx.clone());
 
         let settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
         let selection = Runtime::get_state(state_key(&root_dir)).unwrap_or_default();
@@ -77,6 +78,7 @@ impl Ui {
             data,
             settings,
             base,
+            cmd_tx,
         };
 
         // manifest update and cmd will run for the lifetime of the extension
@@ -190,6 +192,12 @@ pub enum TargetTypesFilterUpdate {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PackageFilter(String);
+
+impl PackageFilter {
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum Grouping {
