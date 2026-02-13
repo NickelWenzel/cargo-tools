@@ -3,7 +3,7 @@ authors = ["Nicolas Wenzel"]
 edition = "2024"
 name = "cargo_tools"
 publish = false
-version = "0.0.0"
+version = "0.2.0"
 
 [dependencies]
 iced_headless = { workspace = true }
