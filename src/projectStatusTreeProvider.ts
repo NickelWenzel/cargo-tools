@@ -483,25 +483,4 @@ export class ProjectStatusTreeProvider implements vscode.TreeDataProvider<Projec
 
         return nodes;
     }
-
-    private getTargetsForPackage(packageName: string): CargoTarget[] {
-        if (!this.workspace) {
-            return [];
-        }
-
-        return this.workspace.targets.filter(target => target.packageName === packageName);
-    }
-
-    private groupTargetsByType(targets: CargoTarget[]): Map<CargoTargetKind, CargoTarget[]> {
-        const groups = new Map<CargoTargetKind, CargoTarget[]>();
-
-        for (const target of targets) {
-            if (!groups.has(target.kind)) {
-                groups.set(target.kind, []);
-            }
-            groups.get(target.kind)!.push(target);
-        }
-
-        return groups;
-    }
 }
