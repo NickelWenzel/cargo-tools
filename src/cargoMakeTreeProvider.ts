@@ -14,6 +14,14 @@ export class CargoMakeNode extends vscode.TreeItem {
         this.tooltip = tooltip;
         this.handler = handler;
     }
+
+    getHandler(): CargoMakeNodeHandler {
+        return this.handler;
+    }
+}
+
+export function toCargoMakeNode(value: any): CargoMakeNode {
+    return value as CargoMakeNode;
 }
 
 export class CargoMakeTreeProvider implements vscode.TreeDataProvider<CargoMakeNode> {
@@ -24,10 +32,11 @@ export class CargoMakeTreeProvider implements vscode.TreeDataProvider<CargoMakeN
 
     constructor(handler: CargoMakeTreeProviderHandler) {
         this.handler = handler;
-        this.update();
+        this.update(handler);
     }
 
-    update(): void {
+    update(handler: CargoMakeTreeProviderHandler): void {
+        this.handler = handler;
         this._onDidChangeTreeData.fire();
     }
 

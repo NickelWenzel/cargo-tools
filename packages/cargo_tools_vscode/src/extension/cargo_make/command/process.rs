@@ -1,5 +1,7 @@
 // mod project_outline;
 
+use std::ops::Deref;
+
 use cargo_tools::{cargo_make::tasks::MakefileTask, runtime::Runtime as _};
 use iced_headless::Task;
 
@@ -35,7 +37,7 @@ impl Ui {
             Command::RunTask(task) => self.make_task_exec(task),
             Command::SelectAndRunTask => {
                 let input = SelectInput {
-                    options: self.makefile_tasks.clone(),
+                    options: self.makefile_tasks.deref().clone(),
                     current: Vec::new(),
                 };
                 done(async move { input.select().await.map(Command::RunTask) })
@@ -59,12 +61,20 @@ impl Ui {
             Command::Pinned(pinned) => match pinned {
                 Pinned::Add => {
                     let input = SelectInput {
-                        options: self.makefile_tasks.clone(),
+                        options: self.makefile_tasks.deref().clone(),
                         current: Vec::new(),
                     };
                     done(async move { input.select().await.map(Command::PinTask) })
                 }
-                Pinned::Remove(idx) => {
+                Pinned::Remove(task) => {
+                    let Some(idx) = self
+                        .settings
+                        .pinned_makefile_tasks
+                        .iter()
+                        .position(|pinned| pinned == &task)
+                    else {
+                        return Task::none();
+                    };
                     Task::done(SettingsUpdate::RemovePinned(idx).into_cargo_make_msg())
                 }
                 Pinned::Execute(task) => self.make_task_exec(task),

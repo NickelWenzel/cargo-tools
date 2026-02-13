@@ -13,10 +13,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     extension::{
         base::{Base, send_file_changed},
-        cargo_make::command::{Command, register_cargo_make_commands},
+        cargo_make::{
+            command::{Command, register_cargo_make_commands},
+            ui::CargoMakeTreeProviderHandler,
+        },
     },
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
-    vs_code_api::{TsFileWatcher, set_makefile_context},
+    vs_code_api::{CargoMakeTreeProvider, TsFileWatcher, set_makefile_context},
 };
 
 #[derive(Debug, Clone)]
@@ -39,6 +42,7 @@ pub enum SettingsUpdate {
 pub struct Ui {
     makefile_tasks: MakefileTasks,
     settings: Settings,
+    ui: CargoMakeTreeProvider,
     base: Base,
 }
 
@@ -61,9 +65,12 @@ impl Ui {
             root_dir,
         };
 
+        let handler = CargoMakeTreeProviderHandler::new(MakefileTasks::default());
+
         let this = Self {
-            makefile_tasks: Vec::new(),
+            makefile_tasks: MakefileTasks::default(),
             settings,
+            ui: CargoMakeTreeProvider::new(handler),
             base,
         };
 
@@ -82,11 +89,13 @@ impl Ui {
         match msg {
             Message::MakefileTasksChanged(update) => match update {
                 MakefileTasksUpdate::New(makefile_tasks) => {
-                    self.makefile_tasks = makefile_tasks;
+                    self.makefile_tasks = makefile_tasks.clone();
+                    self.update_ui();
                     Task::future(set_makefile_context(true)).discard()
                 }
                 MakefileTasksUpdate::NoMakefile => {
-                    self.makefile_tasks = Vec::new();
+                    self.makefile_tasks = MakefileTasks::default();
+                    self.update_ui();
                     Task::future(set_makefile_context(false)).discard()
                 }
                 // For invalid makefiles leave everything as is
@@ -107,6 +116,7 @@ impl Ui {
             task_filter,
             category_filters,
         } = &mut self.settings;
+
         match update {
             SettingsUpdate::AddPinned(task) => {
                 if pinned_makefile_tasks.contains(&task) {
@@ -118,14 +128,32 @@ impl Ui {
                     pinned_makefile_tasks.remove(idx);
                 }
             }
-            SettingsUpdate::TaskFilter(tf) => *task_filter = tf,
-            SettingsUpdate::CategoryFilter(cf) => *category_filters = cf,
+            SettingsUpdate::TaskFilter(tf) => {
+                *task_filter = tf;
+                self.update_ui();
+            }
+            SettingsUpdate::CategoryFilter(cf) => {
+                *category_filters = cf;
+                self.update_ui();
+            }
         };
+
         Task::future(Runtime::persist_state(
             settings_key(&self.base.root_dir),
             self.settings.clone(),
         ))
         .discard()
+    }
+
+    fn update_ui(&self) {
+        let Settings {
+            task_filter,
+            category_filters,
+            ..
+        } = &self.settings;
+
+        let tasks = self.makefile_tasks.filtered(task_filter, category_filters);
+        self.ui.update(CargoMakeTreeProviderHandler::new(tasks));
     }
 }
 

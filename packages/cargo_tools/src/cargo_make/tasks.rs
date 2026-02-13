@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -26,9 +28,48 @@ impl MakefileTask {
             env: config.get_env(ctx),
         })
     }
+
+    fn filter(&self, task_filter: &str, category_filters: &[String]) -> bool {
+        self.name
+            .to_lowercase()
+            .contains(&task_filter.to_lowercase())
+            && category_filters.contains(&self.category)
+    }
 }
 
-pub type MakefileTasks = Vec<MakefileTask>;
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MakefileTasks(Vec<MakefileTask>);
+
+impl MakefileTasks {
+    pub fn filtered(&self, task_filter: &str, category_filters: &[String]) -> Self {
+        let tasks = self
+            .iter()
+            .filter(|task| task.filter(task_filter, category_filters))
+            .cloned()
+            .collect();
+        Self(tasks)
+    }
+}
+
+impl Deref for MakefileTasks {
+    type Target = Vec<MakefileTask>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for MakefileTasks {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<Vec<MakefileTask>> for MakefileTasks {
+    fn from(value: Vec<MakefileTask>) -> Self {
+        Self(value)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum MakefileTasksUpdate {
@@ -98,5 +139,5 @@ async fn parse_makefile_output<RT: Runtime>(output: &str) -> MakefileTasksUpdate
     }
 
     RT::log(format!("Discovered {} cargo-make tasks", tasks.len()));
-    MakefileTasksUpdate::New(tasks)
+    MakefileTasksUpdate::New(MakefileTasks(tasks))
 }

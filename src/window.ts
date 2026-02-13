@@ -67,10 +67,10 @@ export async function show_quick_pick_type(current: string, items: QuickPickItem
 
         if (!filter) {
             // Show all members when no filter
-            quickPick.items = items;
+            quickPick.items = vsCodeItems;
         } else {
             // Filter and show matching members
-            const matchingItems = items.filter(item =>
+            const matchingItems = vsCodeItems.filter(item =>
                 item.label.toLowerCase().includes(filter)
             );
 

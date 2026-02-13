@@ -171,14 +171,29 @@ extern "C" {
         label: String,
         collapsible_state: u32,
         description: String,
-        tooltip: String,
+        tooltip: Option<String>,
         handler: CargoMakeNodeHandler,
     ) -> CargoMakeNode;
+
+    #[wasm_bindgen(method, js_name = "getHandler")]
+    pub fn get_handler(this: &CargoMakeNode) -> CargoMakeNodeHandler;
+
+    #[wasm_bindgen(catch, js_name = "toCargoMakeNode")]
+    pub fn to_cargo_make_node(value: JsValue) -> Result<CargoMakeNode, JsValue>;
 
     pub type CargoMakeTreeProvider;
 
     #[wasm_bindgen(constructor)]
     pub fn new(handler: CargoMakeTreeProviderHandler) -> CargoMakeTreeProvider;
+
+    #[wasm_bindgen(method)]
+    pub fn update(this: &CargoMakeTreeProvider, handler: CargoMakeTreeProviderHandler);
+}
+
+impl Debug for CargoMakeTreeProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CargoMakeTreeProvider").finish()
+    }
 }
 
 #[wasm_bindgen]
