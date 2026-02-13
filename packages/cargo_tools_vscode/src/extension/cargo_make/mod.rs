@@ -1,4 +1,5 @@
 pub mod command;
+pub mod ui;
 
 use cargo_tools::{
     cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},

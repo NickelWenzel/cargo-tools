@@ -3,7 +3,13 @@ use std::{fmt::Debug, ops::Deref};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::{Array, JsString};
 
-use crate::{extension::OnFileChanged, runtime::VsCodeTask};
+use crate::{
+    extension::{
+        OnFileChanged,
+        cargo_make::ui::{CargoMakeNodeHandler, CargoMakeTreeProviderHandler},
+    },
+    runtime::VsCodeTask,
+};
 
 #[wasm_bindgen(raw_module = "../cargoTools.ts")]
 extern "C" {
@@ -154,6 +160,25 @@ extern "C" {
         items: Array,
         callback: &Closure<dyn FnMut(String)>,
     ) -> Result<JsValue, JsValue>;
+}
+
+#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+extern "C" {
+    pub type CargoMakeNode;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        label: String,
+        collapsible_state: u32,
+        description: String,
+        tooltip: String,
+        handler: CargoMakeNodeHandler,
+    ) -> CargoMakeNode;
+
+    pub type CargoMakeTreeProvider;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(handler: CargoMakeTreeProviderHandler) -> CargoMakeTreeProvider;
 }
 
 #[wasm_bindgen]
