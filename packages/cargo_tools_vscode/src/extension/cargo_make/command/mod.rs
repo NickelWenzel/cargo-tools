@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use cargo_tools::cargo_make::tasks::MakefileTask;
 use futures::{SinkExt, channel::mpsc::Sender};
-use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     extension::{TaskMap, VsCodeTask, register_tasks},
-    vs_code_api::{JsValueExt, log, to_cargo_make_node},
+    vs_code_api::{log, try_as_node},
 };
 
 pub mod process;
@@ -27,10 +26,10 @@ pub enum Command {
 }
 
 impl Command {
-    pub const fn all() -> [(&'static str, CargoMakeCmdFn); 16] {
+    pub const fn all() -> [(&'static str, CargoMakeCmdFn); 14] {
         [
             ("cargo-tools.makefile.runTask", |arg| {
-                try_first_as_node_into(arg, Self::RunTask)
+                try_task_from_node(arg, Self::RunTask)
             }),
             ("cargo-tools.makefile.selectAndRunTask", |_| {
                 Some(Self::SelectAndRunTask)
@@ -38,29 +37,23 @@ impl Command {
             ("cargo-tools.makefile.selectTaskFilter", |_| {
                 Some(Self::SelectTaskFilter)
             }),
-            ("cargo-tools.makefile.editTaskFilter", |arg| {
-                try_first_into(arg, Self::EditTaskFilter)
-            }),
             ("cargo-tools.makefile.selectCategoryFilter", |_| {
                 Some(Self::SelectCategoryFilter)
-            }),
-            ("cargo-tools.makefile.editCategoryFilter", |arg| {
-                try_first_into(arg, Self::EditCategoryFilter)
             }),
             ("cargo-tools.makefile.clearAllFilters", |_| {
                 Some(Self::ClearAllFilters)
             }),
             ("cargo-tools.makefile.pinTask", |arg| {
-                try_first_as_node_into(arg, Self::PinTask)
+                try_task_from_node(arg, Self::PinTask)
             }),
             ("cargo-tools.pinnedMakefileTasks.add", |_| {
                 Some(Self::Pinned(Pinned::Add))
             }),
             ("cargo-tools.pinnedMakefileTasks.remove", |arg| {
-                try_first_as_node_into(arg, Pinned::Remove).map(Self::Pinned)
+                try_task_from_node(arg, Pinned::Remove).map(Self::Pinned)
             }),
             ("cargo-tools.pinnedMakefileTasks.execute", |arg| {
-                try_first_as_node_into(arg, Pinned::Execute).map(Self::Pinned)
+                try_task_from_node(arg, Pinned::Execute).map(Self::Pinned)
             }),
             ("cargo-tools.pinnedMakefileTasks.execute1", |_| {
                 Some(Self::Pinned(Pinned::Execute1))
@@ -95,35 +88,10 @@ pub enum Pinned {
     Execute5,
 }
 
-fn try_first_into<T: DeserializeOwned, To>(arg: Array, cmd: fn(T) -> To) -> Option<To> {
-    take_first(arg).map(cmd)
-}
-
-fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
-    match serde_wasm_bindgen::from_value(array.get(0)) {
-        Ok(v) => Some(v),
-        Err(e) => {
-            log(&format!("Failed to deserialize update: {e}"));
-            None
-        }
-    }
-}
-
-fn try_first_as_node_into<To>(arg: Array, cmd: fn(MakefileTask) -> To) -> Option<To> {
-    take_task_from_first(arg).map(cmd)
-}
-
-fn take_task_from_first(array: Array) -> Option<MakefileTask> {
-    match to_cargo_make_node(array.get(0)) {
-        Ok(v) => v.get_handler().try_into_task(),
-        Err(e) => {
-            log(&format!(
-                "Failed to deserialize update: {}",
-                e.to_error_string()
-            ));
-            None
-        }
-    }
+fn try_task_from_node<To>(arg: Array, cmd: fn(MakefileTask) -> To) -> Option<To> {
+    try_as_node(arg)
+        .and_then(|node| node.get_handler().try_into_task())
+        .map(cmd)
 }
 
 pub fn register_cargo_make_commands(tx: Sender<Command>) -> Vec<VsCodeTask> {

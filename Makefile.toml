@@ -9,9 +9,7 @@ command = "npm"
 args = ["run", "package"]
 
 [tasks.compile]
-description = """Compile the extension
-ee3d3
-ee"""
+description = """Compile the extension"""
 command = "npm"
 args = ["run", "compile"]
 

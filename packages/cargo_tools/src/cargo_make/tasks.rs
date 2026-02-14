@@ -29,11 +29,21 @@ impl MakefileTask {
         })
     }
 
-    fn filter(&self, task_filter: &str, category_filters: &[String]) -> bool {
+    fn keep(&self, task_filter: &str, category_filters: &[String]) -> bool {
+        // 1. check if category is filetered out filter category
+        if category_filters.contains(&self.category) {
+            return false;
+        }
+
+        // 2. check if there is a task filter
+        if task_filter.is_empty() {
+            return true;
+        }
+
+        // 3. check task filter
         self.name
             .to_lowercase()
             .contains(&task_filter.to_lowercase())
-            && category_filters.contains(&self.category)
     }
 }
 
@@ -44,7 +54,7 @@ impl MakefileTasks {
     pub fn filtered(&self, task_filter: &str, category_filters: &[String]) -> Self {
         let tasks = self
             .iter()
-            .filter(|task| task.filter(task_filter, category_filters))
+            .filter(|task| task.keep(task_filter, category_filters))
             .cloned()
             .collect();
         Self(tasks)

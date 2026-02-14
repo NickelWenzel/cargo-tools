@@ -8,6 +8,7 @@ use crate::{
         OnFileChanged,
         cargo_make::ui::{CargoMakeNodeHandler, CargoMakeTreeProviderHandler},
     },
+    icon::Icon,
     runtime::VsCodeTask,
 };
 
@@ -169,17 +170,19 @@ extern "C" {
     #[wasm_bindgen(constructor)]
     pub fn new(
         label: String,
+        icon: Icon,
         collapsible_state: u32,
+        context_value: String,
         description: String,
         tooltip: Option<String>,
         handler: CargoMakeNodeHandler,
     ) -> CargoMakeNode;
 
-    #[wasm_bindgen(method, js_name = "getHandler")]
+    #[wasm_bindgen(method)]
     pub fn get_handler(this: &CargoMakeNode) -> CargoMakeNodeHandler;
 
-    #[wasm_bindgen(catch, js_name = "toCargoMakeNode")]
-    pub fn to_cargo_make_node(value: JsValue) -> Result<CargoMakeNode, JsValue>;
+    #[wasm_bindgen]
+    pub fn try_as_node(value: Array) -> Option<CargoMakeNode>;
 
     pub type CargoMakeTreeProvider;
 

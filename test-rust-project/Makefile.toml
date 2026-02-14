@@ -43,6 +43,7 @@ description = "Generate documentation for all workspace members"
 command = "cargo"
 args = ["doc", "--workspace", "--no-deps"]
 
+
 [tasks.release-build]
 description = "Build workspace in release mode"
 command = "cargo"

@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
 use cargo_tools::cargo_make::tasks::{MakefileTask, MakefileTasks};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::vs_code_api::CargoMakeNode;
+use crate::{
+    icon::{MAKEFILE_CATEGORY, MAKEFILE_TASK},
+    vs_code_api::CargoMakeNode,
+};
+
+const TASK_CONTEXT: &str = "makefileTask";
+const CATEGORY_CONTEXT: &str = "category";
 
 /// The data  for the vs code tree item bodes
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,33 +39,44 @@ impl CargoMakeNodeHandler {
             Category { category: _, tasks } => tasks
                 .iter()
                 .cloned()
-                .map(|task| {
-                    let label = task.name.clone();
-                    let collapsible_state = CollapsibleState::None as u32;
-                    let description = task.description.clone();
-                    let tooltip = Some(format!(
-                        "Task: {label}{}",
-                        if description.is_empty() {
-                            String::new()
-                        } else {
-                            format!("\n{description}")
-                        }
-                    ));
-                    let handler = CargoMakeNodeHandler::task(task);
-                    CargoMakeNode::new(label, collapsible_state, description, tooltip, handler)
-                })
+                .sorted_by(|t1, t2| t1.name.cmp(&t2.name))
+                .map(from_task)
                 .collect(),
             Task { task: _ } => vec![],
         }
     }
 }
 
+fn from_task(task: MakefileTask) -> CargoMakeNode {
+    let label = task.name.clone();
+    let collapsible_state = CollapsibleState::None as u32;
+    let description = task.description.clone();
+    let tooltip = Some(format!(
+        "Task: {label}{}",
+        if description.is_empty() {
+            String::new()
+        } else {
+            format!("\n{description}")
+        }
+    ));
+    let handler = CargoMakeNodeHandler::task(task);
+    CargoMakeNode::new(
+        label,
+        MAKEFILE_TASK,
+        collapsible_state,
+        TASK_CONTEXT.to_string(),
+        description,
+        tooltip,
+        handler,
+    )
+}
+
 impl CargoMakeNodeHandler {
-    pub fn category(category: String, tasks: MakefileTasks) -> Self {
+    fn category(category: String, tasks: MakefileTasks) -> Self {
         Self(CargoMakeNodeInner::Category { category, tasks })
     }
 
-    pub fn task(task: MakefileTask) -> Self {
+    fn task(task: MakefileTask) -> Self {
         Self(CargoMakeNodeInner::Task { task })
     }
 
@@ -87,24 +105,40 @@ impl CargoMakeTreeProviderHandler {
     pub fn categories(&self) -> Vec<CargoMakeNode> {
         self.tasks
             .iter()
-            .fold(HashMap::new(), |mut nodes, task| {
-                nodes
-                    .entry(task.category.clone())
-                    .or_insert_with(Vec::new)
-                    .push(task.clone());
-                nodes
-            })
+            .fold(HashMap::new(), insert)
             .into_iter()
-            .map(|(category, tasks)| {
-                let label = category.clone();
-                let collapsible_state = CollapsibleState::Expanded as u32;
-                let description = format!("{} tasks", tasks.len());
-                let tooltip = None;
-                let handler = CargoMakeNodeHandler::category(category, MakefileTasks::from(tasks));
-                CargoMakeNode::new(label, collapsible_state, description, tooltip, handler)
-            })
+            .sorted_by(|(c1, _), (c2, _)| c1.cmp(c2))
+            .map(from_category)
             .collect()
     }
+}
+
+fn insert(
+    mut nodes: HashMap<String, Vec<MakefileTask>>,
+    task: &MakefileTask,
+) -> HashMap<String, Vec<MakefileTask>> {
+    nodes
+        .entry(task.category.clone())
+        .or_default()
+        .push(task.clone());
+    nodes
+}
+
+fn from_category((category, tasks): (String, Vec<MakefileTask>)) -> CargoMakeNode {
+    let label = category.clone();
+    let collapsible_state = CollapsibleState::Expanded as u32;
+    let description = format!("{} tasks", tasks.len());
+    let tooltip = None;
+    let handler = CargoMakeNodeHandler::category(category, MakefileTasks::from(tasks));
+    CargoMakeNode::new(
+        label,
+        MAKEFILE_CATEGORY,
+        collapsible_state,
+        CATEGORY_CONTEXT.to_string(),
+        description,
+        tooltip,
+        handler,
+    )
 }
 
 /// Methods not exported to typescript

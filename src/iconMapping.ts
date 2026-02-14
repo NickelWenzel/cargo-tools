@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { CargoConfiguration } from './cargoConfigurationReader';
 import { CargoTargetKind } from './cargoTarget';
 
 /**
