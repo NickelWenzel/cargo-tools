@@ -325,7 +325,7 @@ async fn platform_targets() -> Option<Vec<String>> {
 }
 
 async fn select_features(input: Option<SelectInput<String>>) -> Option<impl IntoMessage> {
-    let selected_features = input?.select_multiple().await?;
+    let selected_features = input?.select_multiple(|_| {}).await?;
     let features = if selected_features.iter().any(|f| f == "All Features") {
         Features::All
     } else {

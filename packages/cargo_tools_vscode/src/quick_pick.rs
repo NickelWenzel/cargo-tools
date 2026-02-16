@@ -192,7 +192,10 @@ impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
         options.get(selected_index).cloned()
     }
 
-    pub async fn select_multiple(self) -> Option<Vec<T>> {
+    pub async fn select_multiple(
+        self,
+        on_select: impl FnMut(Vec<String>) + 'static,
+    ) -> Option<Vec<T>> {
         let Self { options, current } = self;
         let vscode_options = match options
             .iter()
@@ -209,7 +212,10 @@ impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
             }
         };
 
-        let selected_indices = match show_quick_pick_multiple(vscode_options).await {
+        // Only needs to live for the duration of the quick pick
+        let on_select = Closure::new(on_select);
+
+        let selected_indices = match show_quick_pick_multiple(vscode_options, &on_select).await {
             Ok(value) => {
                 if value.is_null() || value.is_undefined() {
                     return None;

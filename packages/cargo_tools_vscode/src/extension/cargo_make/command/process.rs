@@ -3,16 +3,21 @@
 use std::ops::Deref;
 
 use cargo_tools::{cargo_make::tasks::MakefileTask, runtime::Runtime as _};
+use futures::SinkExt;
 use iced_headless::Task;
+use itertools::Itertools;
+use serde_wasm_bindgen::to_value;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen_futures::spawn_local;
 
 use crate::{
     extension::cargo_make::{
         Message, SettingsUpdate, Ui,
         command::{Command, Pinned},
     },
-    quick_pick::SelectInput,
+    quick_pick::{SelectInput, ToQuickPickItem},
     runtime::VsCodeRuntime as Runtime,
-    vs_code_api::showInformationMessage,
+    vs_code_api::{log, show_quick_pick_type, showInformationMessage},
 };
 
 trait IntoCargoMakeMessage {
@@ -42,18 +47,18 @@ impl Ui {
                 };
                 done(async move { input.select().await.map(Command::RunTask) })
             }
-            Command::SelectTaskFilter => todo!(),
+            Command::SelectTaskFilter => self.select_task_filter(),
             Command::EditTaskFilter(filter) => {
                 Task::done(SettingsUpdate::TaskFilter(filter).into_cargo_make_msg())
             }
-            Command::SelectCategoryFilter => todo!(),
-            Command::EditCategoryFilter(filters) => {
-                Task::done(SettingsUpdate::CategoryFilter(filters).into_cargo_make_msg())
+            Command::SelectCategoryFilter => self.select_category_filter(),
+            Command::EditCategoryFilter(category_filters) => {
+                Task::done(SettingsUpdate::CategoryFilter(category_filters).into_cargo_make_msg())
             }
             Command::ClearAllFilters => {
-                let task = Task::done(Command::EditTaskFilter(String::new()));
-                let category = Task::done(Command::EditCategoryFilter(Vec::new()));
-                Task::batch([task, category]).map(Command::into_cargo_make_msg)
+                let task = Task::done(SettingsUpdate::TaskFilter(String::new()));
+                let category = Task::done(SettingsUpdate::CategoryFilter(Vec::new()));
+                Task::batch([task, category]).map(SettingsUpdate::into_cargo_make_msg)
             }
             Command::PinTask(task) => {
                 Task::done(SettingsUpdate::AddPinned(task).into_cargo_make_msg())
@@ -101,6 +106,103 @@ impl Ui {
     fn make_task_exec(&self, make_task: MakefileTask) -> Task<Message> {
         let task = make_task.into_task(&Runtime::get_configuration());
         Task::future(Runtime::exec_task(task)).discard()
+    }
+
+    fn select_task_filter(&self) -> Task<Message> {
+        let current = self.settings.task_filter.clone();
+        let Ok(options) = self
+            .makefile_tasks
+            .iter()
+            .map(|i| to_value(&i.to_item(false)))
+            .collect()
+        else {
+            return Task::none();
+        };
+
+        let cmd_tx = self.cmd_tx.clone();
+
+        Task::future(async move {
+            // Closure only needs to live while the quickpick is active
+            let filter_update = Closure::new(move |filter: String| {
+                let mut tx = cmd_tx.clone();
+                spawn_local(async move {
+                    log(&format!("Sending cargo make task filter '{filter}'"));
+                    if let Err(e) = tx.send(Command::EditTaskFilter(filter)).await {
+                        log(&format!("Failed to queue msg: {}", e));
+                    }
+                });
+            });
+
+            let filter = show_quick_pick_type(current.clone(), options, &filter_update)
+                .await
+                .map(|f| f.as_string().unwrap_or(current.clone()))
+                .unwrap_or(current);
+
+            Command::EditTaskFilter(filter)
+        })
+        .map(Message::Cmd)
+    }
+
+    fn select_category_filter(&self) -> Task<Message> {
+        let categories = self
+            .makefile_tasks
+            .iter()
+            .map(|task| &task.category)
+            .unique();
+
+        let current = self.settings.category_filters.clone();
+        // Select all categories that are not filtered out
+        let selected = categories
+            .clone()
+            .filter(|category| !current.contains(category))
+            .cloned()
+            .collect();
+
+        let categories: Vec<_> = categories.cloned().collect();
+        let input = SelectInput {
+            options: categories.clone(),
+            current: selected,
+        };
+
+        let cmd_tx = self.cmd_tx.clone();
+        let categories_filter_update = categories.clone();
+        let filter_update = move |selected: Vec<String>| {
+            log(&format!(
+                "Received category filter updatew from quickpick'{selected:?}'"
+            ));
+            let mut tx = cmd_tx.clone();
+            let categories = categories_filter_update.clone();
+            spawn_local(async move {
+                let selected = categories
+                    .iter()
+                    .filter(|category| !selected.contains(category))
+                    .cloned()
+                    .collect();
+                log(&format!(
+                    "Sending cargo make category filter '{selected:?}'"
+                ));
+                if let Err(e) = tx.send(Command::EditCategoryFilter(selected)).await {
+                    log(&format!("Failed to queue msg: {}", e));
+                }
+            });
+        };
+
+        Task::future(async move {
+            let selected_categories = input
+                .select_multiple(filter_update)
+                .await
+                .map(|selected| {
+                    // Select all categories that are not filtered out
+                    categories
+                        .into_iter()
+                        .filter(|category| !selected.contains(category))
+                        .collect()
+                })
+                .unwrap_or(current);
+
+            SettingsUpdate::CategoryFilter(selected_categories)
+        })
+        .map(Message::SettingsChanged)
     }
 }
 

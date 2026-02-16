@@ -5,7 +5,7 @@ use cargo_tools::{
     cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},
     runtime::Runtime as _,
 };
-use futures::channel::mpsc::channel;
+use futures::channel::mpsc::{Sender, channel};
 use iced_headless::Task;
 
 use serde::{Deserialize, Serialize};
@@ -44,6 +44,7 @@ pub struct Ui {
     settings: Settings,
     ui: CargoMakeTreeProvider,
     base: Base,
+    cmd_tx: Sender<Command>,
 }
 
 impl Ui {
@@ -55,7 +56,7 @@ impl Ui {
         file_watcher.watch_files(vec![makefile(&root_dir)]);
 
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
-        let cmds = register_cargo_make_commands(cmd_tx);
+        let cmds = register_cargo_make_commands(cmd_tx.clone());
 
         let settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
 
@@ -72,6 +73,7 @@ impl Ui {
             settings,
             ui: CargoMakeTreeProvider::new(handler),
             base,
+            cmd_tx,
         };
 
         // makefile update and cmd will run for the lifetime of the extension

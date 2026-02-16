@@ -153,7 +153,10 @@ extern "C" {
     /// - `Ok(JsValue)`: Array of selected indices, or null if cancelled
     /// - `Err(JsValue)`: Error if the operation fails
     #[wasm_bindgen(catch)]
-    pub async fn show_quick_pick_multiple(items: Array) -> Result<JsValue, JsValue>;
+    pub async fn show_quick_pick_multiple(
+        items: Array,
+        on_pick: &Closure<dyn FnMut(Vec<String>)>,
+    ) -> Result<JsValue, JsValue>;
 
     #[wasm_bindgen(catch)]
     pub async fn show_quick_pick_type(

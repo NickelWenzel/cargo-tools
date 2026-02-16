@@ -116,38 +116,24 @@
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
-        "command": "cargo-tools.makefile.setTaskFilter",
+        "command": "cargo-tools.makefile.selectTaskFilter",
         "title": "Filter Tasks",
         "category": "Cargo Tools",
         "icon": "$(filter)",
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
-        "command": "cargo-tools.makefile.editTaskFilter",
-        "title": "Edit Task Filter",
-        "category": "Cargo Tools",
-        "icon": "$(edit)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
-      },
-      {
-        "command": "cargo-tools.makefile.clearTaskFilter",
-        "title": "Clear Task Filter",
+        "command": "cargo-tools.makefile.clearAllFilters",
+        "title": "Clear Filters",
         "category": "Cargo Tools",
         "icon": "$(clear-all)",
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
-        "command": "cargo-tools.makefile.showCategoryFilter",
+        "command": "cargo-tools.makefile.selectCategoryFilter",
         "title": "Filter Categories",
         "category": "Cargo Tools",
         "icon": "$(symbol-class)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
-      },
-      {
-        "command": "cargo-tools.makefile.clearCategoryFilter",
-        "title": "Clear Category Filter",
-        "category": "Cargo Tools",
-        "icon": "$(clear-all)",
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
@@ -482,17 +468,17 @@
           "group": "navigation@4"
         },
         {
-          "command": "cargo-tools.makefile.setTaskFilter",
+          "command": "cargo-tools.makefile.selectTaskFilter",
           "when": "view == cargoToolsMakefile",
           "group": "navigation@1"
         },
         {
-          "command": "cargo-tools.makefile.showCategoryFilter",
+          "command": "cargo-tools.makefile.selectCategoryFilter",
           "when": "view == cargoToolsMakefile",
           "group": "navigation@2"
         },
         {
-          "command": "cargo-tools.makefile.clearTaskFilter",
+          "command": "cargo-tools.makefile.clearAllFilters",
           "when": "view == cargoToolsMakefile",
           "group": "navigation@3"
         },

@@ -22,24 +22,57 @@ export async function show_quick_pick(items: QuickPickItem[]): Promise<number | 
     return vsCodeItems.indexOf(selected);
 }
 
-export async function show_quick_pick_multiple(items: QuickPickItem[]): Promise<number[] | null> {
+export async function show_quick_pick_multiple(items: QuickPickItem[], on_pick: (item: string[]) => any): Promise<number[] | null> {
     const vsCodeItems: vscode.QuickPickItem[] = items.map(item => ({
-        label: item.label,
+        label: `$(package) ${item.label}`,
         description: item.description,
         detail: item.detail,
         picked: item.picked ?? false,
+        data: item.label,
     }));
 
-    const selected = await vscode.window.showQuickPick(vsCodeItems, {
-        placeHolder: 'Select options (multi-select enabled)',
-        canPickMany: true
+    let initial_selected = vsCodeItems.filter(item => item.picked);
+
+    // Create QuickPick for real-time filtering with preview
+    const quickPick = vscode.window.createQuickPick();
+    quickPick.placeholder = 'Select options (multi-select enabled)';
+    quickPick.items = vsCodeItems;
+    quickPick.selectedItems = initial_selected;
+    quickPick.canSelectMany = true;
+
+    let wasAccepted = false;
+    let selected = null;
+
+    const onChangeSelection = quickPick.onDidChangeSelection((items) => {
+        let current = items.map(item => item.label.slice("$(package) ".length));
+        on_pick(current);
+        selected = items.map(item => vsCodeItems.indexOf(item));
     });
 
-    if (!selected || selected.length === 0) {
-        return null;
-    }
+    quickPick.onDidAccept(() => {
+        wasAccepted = true;
+        quickPick.hide();
+    });
 
-    return selected.map(item => vsCodeItems.indexOf(item));
+    quickPick.show();
+
+    // await hiding the quick pick
+    await new Promise<void>(resolve => {
+        const onHide = quickPick.onDidHide(() => {
+            // If user canceled (didn't accept), restore original filter
+            if (!wasAccepted) {
+                selected = null;
+            }
+
+            // onChangeValue.dispose();
+            onChangeSelection.dispose();
+            quickPick.dispose();
+            onHide.dispose();
+            resolve();
+        });
+    });
+
+    return selected;
 }
 
 export async function show_quick_pick_type(current: string, items: QuickPickItem[], on_change_callback: (filter: string) => void): Promise<string | null> {
