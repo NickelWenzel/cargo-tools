@@ -67,8 +67,8 @@ fn cargo_make_node_from_task(task: MakefileTask) -> CargoMakeNode {
         collapsible_state,
         TASK_CONTEXT.to_string(),
         description,
-        tooltip,
         handler,
+        tooltip,
     )
 }
 
@@ -137,8 +137,8 @@ fn from_category((category, tasks): (String, Vec<MakefileTask>)) -> CargoMakeNod
         collapsible_state,
         CATEGORY_CONTEXT.to_string(),
         description,
-        tooltip,
         handler,
+        tooltip,
     )
 }
 
@@ -186,14 +186,14 @@ fn cargo_make_pinned_node_from_task(task: MakefileTask) -> CargoMakePinnedNode {
     let label = task.name.clone();
     let collapsible_state = CollapsibleState::None as u32;
     let description = task.description.clone();
-    let tooltip = Some(format!(
+    let tooltip = format!(
         "Task: {label}{}",
         if description.is_empty() {
             String::new()
         } else {
             format!("\n{description}")
         }
-    ));
+    );
     let handler = CargoMakeNodeHandler::task(task);
 
     CargoMakePinnedNode::new(

@@ -7,7 +7,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     extension::{TaskMap, VsCodeTask, cargo_make::ui::CargoMakeNodeHandler, register_tasks},
-    vs_code_api::{log, try_get_handler},
+    vs_code_api::{log, try_get_cargo_make_node_handler},
 };
 
 pub mod process;
@@ -89,7 +89,7 @@ pub enum Pinned {
 }
 
 fn try_task_from_node<To>(arg: Array, cmd: fn(MakefileTask) -> To) -> Option<To> {
-    try_get_handler(arg)
+    try_get_cargo_make_node_handler(arg)
         .and_then(CargoMakeNodeHandler::try_into_task)
         .map(cmd)
 }

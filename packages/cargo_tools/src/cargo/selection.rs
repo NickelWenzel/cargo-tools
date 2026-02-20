@@ -29,6 +29,7 @@ pub enum Update {
     SelectedPlatformTarget(Option<String>),
     SelectedFeatures(Features),
     SelectedProfile(Profile),
+    Refresh(HashMap<String, PackageSelection>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -71,6 +72,7 @@ impl State {
             }
             Update::SelectedPlatformTarget(v) => self.platform_target = v,
             Update::SelectedProfile(v) => self.profile = v,
+            Update::Refresh(package_selection) => self.package_selection = package_selection,
         }
     }
 
@@ -119,11 +121,10 @@ impl State {
     }
 
     pub fn selected_features(&self) -> Features {
-        let Some(package) = self.package_selection() else {
-            return self.features.clone();
-        };
-
-        package.features.clone()
+        self.package_selection()
+            .map(|p| &p.features)
+            .unwrap_or(&self.features)
+            .clone()
     }
 
     fn selected_package(&self, metadata: &Metadata) -> Option<Package> {
@@ -205,11 +206,12 @@ impl State {
     }
 
     pub fn feature_options(&self, metadata: &Metadata) -> Vec<String> {
-        let Some(package) = self.selected_package(metadata) else {
-            return Vec::new();
-        };
-
-        package.features.keys().cloned().collect()
+        let features = iter::once("All features".to_string());
+        if let Some(package) = self.selected_package(metadata) {
+            features.chain(package.features.keys().cloned()).collect()
+        } else {
+            features.collect()
+        }
     }
 }
 

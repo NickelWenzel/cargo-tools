@@ -6,7 +6,7 @@ use cargo_tools::cargo::{
 };
 use futures::{SinkExt, channel::mpsc::Sender};
 use serde::de::DeserializeOwned;
-use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::{JsValue, prelude::Closure};
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
@@ -35,13 +35,14 @@ pub enum Command {
     Debug,
     Test,
     Bench,
+    ToggleFeature(String),
     ProjectOutline(ProjectOutline),
 }
 
 pub type CargoCmdFn = fn(Array) -> Option<Command>;
 
 impl Command {
-    pub const fn all() -> [(&'static str, CargoCmdFn); 31] {
+    pub const fn all() -> [(&'static str, CargoCmdFn); 32] {
         use ProjectOutline as PO;
         [
             ("cargo-tools.selectProfile", |_| Some(Self::SelectProfile)),
@@ -73,6 +74,9 @@ impl Command {
             ("cargo-tools.projectStatus.debug", |_| Some(Self::Debug)),
             ("cargo-tools.projectStatus.test", |_| Some(Self::Test)),
             ("cargo-tools.projectStatus.bench", |_| Some(Self::Bench)),
+            ("cargo-tools.projectStatus.toggleFeature", |arg| {
+                take_first(arg).map(Self::ToggleFeature)
+            }),
             ("cargo-tools.projectOutline.select", |arg| {
                 PO::from_update(PO::Select, arg).map(PO::to_cmd)
             }),
@@ -178,7 +182,7 @@ impl ProjectOutline {
 }
 
 fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
-    match serde_wasm_bindgen::from_value(array.get(0)) {
+    match serde_wasm_bindgen::from_value(JsValue::from(array)) {
         Ok(v) => Some(v),
         Err(e) => {
             log(&format!("Failed to deserialize update: {e}"));

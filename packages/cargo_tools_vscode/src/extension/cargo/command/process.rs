@@ -92,7 +92,7 @@ impl Ui {
                 let input = self.data.feature_options();
                 done(async move { select_features(input).await })
             }
-            Command::Refresh => Task::done(Message::ManifestChanged),
+            Command::Refresh => self.refresh(),
             Command::Clean => self.cmd_exec(Implicit::Clean),
             Command::Build => self.cmd_exec(Implicit::Build),
             Command::Run => self.cmd_exec(Implicit::Run),
@@ -106,6 +106,7 @@ impl Ui {
             }
             Command::Test => self.cmd_exec(Implicit::Test),
             Command::Bench => self.cmd_exec(Implicit::Bench),
+            Command::ToggleFeature(feature) => self.toggle_feature(feature),
             Command::ProjectOutline(cmd) => self.process_outline_cmd(cmd),
         }
     }
@@ -233,6 +234,63 @@ impl Ui {
         })
         .map(PackageFilter::into_cargo_msg)
     }
+
+    fn toggle_feature(&self, feature: String) -> Task<Message> {
+        let features = match self.data.selection.selected_features() {
+            Features::All => Features::Some(Vec::from_iter(
+                (&feature != "All features").then_some(feature),
+            )),
+            Features::Some(features) => {
+                let mut features = features.clone();
+                if &feature == "All features" {
+                    Features::All
+                } else {
+                    if let Some(pos) = features.iter().position(|x| *x == feature) {
+                        features.remove(pos);
+                    } else {
+                        features.push(feature);
+                    }
+                    Features::Some(features)
+                }
+            }
+        };
+
+        Task::done(Update::SelectedFeatures(features).into_cargo_msg())
+    }
+
+    fn refresh(&self) -> Task<Message> {
+        // Weed out packages that do not exist anymore except for current selection
+        let package_selection = self
+            .data
+            .selection
+            .package_selection
+            .iter()
+            .filter(|(package, _)| {
+                let is_selected = self
+                    .data
+                    .selection
+                    .package
+                    .as_ref()
+                    .is_some_and(|p| &p == package);
+                let is_in_metadata = self
+                    .data
+                    .metadata
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| {
+                        m.workspace_packages()
+                            .iter()
+                            .find(|p| p.name == package)
+                            .map(|_| ())
+                    })
+                    .is_some();
+                is_selected || is_in_metadata
+            })
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        Task::done(Update::Refresh(package_selection).into_cargo_msg())
+    }
 }
 
 fn done(fut: impl Future<Output = Option<impl IntoMessage + 'static>> + 'static) -> Task<Message> {
@@ -260,7 +318,7 @@ impl ToTask for Explicit {
 async fn select_platform_target(current: Option<String>) -> Option<impl IntoMessage> {
     let options = match platform_targets().await {
         Some(targets) => targets.into_iter().filter_map(|t| {
-            (!t.ends_with("(installed)"))
+            (t.ends_with("(installed)"))
                 .then_some(Some(t.trim_end_matches("(installed)").trim().to_string()))
         }),
         None => return None,
@@ -326,7 +384,7 @@ async fn platform_targets() -> Option<Vec<String>> {
 
 async fn select_features(input: Option<SelectInput<String>>) -> Option<impl IntoMessage> {
     let selected_features = input?.select_multiple(|_| {}).await?;
-    let features = if selected_features.iter().any(|f| f == "All Features") {
+    let features = if selected_features.iter().any(|f| f == "All features") {
         Features::All
     } else {
         Features::Some(selected_features)

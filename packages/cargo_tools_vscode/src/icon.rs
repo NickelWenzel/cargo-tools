@@ -1,3 +1,4 @@
+use cargo_tools::cargo::command::{BuildSubTarget, RunSubTarget};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -170,3 +171,29 @@ pub const LIST_ACTION: Icon = Icon {
     icon: "list-unordered",
     color: "charts.foreground",
 };
+
+impl Icon {
+    pub fn build_target(build_target: &Option<BuildSubTarget>) -> Self {
+        let Some(build_target) = build_target else {
+            return TARGET_CONFIG;
+        };
+
+        match build_target {
+            BuildSubTarget::Bin(_) => RUN_ACTION,
+            BuildSubTarget::Example(_) => EXAMPLE_TARGET,
+            BuildSubTarget::Lib(_) => LIB_TARGET,
+            BuildSubTarget::Bench(_) => BENCH_TARGET,
+        }
+    }
+
+    pub fn run_target(build_target: &Option<RunSubTarget>) -> Self {
+        let Some(build_target) = build_target else {
+            return TARGET_CONFIG;
+        };
+
+        match build_target {
+            RunSubTarget::Bin(_) => RUN_ACTION,
+            RunSubTarget::Example(_) => EXAMPLE_TARGET,
+        }
+    }
+}

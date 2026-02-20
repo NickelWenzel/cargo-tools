@@ -8,8 +8,8 @@ export class CargoMakeNode extends vscode.TreeItem {
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
         public readonly contextValue: string,
         public readonly description: string,
-        public readonly tooltip: string,
         public readonly handler: CargoMakeNodeHandler,
+        public readonly tooltip?: string,
     ) {
         super(label, collapsibleState);
         this.iconPath = new vscode.ThemeIcon(icon.icon, new vscode.ThemeColor(icon.color));
@@ -80,14 +80,6 @@ export class CargoMakePinnedNode extends vscode.TreeItem {
     }
 }
 
-export function try_as_cargo_make_pinned_node(value: any): CargoMakePinnedNode | undefined {
-    if (!(value instanceof CargoMakePinnedNode)) {
-        return undefined;
-    }
-
-    return value;
-}
-
 export class CargoMakePinnedTreeProvider implements vscode.TreeDataProvider<CargoMakePinnedNode> {
     private _onDidChangeTreeData: vscode.EventEmitter<CargoMakePinnedNode | undefined | null | void> = new vscode.EventEmitter<CargoMakePinnedNode | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<CargoMakePinnedNode | undefined | null | void> = this._onDidChangeTreeData.event;
@@ -121,7 +113,7 @@ export class CargoMakePinnedTreeProvider implements vscode.TreeDataProvider<Carg
     }
 }
 
-export function try_get_handler(value: any): CargoMakeNodeHandler | undefined {
+export function try_get_cargo_make_node_handler(value: any): CargoMakeNodeHandler | undefined {
     if (value instanceof CargoMakeNode) {
         return value.handler;
     }

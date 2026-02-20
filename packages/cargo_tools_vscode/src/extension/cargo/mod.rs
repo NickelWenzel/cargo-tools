@@ -1,4 +1,5 @@
 pub mod command;
+pub mod ui;
 
 use std::iter;
 
@@ -20,11 +21,14 @@ use serde::{Deserialize, Serialize};
 use crate::{
     extension::{
         base::{Base, send_file_changed},
-        cargo::command::{Command, register_cargo_commands},
+        cargo::{
+            command::{Command, register_cargo_commands},
+            ui::CargoConfigurationTreeProviderHandler,
+        },
     },
     quick_pick::SelectInput,
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
-    vs_code_api::{TsFileWatcher, set_cargo_context},
+    vs_code_api::{CargoConfigurationTreeProvider, TsFileWatcher, set_cargo_context},
 };
 
 #[derive(Debug, Clone)]
@@ -47,6 +51,7 @@ pub enum SettingsUpdate {
 pub struct Ui {
     data: CommandData,
     settings: OutlineSettings,
+    ui: CargoConfigurationTreeProvider,
     base: Base,
     cmd_tx: Sender<Command>,
 }
@@ -62,11 +67,8 @@ impl Ui {
         let cmds = register_cargo_commands(cmd_tx.clone());
 
         let settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
-        let selection = Runtime::get_state(state_key(&root_dir)).unwrap_or_default();
-        let data = CommandData {
-            metadata: UiMetadata::default(),
-            selection,
-        };
+        let selection: selection::State =
+            Runtime::get_state(state_key(&root_dir)).unwrap_or_default();
 
         let base = Base {
             cmds,
@@ -74,9 +76,17 @@ impl Ui {
             root_dir,
         };
 
+        let handler = CargoConfigurationTreeProviderHandler::new(selection.clone(), Vec::new());
+
+        let data = CommandData {
+            metadata: UiMetadata::default(),
+            selection,
+        };
+
         let this = Self {
             data,
             settings,
+            ui: CargoConfigurationTreeProvider::new(handler),
             base,
             cmd_tx,
         };
@@ -95,6 +105,7 @@ impl Ui {
         match msg {
             Message::SelectionChanged(update) => {
                 self.data.selection.update(update);
+                self.update_ui();
                 Task::none()
             }
             Message::MetadataChanged(update) => match update {
@@ -105,6 +116,7 @@ impl Ui {
                     self.base.file_watcher.watch_files(manifests);
 
                     self.data.metadata.metadata = Some(metadata);
+                    self.update_ui();
 
                     Task::future(set_cargo_context(true)).discard()
                 }
@@ -119,6 +131,7 @@ impl Ui {
                         .watch_files(vec![self.root_manifest()]);
 
                     self.data.metadata = UiMetadata::default();
+                    self.update_ui();
 
                     Task::future(set_cargo_context(false)).discard()
                 }
@@ -144,6 +157,16 @@ impl Ui {
             self.settings.clone(),
         ))
         .discard()
+    }
+
+    fn update_ui(&self) {
+        let selection = self.data.selection.clone();
+        let available_features = self.data.available_features().unwrap_or_default();
+
+        self.ui.update(CargoConfigurationTreeProviderHandler::new(
+            selection,
+            available_features,
+        ));
     }
 
     fn parse_manifest(&self) -> Task<Message> {
@@ -279,14 +302,15 @@ impl CommandData {
         Some(SelectInput { options, current })
     }
 
-    fn feature_options(&self) -> Option<SelectInput<String>> {
+    fn available_features(&self) -> Option<Vec<String>> {
         let metadata = self.metadata.metadata.as_ref()?;
-        let selection = &self.selection;
 
-        let options = iter::once("All features".to_string())
-            .chain(selection.feature_options(metadata))
-            .collect::<Vec<_>>();
-        let current = match selection.selected_features() {
+        Some(self.selection.feature_options(metadata))
+    }
+
+    fn feature_options(&self) -> Option<SelectInput<String>> {
+        let options = self.available_features()?;
+        let current = match self.selection.selected_features() {
             Features::All => ["All features".to_string()].to_vec(),
             Features::Some(features) => features,
         };

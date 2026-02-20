@@ -400,8 +400,8 @@
       ],
       "cargoTools": [
         {
-          "id": "cargoToolsProjectStatus",
-          "name": "Project Status",
+          "id": "cargoToolsConfiguration",
+          "name": "Configuration",
           "when": "cargoTools:workspaceHasCargo",
           "icon": "$(package)"
         },
@@ -429,22 +429,22 @@
       "view/title": [
         {
           "command": "cargo-tools.refresh",
-          "when": "view == cargoToolsProjectStatus",
+          "when": "view == cargoToolsConfiguration",
           "group": "navigation"
         },
         {
           "command": "cargo-tools.clean",
-          "when": "view == cargoToolsProjectStatus",
+          "when": "view == cargoToolsConfiguration",
           "group": "navigation"
         },
         {
           "command": "cargo-tools.buildDocs",
-          "when": "view == cargoToolsProjectStatus",
+          "when": "view == cargoToolsConfiguration",
           "group": "navigation"
         },
         {
           "command": "cargo-tools.installPlatformTarget",
-          "when": "view == cargoToolsProjectStatus",
+          "when": "view == cargoToolsConfiguration",
           "group": "navigation"
         },
         {
@@ -631,27 +631,27 @@
         },
         {
           "command": "cargo-tools.projectStatus.build",
-          "when": "view == cargoToolsProjectStatus && viewItem == buildTargetSelection",
+          "when": "view == cargoToolsConfiguration && viewItem == buildTargetSelection",
           "group": "inline"
         },
         {
           "command": "cargo-tools.projectStatus.run",
-          "when": "view == cargoToolsProjectStatus && viewItem == runTargetSelection",
+          "when": "view == cargoToolsConfiguration && viewItem == runTargetSelection",
           "group": "inline@1"
         },
         {
           "command": "cargo-tools.projectStatus.debug",
-          "when": "view == cargoToolsProjectStatus && viewItem == runTargetSelection",
+          "when": "view == cargoToolsConfiguration && viewItem == runTargetSelection",
           "group": "inline@2"
         },
         {
           "command": "cargo-tools.projectStatus.test",
-          "when": "view == cargoToolsProjectStatus && viewItem == packageSelection",
+          "when": "view == cargoToolsConfiguration && viewItem == packageSelection",
           "group": "inline"
         },
         {
           "command": "cargo-tools.projectStatus.bench",
-          "when": "view == cargoToolsProjectStatus && viewItem == benchmarkTargetSelection",
+          "when": "view == cargoToolsConfiguration && viewItem == benchmarkTargetSelection",
           "group": "inline"
         },
         {

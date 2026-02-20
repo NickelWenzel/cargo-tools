@@ -210,8 +210,28 @@ pub enum BuildSubTarget {
     Bench(String),
 }
 
+impl BuildSubTarget {
+    pub fn name(&self) -> &str {
+        match self {
+            BuildSubTarget::Bin(name) => name,
+            BuildSubTarget::Example(name) => name,
+            BuildSubTarget::Lib(name) => name,
+            BuildSubTarget::Bench(name) => name,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RunSubTarget {
     Bin(String),
     Example(String),
+}
+
+impl RunSubTarget {
+    pub fn name(&self) -> &str {
+        match self {
+            RunSubTarget::Bin(name) => name,
+            RunSubTarget::Example(name) => name,
+        }
+    }
 }
