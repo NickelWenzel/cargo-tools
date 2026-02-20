@@ -1,6 +1,8 @@
 pub mod command;
 pub mod ui;
 
+use std::iter;
+
 use cargo_tools::{
     cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},
     runtime::Runtime as _,
@@ -15,11 +17,14 @@ use crate::{
         base::{Base, send_file_changed},
         cargo_make::{
             command::{Command, register_cargo_make_commands},
-            ui::CargoMakeTreeProviderHandler,
+            ui::{CargoMakePinnedTreeProviderHandler, CargoMakeTreeProviderHandler},
         },
     },
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
-    vs_code_api::{CargoMakeTreeProvider, TsFileWatcher, set_makefile_context},
+    vs_code_api::{
+        CargoMakePinnedTreeProvider, CargoMakeTreeProvider, TsFileWatcher, set_makefile_context,
+        showInformationMessage,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -43,6 +48,7 @@ pub struct Ui {
     makefile_tasks: MakefileTasks,
     settings: Settings,
     ui: CargoMakeTreeProvider,
+    ui_pinned: CargoMakePinnedTreeProvider,
     base: Base,
     cmd_tx: Sender<Command>,
 }
@@ -58,7 +64,7 @@ impl Ui {
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
         let cmds = register_cargo_make_commands(cmd_tx.clone());
 
-        let settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
+        let settings: Settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
 
         let base = Base {
             cmds,
@@ -67,11 +73,14 @@ impl Ui {
         };
 
         let handler = CargoMakeTreeProviderHandler::new(MakefileTasks::default());
+        let handler_pinned =
+            CargoMakePinnedTreeProviderHandler::new(settings.pinned_makefile_tasks.clone());
 
         let this = Self {
             makefile_tasks: MakefileTasks::default(),
             settings,
             ui: CargoMakeTreeProvider::new(handler),
+            ui_pinned: CargoMakePinnedTreeProvider::new(handler_pinned),
             base,
             cmd_tx,
         };
@@ -119,32 +128,59 @@ impl Ui {
             category_filters,
         } = &mut self.settings;
 
-        match update {
+        let msg_task = match update {
             SettingsUpdate::AddPinned(task) => {
-                if pinned_makefile_tasks.contains(&task) {
+                if !pinned_makefile_tasks.contains(&task) {
                     pinned_makefile_tasks.push(task);
+                    self.update_ui_pinned();
+                    None
+                } else {
+                    Some(
+                        Task::future(showInformationMessage(
+                            format!("Task '{}' is already pinned.", task.name),
+                            Vec::new(),
+                        ))
+                        .discard(),
+                    )
                 }
             }
             SettingsUpdate::RemovePinned(idx) => {
                 if idx < pinned_makefile_tasks.len() {
                     pinned_makefile_tasks.remove(idx);
+                    self.update_ui_pinned();
+                    None
+                } else {
+                    Some(
+                        Task::future(showInformationMessage(
+                            format!("Task no. '{idx}' could not be unpinned."),
+                            Vec::new(),
+                        ))
+                        .discard(),
+                    )
                 }
             }
             SettingsUpdate::TaskFilter(tf) => {
                 *task_filter = tf;
                 self.update_ui();
+                None
             }
             SettingsUpdate::CategoryFilter(cf) => {
                 *category_filters = cf;
                 self.update_ui();
+                None
             }
         };
 
-        Task::future(Runtime::persist_state(
-            settings_key(&self.base.root_dir),
-            self.settings.clone(),
-        ))
-        .discard()
+        let tasks = iter::once(
+            Task::future(Runtime::persist_state(
+                settings_key(&self.base.root_dir),
+                self.settings.clone(),
+            ))
+            .discard(),
+        )
+        .chain(msg_task);
+
+        Task::batch(tasks)
     }
 
     fn update_ui(&self) {
@@ -156,6 +192,12 @@ impl Ui {
 
         let tasks = self.makefile_tasks.filtered(task_filter, category_filters);
         self.ui.update(CargoMakeTreeProviderHandler::new(tasks));
+    }
+
+    fn update_ui_pinned(&self) {
+        let tasks = self.settings.pinned_makefile_tasks.clone();
+        self.ui_pinned
+            .update(CargoMakePinnedTreeProviderHandler::new(tasks));
     }
 }
 

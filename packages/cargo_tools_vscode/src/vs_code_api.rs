@@ -6,7 +6,9 @@ use wasm_bindgen_futures::js_sys::{Array, JsString};
 use crate::{
     extension::{
         OnFileChanged,
-        cargo_make::ui::{CargoMakeNodeHandler, CargoMakeTreeProviderHandler},
+        cargo_make::ui::{
+            CargoMakeNodeHandler, CargoMakePinnedTreeProviderHandler, CargoMakeTreeProviderHandler,
+        },
     },
     icon::Icon,
     runtime::VsCodeTask,
@@ -181,12 +183,6 @@ extern "C" {
         handler: CargoMakeNodeHandler,
     ) -> CargoMakeNode;
 
-    #[wasm_bindgen(method)]
-    pub fn get_handler(this: &CargoMakeNode) -> CargoMakeNodeHandler;
-
-    #[wasm_bindgen]
-    pub fn try_as_node(value: Array) -> Option<CargoMakeNode>;
-
     pub type CargoMakeTreeProvider;
 
     #[wasm_bindgen(constructor)]
@@ -194,11 +190,41 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn update(this: &CargoMakeTreeProvider, handler: CargoMakeTreeProviderHandler);
+
+    pub type CargoMakePinnedNode;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        context_value: String,
+        description: String,
+        tooltip: Option<String>,
+        handler: CargoMakeNodeHandler,
+    ) -> CargoMakePinnedNode;
+
+    #[wasm_bindgen]
+    pub fn try_get_handler(value: Array) -> Option<CargoMakeNodeHandler>;
+
+    pub type CargoMakePinnedTreeProvider;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(handler: CargoMakePinnedTreeProviderHandler) -> CargoMakePinnedTreeProvider;
+
+    #[wasm_bindgen(method)]
+    pub fn update(this: &CargoMakePinnedTreeProvider, handler: CargoMakePinnedTreeProviderHandler);
 }
 
 impl Debug for CargoMakeTreeProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("CargoMakeTreeProvider").finish()
+    }
+}
+
+impl Debug for CargoMakePinnedTreeProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CargoMakePinnedTreeProvider").finish()
     }
 }
 
