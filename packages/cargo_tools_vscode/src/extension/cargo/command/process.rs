@@ -400,7 +400,7 @@ fn exec_path(target: &RunSubTarget, selection: &selection::State, target_dir: &s
         .chain(match target {
             RunSubTarget::Bin(bin) => vec![bin.clone()],
             RunSubTarget::Example(example) => {
-                vec!["example".to_string(), example.to_string()]
+                vec!["examples".to_string(), example.to_string()]
             }
         })
         .chain((host_platform() == "windows").then_some(".exe".to_string()));
