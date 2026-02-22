@@ -206,7 +206,7 @@ extern "C" {
     ) -> CargoMakePinnedNode;
 
     #[wasm_bindgen]
-    pub fn try_get_cargo_make_node_handler(value: Array) -> Option<CargoMakeNodeHandler>;
+    pub fn try_get_task_label(value: Array) -> Option<String>;
 
     pub type CargoMakePinnedTreeProvider;
 

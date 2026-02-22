@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { VsCodeTask } from './wasm/cargo_tools_vscode';
+import { log } from 'console';
 
 export async function execute_task(cargo_tools_task: VsCodeTask): Promise<void> {
     const cmd = cargo_tools_task.cmd();
@@ -7,6 +8,7 @@ export async function execute_task(cargo_tools_task: VsCodeTask): Promise<void> 
 
     const definition: vscode.TaskDefinition = {
         type: cargo_tools_task.task_type(),
+        args: args,
     };
 
     const execution = new vscode.ShellExecution(cmd, args);
@@ -14,7 +16,7 @@ export async function execute_task(cargo_tools_task: VsCodeTask): Promise<void> 
     const task = new vscode.Task(
         definition,
         vscode.TaskScope.Workspace,
-        `${cmd} ${args}`,
+        `${cmd} ${args.join(" ")}`,
         definition.type,
         execution,
         ['$rustc']

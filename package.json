@@ -885,42 +885,29 @@
       {
         "type": "cargo",
         "required": [
-          "command"
+          "args"
         ],
         "properties": {
-          "command": {
-            "type": "string",
-            "description": "The cargo command to run"
-          },
-          "profile": {
-            "type": "string",
-            "description": "The build profile to use"
-          },
-          "target": {
-            "type": "string",
-            "description": "The target to build"
-          },
-          "features": {
+          "args": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Features to enable"
-          },
-          "allFeatures": {
-            "type": "boolean",
-            "description": "Enable all features"
+            "description": "The cargo command to run"
           }
         }
       },
       {
         "type": "cargo-make",
         "required": [
-          "task"
+          "args"
         ],
         "properties": {
-          "task": {
-            "type": "string",
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "description": "The cargo-make task to run"
           }
         }

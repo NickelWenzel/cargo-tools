@@ -113,12 +113,9 @@ export class CargoMakePinnedTreeProvider implements vscode.TreeDataProvider<Carg
     }
 }
 
-export function try_get_cargo_make_node_handler(value: any): CargoMakeNodeHandler | undefined {
-    if (value instanceof CargoMakeNode) {
-        return value.handler;
-    }
-    if (value instanceof CargoMakePinnedNode) {
-        return value.handler;
+export function try_get_task_label(value: any): string | undefined {
+    if (value instanceof CargoMakeNode || value instanceof CargoMakePinnedNode) {
+        return value.label;
     }
 
     return undefined;

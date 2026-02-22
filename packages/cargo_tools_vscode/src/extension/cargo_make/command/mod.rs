@@ -1,27 +1,26 @@
 use std::collections::HashMap;
 
-use cargo_tools::cargo_make::tasks::MakefileTask;
 use futures::{SinkExt, channel::mpsc::Sender};
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
-    extension::{TaskMap, VsCodeTask, cargo_make::ui::CargoMakeNodeHandler, register_tasks},
-    vs_code_api::{log, try_get_cargo_make_node_handler},
+    extension::{TaskMap, VsCodeTask, register_tasks},
+    vs_code_api::{log, try_get_task_label},
 };
 
 pub mod process;
 
 #[derive(Debug, Clone)]
 pub enum Command {
-    RunTask(MakefileTask),
+    RunTask(String),
     SelectAndRunTask,
     SelectTaskFilter,
     EditTaskFilter(String),
     SelectCategoryFilter,
     EditCategoryFilter(Vec<String>),
     ClearAllFilters,
-    PinTask(MakefileTask),
+    PinTask(String),
     Pinned(Pinned),
 }
 
@@ -79,8 +78,8 @@ pub type CargoMakeCmdFn = fn(Array) -> Option<Command>;
 #[derive(Debug, Clone)]
 pub enum Pinned {
     Add,
-    Remove(MakefileTask),
-    Execute(MakefileTask),
+    Remove(String),
+    Execute(String),
     Execute1,
     Execute2,
     Execute3,
@@ -88,10 +87,8 @@ pub enum Pinned {
     Execute5,
 }
 
-fn try_task_from_node<To>(arg: Array, cmd: fn(MakefileTask) -> To) -> Option<To> {
-    try_get_cargo_make_node_handler(arg)
-        .and_then(CargoMakeNodeHandler::try_into_task)
-        .map(cmd)
+fn try_task_from_node<To>(arg: Array, cmd: fn(String) -> To) -> Option<To> {
+    try_get_task_label(arg).map(cmd)
 }
 
 pub fn register_cargo_make_commands(tx: Sender<Command>) -> Vec<VsCodeTask> {

@@ -15,12 +15,12 @@ pub struct MakefileTask {
 }
 
 impl MakefileTask {
-    pub fn into_task(self, config: &impl Configuration) -> CargoTask {
+    pub fn into_task(task: String, config: &impl Configuration) -> CargoTask {
         let ctx = Context::General;
         let config_cmd = config.get_cargo_command(ctx);
         let mut cmd = config_cmd.split_whitespace().map(String::from);
         let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
-        args.extend(["make".to_string(), self.name]);
+        args.extend(["make".to_string(), task]);
 
         CargoTask::CargoMake(Task {
             cmd,

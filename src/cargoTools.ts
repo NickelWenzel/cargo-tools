@@ -1,5 +1,4 @@
 import { exec, spawn } from 'child_process';
-import { promisify } from 'util';
 import * as vscode from 'vscode';
 
 export async function echo_task(msg: string) {

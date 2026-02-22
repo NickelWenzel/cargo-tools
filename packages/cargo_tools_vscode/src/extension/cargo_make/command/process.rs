@@ -1,5 +1,3 @@
-// mod project_outline;
-
 use std::ops::Deref;
 
 use cargo_tools::{cargo_make::tasks::MakefileTask, runtime::Runtime as _};
@@ -45,7 +43,7 @@ impl Ui {
                     options: self.makefile_tasks.deref().clone(),
                     current: Vec::new(),
                 };
-                done(async move { input.select().await.map(Command::RunTask) })
+                done(async move { input.select().await.map(|task| Command::RunTask(task.name)) })
             }
             Command::SelectTaskFilter => self.select_task_filter(),
             Command::EditTaskFilter(filter) => {
@@ -60,23 +58,27 @@ impl Ui {
                 let category = Task::done(SettingsUpdate::CategoryFilter(Vec::new()));
                 Task::batch([task, category]).map(SettingsUpdate::into_cargo_make_msg)
             }
-            Command::PinTask(task) => {
-                Task::done(SettingsUpdate::AddPinned(task).into_cargo_make_msg())
-            }
+            Command::PinTask(task) => self
+                .makefile_tasks
+                .iter()
+                .find(|t| t.name == task)
+                .cloned()
+                .map(|task| Task::done(SettingsUpdate::AddPinned(task).into_cargo_make_msg()))
+                .unwrap_or(Task::none()),
             Command::Pinned(pinned) => match pinned {
                 Pinned::Add => {
                     let input = SelectInput {
                         options: self.makefile_tasks.deref().clone(),
                         current: Vec::new(),
                     };
-                    done(async move { input.select().await.map(Command::PinTask) })
+                    done(async move { input.select().await.map(|t| Command::PinTask(t.name)) })
                 }
                 Pinned::Remove(task) => {
                     let Some(idx) = self
                         .settings
                         .pinned_makefile_tasks
                         .iter()
-                        .position(|pinned| pinned == &task)
+                        .position(|pinned| pinned.name == task)
                     else {
                         return Task::none();
                     };
@@ -94,7 +96,7 @@ impl Ui {
 
     fn execute_pinned(&self, idx: usize) -> Task<Message> {
         match self.settings.pinned_makefile_tasks.get(idx) {
-            Some(task) => self.make_task_exec(task.clone()),
+            Some(task) => self.make_task_exec(task.name.clone()),
             None => Task::future(showInformationMessage(
                 format!("There is no task no. {} pinned ", idx + 1),
                 Vec::new(),
@@ -103,8 +105,8 @@ impl Ui {
         }
     }
 
-    fn make_task_exec(&self, make_task: MakefileTask) -> Task<Message> {
-        let task = make_task.into_task(&Runtime::get_configuration());
+    fn make_task_exec(&self, make_task: String) -> Task<Message> {
+        let task = MakefileTask::into_task(make_task, &Runtime::get_configuration());
         Task::future(Runtime::exec_task(task)).discard()
     }
 
