@@ -41,7 +41,6 @@ const extensionConfig = {
   plugins: [
     new WasmPackPlugin({
       crateDirectory: path.resolve(__dirname, "./packages/cargo_tools_vscode"),
-      forceMode: "development",
       outDir: path.resolve(__dirname, "./src/wasm"),
       outName: "cargo_tools_vscode",
       extraArgs: "--target nodejs",
