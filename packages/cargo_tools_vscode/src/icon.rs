@@ -1,6 +1,7 @@
 use cargo_tools::cargo::command::{BuildSubTarget, RunSubTarget};
 use wasm_bindgen::prelude::wasm_bindgen;
 
+#[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct Icon {
     icon: &'static str,

@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 
 let commands: vscode.Disposable[] = [];
 
-export function register_command(command: string, callback: (...args: any[]) => any) {
-    commands.push(vscode.commands.registerCommand(command, callback));
+export function register_command(command: string, callback: (args: any[]) => any) {
+    commands.push(vscode.commands.registerCommand(command, (...args: any[]) => { return callback([...args]); }));
 }
 
 export function dispose_commands() {

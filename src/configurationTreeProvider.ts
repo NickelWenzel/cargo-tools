@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { CargoNodeHandler, CargoConfigurationTreeProviderHandler, Icon } from './wasm/cargo_tools_vscode';
+import { NodeType, CargoConfigurationTreeProviderHandler, Icon } from './wasm/cargo_tools_vscode';
 
 export class CargoNode extends vscode.TreeItem {
     constructor(
         public readonly label: string,
         public readonly icon: Icon,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly handler: CargoNodeHandler,
+        public readonly node_type: NodeType,
         public readonly contextValue?: string,
         public readonly description?: string,
         public readonly tooltip?: string,
@@ -23,7 +23,7 @@ export class CargoNode extends vscode.TreeItem {
         } : undefined;
         this.description = description;
         this.tooltip = tooltip;
-        this.handler = handler;
+        this.node_type = node_type;
     }
 }
 
@@ -35,7 +35,6 @@ export class CargoConfigurationTreeProvider implements vscode.TreeDataProvider<C
 
     constructor(handler: CargoConfigurationTreeProviderHandler) {
         this.handler = handler;
-        this.update(handler);
 
         // register on creation
         vscode.window.createTreeView('cargoToolsConfiguration', {
@@ -45,8 +44,7 @@ export class CargoConfigurationTreeProvider implements vscode.TreeDataProvider<C
         });
     }
 
-    update(handler: CargoConfigurationTreeProviderHandler): void {
-        this.handler = handler;
+    update(): void {
         this._onDidChangeTreeData.fire();
     }
 
@@ -55,19 +53,6 @@ export class CargoConfigurationTreeProvider implements vscode.TreeDataProvider<C
     }
 
     async getChildren(element?: CargoNode): Promise<CargoNode[]> {
-        if (!element) {
-            // Root level - show config categories
-            return this.handler.children();
-        }
-
-        return element.handler.children(this.handler);
+        return this.handler.children(element ? element.node_type : undefined);
     }
-}
-
-export function try_get_cargo_node_handler(value: any): CargoNodeHandler | undefined {
-    if (value instanceof CargoNode) {
-        return value.handler;
-    }
-
-    return undefined;
 }

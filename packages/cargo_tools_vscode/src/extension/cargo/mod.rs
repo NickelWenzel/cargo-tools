@@ -13,7 +13,10 @@ use cargo_tools::{
     profile::Profile,
     runtime::Runtime as _,
 };
-use futures::channel::mpsc::{Sender, channel};
+use futures::{
+    SinkExt,
+    channel::mpsc::{Sender, channel},
+};
 use iced_headless::Task;
 
 use serde::{Deserialize, Serialize};
@@ -23,12 +26,17 @@ use crate::{
         base::{Base, send_file_changed},
         cargo::{
             command::{Command, register_cargo_commands},
-            ui::CargoConfigurationTreeProviderHandler,
+            ui::{
+                CargoConfigurationTreeProviderHandler, CargoOutlineTreeProviderHandler,
+                CondensedMetaData, ConfigUiRequest, NodeData,
+            },
         },
     },
     quick_pick::SelectInput,
     runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
-    vs_code_api::{CargoConfigurationTreeProvider, TsFileWatcher, set_cargo_context},
+    vs_code_api::{
+        CargoConfigurationTreeProvider, CargoOutlineTreeProvider, TsFileWatcher, set_cargo_context,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -38,11 +46,12 @@ pub enum Message {
     SelectionChanged(selection::Update),
     SettingsChanged(SettingsUpdate),
     Cmd(Command),
+    ConfigUiRequest(ConfigUiRequest),
 }
 
 #[derive(Debug, Clone)]
 pub enum SettingsUpdate {
-    PackageFilter(PackageFilter),
+    PackageFilter(String),
     TargetTypesFilter(TargetTypesFilter),
     Grouping(Grouping),
 }
@@ -52,6 +61,7 @@ pub struct Ui {
     data: CommandData,
     settings: OutlineSettings,
     ui: CargoConfigurationTreeProvider,
+    outline_ui: CargoOutlineTreeProvider,
     base: Base,
     cmd_tx: Sender<Command>,
 }
@@ -76,7 +86,9 @@ impl Ui {
             root_dir,
         };
 
-        let handler = CargoConfigurationTreeProviderHandler::new(selection.clone(), Vec::new());
+        let (ui_tx, ui_rx) = channel(CHANNEL_CAPACITY);
+        let handler = CargoConfigurationTreeProviderHandler::new(ui_tx);
+        let outline_handler = CargoOutlineTreeProviderHandler::new(CondensedMetaData::default());
 
         let data = CommandData {
             metadata: UiMetadata::default(),
@@ -87,16 +99,18 @@ impl Ui {
             data,
             settings,
             ui: CargoConfigurationTreeProvider::new(handler),
+            outline_ui: CargoOutlineTreeProvider::new(outline_handler),
             base,
             cmd_tx,
         };
 
-        // manifest update and cmd will run for the lifetime of the extension
+        // manifest, ui and cmd updates will run for the lifetime of the extension
         let manifest_update = Task::stream(manifest_changed_rx).map(|()| Message::ManifestChanged);
         let cmd = Task::stream(cmd_rx).map(Message::Cmd);
+        let ui_config_upate = Task::stream(ui_rx).map(Message::ConfigUiRequest);
         // metadata is to initially parse the Cargo.toml
         let metadata = this.parse_manifest();
-        let tasks = Task::batch([manifest_update, cmd, metadata]);
+        let tasks = Task::batch([manifest_update, cmd, ui_config_upate, metadata]);
 
         (this, tasks)
     }
@@ -141,6 +155,7 @@ impl Ui {
             Message::ManifestChanged => self.parse_manifest(),
             Message::SettingsChanged(update) => self.update_settings(update),
             Message::Cmd(cmd) => self.process_cmd(cmd),
+            Message::ConfigUiRequest(request) => self.send_config_nodes(request),
         }
     }
 
@@ -163,10 +178,13 @@ impl Ui {
         let selection = self.data.selection.clone();
         let available_features = self.data.available_features().unwrap_or_default();
 
-        self.ui.update(CargoConfigurationTreeProviderHandler::new(
-            selection,
-            available_features,
-        ));
+        self.ui.update();
+
+        if let Some(metadata) = &self.data.metadata.metadata {
+            // let metadata = CondensedMetaData::new(selection, &self.settings, metadata);
+            // self.outline_ui
+            //     .update(CargoOutlineTreeProviderHandler::new(metadata));
+        }
     }
 
     fn parse_manifest(&self) -> Task<Message> {
@@ -177,6 +195,21 @@ impl Ui {
 
     fn root_manifest(&self) -> String {
         format!("{}/Cargo.toml", self.base.root_dir)
+    }
+
+    fn send_config_nodes(&self, request: ConfigUiRequest) -> Task<Message> {
+        let ConfigUiRequest {
+            mut tx,
+            node_type: key,
+        } = request;
+
+        let selection = self.data.selection.clone();
+        let available_features = self.data.available_features().unwrap_or_default();
+        let nodes = key
+            .map(|h| h.children(&selection, &available_features))
+            .unwrap_or(NodeData::roots());
+
+        Task::future(async move { tx.send(nodes).await }).discard()
     }
 }
 
@@ -189,8 +222,9 @@ pub fn state_key(root_dir: &str) -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct OutlineSettings {
-    pub package_filter: PackageFilter,
+    pub package_filter: String,
     pub target_types_filter: TargetTypesFilter,
     pub grouping: Grouping,
 }
@@ -201,7 +235,6 @@ pub struct TargetTypesFilter {
     lib: bool,
     example: bool,
     benchmarks: bool,
-    features: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -210,16 +243,6 @@ pub enum TargetTypesFilterUpdate {
     Lib(bool),
     Example(bool),
     Benchmarks(bool),
-    Features(bool),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct PackageFilter(String);
-
-impl PackageFilter {
-    pub fn into_string(self) -> String {
-        self.0
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]

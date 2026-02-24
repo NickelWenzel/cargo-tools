@@ -6,7 +6,10 @@ use wasm_bindgen_futures::js_sys::{Array, JsString};
 use crate::{
     extension::{
         OnFileChanged,
-        cargo::ui::{CargoConfigurationTreeProviderHandler, CargoNodeHandler},
+        cargo::ui::{
+            CargoConfigurationTreeProviderHandler, NodeType, CargoOutlineNodeHandler,
+            CargoOutlineTreeProviderHandler,
+        },
         cargo_make::ui::{
             CargoMakeNodeHandler, CargoMakePinnedTreeProviderHandler, CargoMakeTreeProviderHandler,
         },
@@ -238,7 +241,7 @@ extern "C" {
         label: String,
         icon: Icon,
         collapsible_state: u32,
-        handler: CargoNodeHandler,
+        handler: NodeType,
         context_value: Option<String>,
         description: Option<String>,
         tooltip: Option<String>,
@@ -252,18 +255,44 @@ extern "C" {
     pub fn new(handler: CargoConfigurationTreeProviderHandler) -> CargoConfigurationTreeProvider;
 
     #[wasm_bindgen(method)]
-    pub fn update(
-        this: &CargoConfigurationTreeProvider,
-        handler: CargoConfigurationTreeProviderHandler,
-    );
-
-    #[wasm_bindgen]
-    pub fn try_get_cargo_node_handler(value: Array) -> Option<CargoNodeHandler>;
+    pub fn update(this: &CargoConfigurationTreeProvider);
 }
 
 impl Debug for CargoConfigurationTreeProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("CargoConfigurationTreeProvider").finish()
+    }
+}
+
+#[wasm_bindgen(raw_module = "../outlineTreeProvider.ts")]
+extern "C" {
+    pub type CargoOutlineNode;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        handler: CargoOutlineNodeHandler,
+        context_value: Option<String>,
+        description: Option<String>,
+        tooltip: Option<String>,
+        command: Option<String>,
+        command_arg: Option<Vec<String>>,
+    ) -> CargoOutlineNode;
+
+    pub type CargoOutlineTreeProvider;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(handler: CargoOutlineTreeProviderHandler) -> CargoOutlineTreeProvider;
+
+    #[wasm_bindgen(method)]
+    pub fn update(this: &CargoOutlineTreeProvider, handler: CargoOutlineTreeProviderHandler);
+}
+
+impl Debug for CargoOutlineTreeProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CargoOutlineTreeProvider").finish()
     }
 }
 

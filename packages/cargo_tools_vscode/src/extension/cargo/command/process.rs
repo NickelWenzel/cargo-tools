@@ -19,8 +19,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     extension::cargo::{
-        Grouping, Message, PackageFilter, SettingsUpdate, TargetTypesFilter,
-        TargetTypesFilterUpdate, Ui,
+        Grouping, Message, SettingsUpdate, TargetTypesFilter, TargetTypesFilterUpdate, Ui,
         command::{Command, ProjectOutline as PO},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
@@ -35,12 +34,6 @@ trait IntoMessage {
 impl IntoMessage for selection::Update {
     fn into_cargo_msg(self) -> Message {
         Message::SelectionChanged(self)
-    }
-}
-
-impl IntoMessage for PackageFilter {
-    fn into_cargo_msg(self) -> Message {
-        Message::SettingsChanged(SettingsUpdate::PackageFilter(self))
     }
 }
 
@@ -122,9 +115,9 @@ impl Ui {
             PO::Debug(target) => self.debug(target),
             PO::Bench(package) => self.cmd_exec(Explicit::Bench { package }),
             PO::SelectWorkspaceMemberFilter => self.select_workspace_member_filter(),
-            PO::EditWorkspaceMemberFilter(filter) => {
-                Task::done(PackageFilter(filter).into_cargo_msg())
-            }
+            PO::EditWorkspaceMemberFilter(filter) => Task::done(Message::SettingsChanged(
+                SettingsUpdate::PackageFilter(filter),
+            )),
             PO::SelectTargetTypeFilter => todo!(), // TODO
             PO::EditTargetTypeFilter(update) => {
                 let mut filter = self.settings.target_types_filter.clone();
@@ -133,12 +126,13 @@ impl Ui {
                     TargetTypesFilterUpdate::Lib(on) => filter.lib = on,
                     TargetTypesFilterUpdate::Example(on) => filter.example = on,
                     TargetTypesFilterUpdate::Benchmarks(on) => filter.benchmarks = on,
-                    TargetTypesFilterUpdate::Features(on) => filter.features = on,
                 };
                 Task::done(filter.into_cargo_msg())
             }
             PO::ClearAllFilters => {
-                let member_filter = Task::done(PackageFilter::default().into_cargo_msg());
+                let member_filter = Task::done(Message::SettingsChanged(
+                    SettingsUpdate::PackageFilter(String::new()),
+                ));
                 let types_filter = Task::done(TargetTypesFilter::default().into_cargo_msg());
 
                 Task::batch([member_filter, types_filter])
@@ -194,7 +188,7 @@ impl Ui {
     }
 
     fn select_workspace_member_filter(&self) -> Task<Message> {
-        let current = self.settings.package_filter.clone().into_string();
+        let current = self.settings.package_filter.clone();
         let Some(Ok(options)) = self.data.metadata.metadata.as_ref().map(|m| {
             m.workspace_packages()
                 .into_iter()
@@ -230,9 +224,8 @@ impl Ui {
                 .map(|f| f.as_string().unwrap_or(current.clone()))
                 .unwrap_or(current);
 
-            PackageFilter(filter)
+            Message::SettingsChanged(SettingsUpdate::PackageFilter(filter))
         })
-        .map(PackageFilter::into_cargo_msg)
     }
 
     fn toggle_feature(&self, feature: String) -> Task<Message> {

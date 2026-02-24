@@ -6,7 +6,7 @@ use cargo_tools::cargo::{
 };
 use futures::{SinkExt, channel::mpsc::Sender};
 use serde::de::DeserializeOwned;
-use wasm_bindgen::{JsValue, prelude::Closure};
+use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
@@ -182,7 +182,7 @@ impl ProjectOutline {
 }
 
 fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
-    match serde_wasm_bindgen::from_value(JsValue::from(array)) {
+    match serde_wasm_bindgen::from_value(array.get(0)) {
         Ok(v) => Some(v),
         Err(e) => {
             log(&format!("Failed to deserialize update: {e}"));
