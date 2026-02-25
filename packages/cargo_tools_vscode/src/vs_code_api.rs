@@ -7,8 +7,8 @@ use crate::{
     extension::{
         OnFileChanged,
         cargo::ui::{
-            CargoConfigurationTreeProviderHandler, NodeType, CargoOutlineNodeHandler,
-            CargoOutlineTreeProviderHandler,
+            CargoConfigurationTreeProviderHandler, CargoOutlineTreeProviderHandler, NodeType,
+            OutlineNodeType,
         },
         cargo_make::ui::{
             CargoMakeNodeHandler, CargoMakePinnedTreeProviderHandler, CargoMakeTreeProviderHandler,
@@ -273,12 +273,24 @@ extern "C" {
         label: String,
         icon: Icon,
         collapsible_state: u32,
-        handler: CargoOutlineNodeHandler,
+        node_type: OutlineNodeType,
         context_value: Option<String>,
         description: Option<String>,
         tooltip: Option<String>,
         command: Option<String>,
-        command_arg: Option<Vec<String>>,
+        command_args: Option<String>,
+        package: Option<String>,
+        target: Option<String>,
+    ) -> CargoOutlineNode;
+
+    #[wasm_bindgen(static_method_of = CargoOutlineNode)]
+    pub fn feature(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        node_type: OutlineNodeType,
+        command: String,
+        command_args: Vec<String>,
     ) -> CargoOutlineNode;
 
     pub type CargoOutlineTreeProvider;
@@ -287,7 +299,7 @@ extern "C" {
     pub fn new(handler: CargoOutlineTreeProviderHandler) -> CargoOutlineTreeProvider;
 
     #[wasm_bindgen(method)]
-    pub fn update(this: &CargoOutlineTreeProvider, handler: CargoOutlineTreeProviderHandler);
+    pub fn update(this: &CargoOutlineTreeProvider);
 }
 
 impl Debug for CargoOutlineTreeProvider {

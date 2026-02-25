@@ -4,7 +4,10 @@ use cargo_metadata::{Metadata, Package, TargetKind};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cargo::command::{BuildSubTarget, RunSubTarget},
+    cargo::{
+        command::{BuildSubTarget, RunSubTarget},
+        metadata::Target,
+    },
     profile::Profile,
 };
 
@@ -221,4 +224,33 @@ pub struct PackageSelection {
     pub run_target: Option<RunSubTarget>,
     pub benchmark_target: Option<String>,
     pub features: Features,
+}
+
+impl PackageSelection {
+    pub fn get(&self, target: Target) -> Option<String> {
+        match target {
+            Target::Lib => todo!(),
+            Target::Bin => todo!(),
+            Target::Example => todo!(),
+            Target::Bench => todo!(),
+        }
+    }
+
+    pub fn build_target_matches(&self, target: Target, name: &str) -> bool {
+        self.build_target
+            .as_ref()
+            .filter(|t| t.matches(target, name))
+            .is_some()
+    }
+
+    pub fn run_target_matches(&self, target: Target, name: &str) -> bool {
+        self.run_target
+            .as_ref()
+            .filter(|t| t.matches(target, name))
+            .is_some()
+    }
+
+    pub fn bench_target_matches(&self, name: &str) -> bool {
+        self.benchmark_target.as_deref() == Some(name)
+    }
 }

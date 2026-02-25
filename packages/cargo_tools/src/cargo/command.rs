@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cargo::selection,
+    cargo::{metadata::Target, selection},
     configuration::{Configuration, Context},
     runtime::{CargoTask, Task},
 };
@@ -219,6 +219,15 @@ impl BuildSubTarget {
             BuildSubTarget::Bench(name) => name,
         }
     }
+
+    pub fn matches(&self, target: Target, name: &str) -> bool {
+        match self {
+            BuildSubTarget::Bin(t) => target == Target::Bin && t == name,
+            BuildSubTarget::Example(t) => target == Target::Example && t == name,
+            BuildSubTarget::Lib(t) => target == Target::Lib && t == name,
+            BuildSubTarget::Bench(t) => target == Target::Bench && t == name,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -232,6 +241,13 @@ impl RunSubTarget {
         match self {
             RunSubTarget::Bin(name) => name,
             RunSubTarget::Example(name) => name,
+        }
+    }
+
+    pub fn matches(&self, target: Target, name: &str) -> bool {
+        match self {
+            RunSubTarget::Bin(t) => target == Target::Bin && t == name,
+            RunSubTarget::Example(t) => target == Target::Example && t == name,
         }
     }
 }

@@ -42,7 +42,7 @@ export async function show_quick_pick_multiple(items: QuickPickItem[], on_pick: 
     let selected = null;
 
     const onChangeSelection = quickPick.onDidChangeSelection((items) => {
-        let current = items.map(item => item.label.slice("$(package) ".length));
+        let current = items.map(item => item.label);
         on_pick(current);
         selected = items.map(item => vsCodeItems.indexOf(item));
     });

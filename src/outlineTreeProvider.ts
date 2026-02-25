@@ -1,17 +1,19 @@
 import * as vscode from 'vscode';
-import { CargoOutlineNodeHandler, CargoOutlineTreeProviderHandler, Icon } from './wasm/cargo_tools_vscode';
+import { OutlineNodeType, CargoOutlineTreeProviderHandler, Icon } from './wasm/cargo_tools_vscode';
 
 export class CargoOutlineNode extends vscode.TreeItem {
     constructor(
         public readonly label: string,
         public readonly icon: Icon,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly handler: CargoOutlineNodeHandler,
+        public readonly node_type: OutlineNodeType,
         public readonly contextValue?: string,
         public readonly description?: string,
         public readonly tooltip?: string,
         public readonly cmd?: string,
-        public readonly cmd_args?: string[],
+        public readonly cmd_arg?: string,
+        public readonly target_package?: string,
+        public readonly target?: string,
     ) {
         super(label, collapsibleState);
         this.iconPath = new vscode.ThemeIcon(icon.icon, new vscode.ThemeColor(icon.color));
@@ -19,11 +21,35 @@ export class CargoOutlineNode extends vscode.TreeItem {
         this.command = cmd ? {
             command: cmd,
             title: '',
-            arguments: cmd_args ? cmd_args : undefined,
+            arguments: cmd_arg ? [vscode.Uri.file(cmd_arg)] : undefined,
         } : undefined;
         this.description = description;
         this.tooltip = tooltip;
-        this.handler = handler;
+        this.node_type = node_type;
+        this.target_package = target_package;
+        this.target = target;
+    }
+
+    static feature(
+        label: string,
+        icon: Icon,
+        collapsibleState: vscode.TreeItemCollapsibleState,
+        node_type: OutlineNodeType,
+        cmd: string,
+        cmd_args: string[],
+    ): CargoOutlineNode {
+        let node = new CargoOutlineNode(label,
+            icon,
+            collapsibleState,
+            node_type);
+
+        node.command = {
+            command: cmd,
+            title: 'Toggle feature',
+            arguments: cmd_args,
+        };
+
+        return node;
     }
 }
 
@@ -35,7 +61,6 @@ export class CargoOutlineTreeProvider implements vscode.TreeDataProvider<CargoOu
 
     constructor(handler: CargoOutlineTreeProviderHandler) {
         this.handler = handler;
-        this.update(handler);
 
         // register on creation
         vscode.window.createTreeView('cargoToolsProjectOutline', {
@@ -45,8 +70,7 @@ export class CargoOutlineTreeProvider implements vscode.TreeDataProvider<CargoOu
         });
     }
 
-    update(handler: CargoOutlineTreeProviderHandler): void {
-        this.handler = handler;
+    update(): void {
         this._onDidChangeTreeData.fire();
     }
 
@@ -55,19 +79,6 @@ export class CargoOutlineTreeProvider implements vscode.TreeDataProvider<CargoOu
     }
 
     async getChildren(element?: CargoOutlineNode): Promise<CargoOutlineNode[]> {
-        if (!element) {
-            // Root level - show config categories
-            return this.handler.children();
-        }
-
-        return element.handler.children(this.handler);
+        return this.handler.children(element ? element.node_type : undefined);
     }
-}
-
-export function try_get_cargo_node_handler(value: any): CargoOutlineNodeHandler | undefined {
-    if (value instanceof CargoOutlineNode) {
-        return value.handler;
-    }
-
-    return undefined;
 }

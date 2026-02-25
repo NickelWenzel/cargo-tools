@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { VsCodeTask } from './wasm/cargo_tools_vscode';
-import { log } from 'console';
 
 export async function execute_task(cargo_tools_task: VsCodeTask): Promise<void> {
     const cmd = cargo_tools_task.cmd();

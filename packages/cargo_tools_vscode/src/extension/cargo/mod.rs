@@ -1,13 +1,16 @@
 pub mod command;
 pub mod ui;
 
-use std::iter;
+use std::{iter, path::Path};
 
-use cargo_metadata::Metadata;
+use cargo_metadata::{Metadata, Package};
 use cargo_tools::{
     cargo::{
         command::{BuildSubTarget, RunSubTarget},
-        metadata::{MetadataUpdate, parse_metadata, parse_profiles, workspace_manifests},
+        metadata::{
+            CondensedPackage, MetadataUpdate, Target, parse_metadata, parse_profiles,
+            workspace_manifests,
+        },
         selection::{self, Features},
     },
     profile::Profile,
@@ -28,7 +31,7 @@ use crate::{
             command::{Command, register_cargo_commands},
             ui::{
                 CargoConfigurationTreeProviderHandler, CargoOutlineTreeProviderHandler,
-                CondensedMetaData, ConfigUiRequest, NodeData,
+                ConfigUiRequest, NodeData, OutlineNodeData, OutlineUiRequest,
             },
         },
     },
@@ -47,6 +50,7 @@ pub enum Message {
     SettingsChanged(SettingsUpdate),
     Cmd(Command),
     ConfigUiRequest(ConfigUiRequest),
+    OutlineUiRequest(OutlineUiRequest),
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +66,7 @@ pub struct Ui {
     settings: OutlineSettings,
     ui: CargoConfigurationTreeProvider,
     outline_ui: CargoOutlineTreeProvider,
+    filtered_packages: Vec<CondensedPackage>,
     base: Base,
     cmd_tx: Sender<Command>,
 }
@@ -87,8 +92,9 @@ impl Ui {
         };
 
         let (ui_tx, ui_rx) = channel(CHANNEL_CAPACITY);
+        let (outline_tx, outline_rx) = channel(CHANNEL_CAPACITY);
         let handler = CargoConfigurationTreeProviderHandler::new(ui_tx);
-        let outline_handler = CargoOutlineTreeProviderHandler::new(CondensedMetaData::default());
+        let outline_handler = CargoOutlineTreeProviderHandler::new(outline_tx);
 
         let data = CommandData {
             metadata: UiMetadata::default(),
@@ -100,6 +106,7 @@ impl Ui {
             settings,
             ui: CargoConfigurationTreeProvider::new(handler),
             outline_ui: CargoOutlineTreeProvider::new(outline_handler),
+            filtered_packages: Vec::new(),
             base,
             cmd_tx,
         };
@@ -107,10 +114,17 @@ impl Ui {
         // manifest, ui and cmd updates will run for the lifetime of the extension
         let manifest_update = Task::stream(manifest_changed_rx).map(|()| Message::ManifestChanged);
         let cmd = Task::stream(cmd_rx).map(Message::Cmd);
-        let ui_config_upate = Task::stream(ui_rx).map(Message::ConfigUiRequest);
+        let ui_config_request = Task::stream(ui_rx).map(Message::ConfigUiRequest);
+        let ui_outline_request = Task::stream(outline_rx).map(Message::OutlineUiRequest);
         // metadata is to initially parse the Cargo.toml
         let metadata = this.parse_manifest();
-        let tasks = Task::batch([manifest_update, cmd, ui_config_upate, metadata]);
+        let tasks = Task::batch([
+            manifest_update,
+            cmd,
+            ui_config_request,
+            ui_outline_request,
+            metadata,
+        ]);
 
         (this, tasks)
     }
@@ -156,6 +170,7 @@ impl Ui {
             Message::SettingsChanged(update) => self.update_settings(update),
             Message::Cmd(cmd) => self.process_cmd(cmd),
             Message::ConfigUiRequest(request) => self.send_config_nodes(request),
+            Message::OutlineUiRequest(request) => self.send_outline_nodes(request),
         }
     }
 
@@ -166,6 +181,7 @@ impl Ui {
             SettingsUpdate::TargetTypesFilter(filter) => settings.target_types_filter = filter,
             SettingsUpdate::Grouping(grouping) => settings.grouping = grouping,
         }
+        self.update_ui();
 
         Task::future(Runtime::persist_state(
             settings_key(&self.base.root_dir),
@@ -174,17 +190,10 @@ impl Ui {
         .discard()
     }
 
-    fn update_ui(&self) {
-        let selection = self.data.selection.clone();
-        let available_features = self.data.available_features().unwrap_or_default();
-
+    fn update_ui(&mut self) {
+        self.update_condensed_packages();
         self.ui.update();
-
-        if let Some(metadata) = &self.data.metadata.metadata {
-            // let metadata = CondensedMetaData::new(selection, &self.settings, metadata);
-            // self.outline_ui
-            //     .update(CargoOutlineTreeProviderHandler::new(metadata));
-        }
+        self.outline_ui.update();
     }
 
     fn parse_manifest(&self) -> Task<Message> {
@@ -198,17 +207,54 @@ impl Ui {
     }
 
     fn send_config_nodes(&self, request: ConfigUiRequest) -> Task<Message> {
-        let ConfigUiRequest {
-            mut tx,
-            node_type: key,
-        } = request;
+        let ConfigUiRequest { mut tx, node_type } = request;
 
         let selection = self.data.selection.clone();
         let available_features = self.data.available_features().unwrap_or_default();
-        let nodes = key
+        let nodes = node_type
             .map(|h| h.children(&selection, &available_features))
             .unwrap_or(NodeData::roots());
 
+        Task::future(async move { tx.send(nodes).await }).discard()
+    }
+
+    fn update_condensed_packages(&mut self) {
+        let Some(metadata) = &self.data.metadata.metadata else {
+            return;
+        };
+
+        self.filtered_packages = self
+            .settings
+            .filter(metadata)
+            .map(CondensedPackage::from_cargo)
+            .collect();
+    }
+
+    fn send_outline_nodes(&self, request: OutlineUiRequest) -> Task<Message> {
+        let OutlineUiRequest { mut tx, node_type } = request;
+
+        // No metadata - nothing to show
+        let Some(metadata) = &self.data.metadata.metadata else {
+            return Task::none();
+        };
+
+        let Some(node_type) = node_type else {
+            let Some(name) = Path::new(&self.base.root_dir)
+                .file_name()
+                .and_then(|n| n.to_str().map(|n| n.to_string()))
+            else {
+                return Task::none();
+            };
+            let num_packages = metadata.workspace_packages().len();
+            let root = vec![OutlineNodeData::root(
+                name,
+                self.settings.grouping,
+                num_packages,
+            )];
+            return Task::future(async move { tx.send(root).await }).discard();
+        };
+
+        let nodes = node_type.children(&self.data.selection, &self.filtered_packages);
         Task::future(async move { tx.send(nodes).await }).discard()
     }
 }
@@ -229,12 +275,54 @@ pub struct OutlineSettings {
     pub grouping: Grouping,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+impl OutlineSettings {
+    fn filter<'a>(&'a self, metadata: &'a Metadata) -> impl Iterator<Item = &'a Package> {
+        let package_filter = &self.package_filter;
+        let target_types_filter = &self.target_types_filter;
+
+        metadata.workspace_packages().into_iter().filter(|pkg| {
+            // Filter by package name
+            if !package_filter.is_empty() && !pkg.name.contains(&self.package_filter) {
+                return false;
+            }
+
+            // Filter by target types
+            pkg.targets
+                .iter()
+                .any(|target| target_types_filter.keep(target))
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TargetTypesFilter {
     bin: bool,
     lib: bool,
     example: bool,
     benchmarks: bool,
+}
+
+impl Default for TargetTypesFilter {
+    fn default() -> Self {
+        Self {
+            bin: true,
+            lib: true,
+            example: true,
+            benchmarks: true,
+        }
+    }
+}
+
+impl TargetTypesFilter {
+    fn keep(&self, target: &cargo_metadata::Target) -> bool {
+        match Target::from_target(target) {
+            Some(Target::Bin) => self.bin,
+            Some(Target::Lib) => self.lib,
+            Some(Target::Example) => self.example,
+            Some(Target::Bench) => self.benchmarks,
+            None => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

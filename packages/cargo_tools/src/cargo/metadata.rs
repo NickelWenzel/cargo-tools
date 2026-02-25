@@ -1,8 +1,48 @@
+use std::{collections::HashMap, iter};
+
+use itertools::Itertools;
 use toml::Table;
 
-use cargo_metadata::{Metadata, MetadataCommand};
+use cargo_metadata::{Metadata, MetadataCommand, Package, TargetKind};
 
 use crate::{profile::Profile, runtime::Runtime};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Target {
+    Lib,
+    Bin,
+    Example,
+    Bench,
+}
+
+impl Target {
+    /// Converts a [`cargo_metadata::Target`] into a [`Target`].
+    pub fn from_target(target: &cargo_metadata::Target) -> Option<Self> {
+        target.kind.iter().find_map(|kind| match kind {
+            TargetKind::Lib
+            | TargetKind::RLib
+            | TargetKind::DyLib
+            | TargetKind::CDyLib
+            | TargetKind::StaticLib
+            | TargetKind::ProcMacro => Some(Self::Lib),
+            TargetKind::Bin => Some(Self::Bin),
+            TargetKind::Example => Some(Self::Example),
+            TargetKind::Bench => Some(Self::Bench),
+            // Not yet supported
+            TargetKind::Test | TargetKind::CustomBuild | TargetKind::Unknown(_) => None,
+            // enum is non-exhaustive
+            _ => None,
+        })
+    }
+
+    /// Counts the number of each [`Target`] kind in the given [`cargo_metadata::Metadata`].
+    pub fn counts(packages: &[CondensedPackage]) -> HashMap<Self, usize> {
+        packages
+            .iter()
+            .flat_map(|p| p.targets.iter().map(|t| t.target_type))
+            .counts()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
@@ -92,6 +132,68 @@ fn extract_profiles(toml: String) -> Vec<Profile> {
 
     profiles.keys().cloned().map(Profile::from).collect()
 }
+
+#[derive(Debug)]
+pub struct CondensedPackage {
+    pub name: String,
+    pub manifest: String,
+    pub targets: Vec<CondensedTarget>,
+    pub features: Vec<String>,
+}
+
+impl CondensedPackage {
+    pub fn from_cargo(package: &Package) -> Self {
+        let Package {
+            name,
+            targets,
+            features,
+            manifest_path,
+            ..
+        } = package;
+
+        Self {
+            name: name.to_string(),
+            manifest: manifest_path.to_string(),
+            targets: targets
+                .iter()
+                .filter_map(CondensedTarget::try_from_cargo)
+                .sorted_by_key(|t| t.target_type)
+                .collect(),
+            features: iter::once("All features".to_string())
+                .chain(features.keys().cloned())
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CondensedTarget {
+    pub name: String,
+    pub source: String,
+    pub target_type: Target,
+    pub original_types: Vec<TargetKind>,
+}
+
+impl CondensedTarget {
+    pub fn try_from_cargo(target: &cargo_metadata::Target) -> Option<Self> {
+        let target_type = Target::from_target(target)?;
+
+        let cargo_metadata::Target {
+            name,
+            kind,
+            src_path,
+            ..
+        } = target;
+
+        Some(Self {
+            name: name.to_string(),
+            source: src_path.to_string(),
+            target_type,
+            original_types: kind.clone(),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

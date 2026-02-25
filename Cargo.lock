@@ -488,6 +488,7 @@ dependencies = [
  "cmd_lib",
  "futures",
  "iced_headless",
+ "itertools",
  "once_cell",
  "serde",
  "serde_json",

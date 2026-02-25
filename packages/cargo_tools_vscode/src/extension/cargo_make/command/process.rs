@@ -170,7 +170,7 @@ impl Ui {
         let categories_filter_update = categories.clone();
         let filter_update = move |selected: Vec<String>| {
             log(&format!(
-                "Received category filter updatew from quickpick'{selected:?}'"
+                "Received category filter update from quickpick'{selected:?}'"
             ));
             let mut tx = cmd_tx.clone();
             let categories = categories_filter_update.clone();
