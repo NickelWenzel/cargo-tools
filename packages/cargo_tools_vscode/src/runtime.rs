@@ -111,9 +111,9 @@ impl VsCodeTask {
     #[wasm_bindgen]
     pub fn task_type(&self) -> String {
         match self.0 {
-            CargoTask::Cargo(_) => "cargo".to_string(),
-            CargoTask::CargoMake(_) => "cargo-make".to_string(),
-            CargoTask::RustUp(_) => "cargo".to_string(),
+            CargoTask::Cargo(_) => "cargo-tools-cargo".to_string(),
+            CargoTask::CargoMake(_) => "cargo-tools-cargo-make".to_string(),
+            CargoTask::RustUp(_) => "cargo-tools-cargo".to_string(),
         }
     }
 

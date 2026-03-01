@@ -883,7 +883,7 @@
     },
     "taskDefinitions": [
       {
-        "type": "cargo",
+        "type": "cargo-tools-cargo",
         "required": [
           "args"
         ],
@@ -898,7 +898,7 @@
         }
       },
       {
-        "type": "cargo-make",
+        "type": "cargo-tools-cargo-make",
         "required": [
           "args"
         ],
