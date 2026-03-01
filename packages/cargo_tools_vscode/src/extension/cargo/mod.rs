@@ -3,13 +3,13 @@ pub mod ui;
 
 use std::{iter, path::Path};
 
-use cargo_metadata::{Metadata, Package};
+use cargo_metadata::Metadata;
 use cargo_tools::{
     cargo::{
         command::{BuildSubTarget, RunSubTarget},
         metadata::{
-            CondensedPackage, MetadataUpdate, Target, parse_metadata, parse_profiles,
-            workspace_manifests,
+            CondensedPackage, CondensedTarget, MetadataUpdate, Target, parse_metadata,
+            parse_profiles, workspace_manifests,
         },
         selection::{self, Features},
     },
@@ -22,6 +22,7 @@ use futures::{
 };
 use iced_headless::Task;
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -224,15 +225,9 @@ impl Ui {
     }
 
     fn update_condensed_packages(&mut self) {
-        let Some(metadata) = &self.data.metadata.metadata else {
-            return;
-        };
-
-        self.filtered_packages = self
-            .settings
-            .filter(metadata)
-            .map(CondensedPackage::from_cargo)
-            .collect();
+        if let Some(metadata) = &self.data.metadata.metadata {
+            self.filtered_packages = self.settings.filter(metadata);
+        }
     }
 
     fn send_outline_nodes(&self, request: OutlineUiRequest) -> Task<Message> {
@@ -281,21 +276,32 @@ pub struct OutlineSettings {
 }
 
 impl OutlineSettings {
-    fn filter<'a>(&'a self, metadata: &'a Metadata) -> impl Iterator<Item = &'a Package> {
+    fn filter(&self, metadata: &Metadata) -> Vec<CondensedPackage> {
         let package_filter = &self.package_filter;
         let target_types_filter = &self.target_types_filter;
 
-        metadata.workspace_packages().into_iter().filter(|pkg| {
+        metadata
+            .workspace_packages()
+            .iter()
             // Filter by package name
-            if !package_filter.is_empty() && !pkg.name.contains(&self.package_filter) {
-                return false;
-            }
-
-            // Filter by target types
-            pkg.targets
-                .iter()
-                .any(|target| target_types_filter.keep(target))
-        })
+            .filter(|pkg| package_filter.is_empty() || pkg.name.contains(package_filter))
+            .sorted_by_key(|pkg| pkg.name.clone())
+            .map(|pkg| CondensedPackage {
+                name: pkg.name.to_string(),
+                manifest: pkg.manifest_path.to_string(),
+                targets: pkg
+                    .targets
+                    .iter()
+                    // Filter by target type
+                    .filter(|target| target_types_filter.keep(target))
+                    .filter_map(CondensedTarget::try_from_cargo)
+                    .sorted_by_key(|t| t.target_type)
+                    .collect(),
+                features: iter::once("All features".to_string())
+                    .chain(pkg.features.keys().cloned())
+                    .collect(),
+            })
+            .collect()
     }
 }
 
@@ -328,14 +334,15 @@ impl TargetTypesFilter {
             None => false,
         }
     }
-}
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum TargetTypesFilterUpdate {
-    Bin(bool),
-    Lib(bool),
-    Example(bool),
-    Benchmarks(bool),
+    fn all_filtered() -> Self {
+        Self {
+            bin: false,
+            lib: false,
+            example: false,
+            benchmarks: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]

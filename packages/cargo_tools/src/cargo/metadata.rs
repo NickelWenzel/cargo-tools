@@ -1,9 +1,9 @@
-use std::{collections::HashMap, iter};
+use std::collections::HashMap;
 
 use itertools::Itertools;
 use toml::Table;
 
-use cargo_metadata::{Metadata, MetadataCommand, Package, TargetKind};
+use cargo_metadata::{Metadata, MetadataCommand, TargetKind};
 
 use crate::{profile::Profile, runtime::Runtime};
 
@@ -141,31 +141,6 @@ pub struct CondensedPackage {
     pub features: Vec<String>,
 }
 
-impl CondensedPackage {
-    pub fn from_cargo(package: &Package) -> Self {
-        let Package {
-            name,
-            targets,
-            features,
-            manifest_path,
-            ..
-        } = package;
-
-        Self {
-            name: name.to_string(),
-            manifest: manifest_path.to_string(),
-            targets: targets
-                .iter()
-                .filter_map(CondensedTarget::try_from_cargo)
-                .sorted_by_key(|t| t.target_type)
-                .collect(),
-            features: iter::once("All features".to_string())
-                .chain(features.keys().cloned())
-                .collect(),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct CondensedTarget {
     pub name: String,
@@ -176,20 +151,11 @@ pub struct CondensedTarget {
 
 impl CondensedTarget {
     pub fn try_from_cargo(target: &cargo_metadata::Target) -> Option<Self> {
-        let target_type = Target::from_target(target)?;
-
-        let cargo_metadata::Target {
-            name,
-            kind,
-            src_path,
-            ..
-        } = target;
-
         Some(Self {
-            name: name.to_string(),
-            source: src_path.to_string(),
-            target_type,
-            original_types: kind.clone(),
+            name: target.name.to_string(),
+            source: target.src_path.to_string(),
+            target_type: Target::from_target(target)?,
+            original_types: target.kind.clone(),
         })
     }
 }

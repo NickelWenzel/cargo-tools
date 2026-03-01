@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
-    extension::{TaskMap, VsCodeTask, cargo::TargetTypesFilterUpdate, register_tasks},
+    extension::{TaskMap, VsCodeTask, cargo::TargetTypesFilter, register_tasks},
     vs_code_api::log,
 };
 
@@ -143,7 +143,7 @@ pub enum ProjectOutline {
     SelectWorkspaceMemberFilter,
     EditWorkspaceMemberFilter(String),
     SelectTargetTypeFilter,
-    EditTargetTypeFilter(TargetTypesFilterUpdate),
+    EditTargetTypeFilter(TargetTypesFilter),
     ClearAllFilters,
     ToggleWorkspaceMemberGrouping,
 }
@@ -174,7 +174,7 @@ impl ProjectOutline {
     }
 
     pub fn from_target_types_filter_update(
-        cmd: fn(TargetTypesFilterUpdate) -> Self,
+        cmd: fn(TargetTypesFilter) -> Self,
         arg: Array,
     ) -> Option<Self> {
         take_first(arg).map(cmd)

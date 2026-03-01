@@ -19,7 +19,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     extension::cargo::{
-        Grouping, Message, SettingsUpdate, TargetTypesFilter, TargetTypesFilterUpdate, Ui,
+        Grouping, Message, SettingsUpdate, TargetTypesFilter, Ui,
         command::{Command, ProjectOutline as PO},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
@@ -118,17 +118,8 @@ impl Ui {
             PO::EditWorkspaceMemberFilter(filter) => Task::done(Message::SettingsChanged(
                 SettingsUpdate::PackageFilter(filter),
             )),
-            PO::SelectTargetTypeFilter => todo!(), // TODO
-            PO::EditTargetTypeFilter(update) => {
-                let mut filter = self.settings.target_types_filter.clone();
-                match update {
-                    TargetTypesFilterUpdate::Bin(on) => filter.bin = on,
-                    TargetTypesFilterUpdate::Lib(on) => filter.lib = on,
-                    TargetTypesFilterUpdate::Example(on) => filter.example = on,
-                    TargetTypesFilterUpdate::Benchmarks(on) => filter.benchmarks = on,
-                };
-                Task::done(filter.into_cargo_msg())
-            }
+            PO::SelectTargetTypeFilter => self.select_target_type_filter(),
+            PO::EditTargetTypeFilter(update) => Task::done(update.into_cargo_msg()),
             PO::ClearAllFilters => {
                 let member_filter = Task::done(Message::SettingsChanged(
                     SettingsUpdate::PackageFilter(String::new()),
@@ -283,6 +274,90 @@ impl Ui {
             .collect();
 
         Task::done(Update::Refresh(package_selection).into_cargo_msg())
+    }
+
+    fn select_target_type_filter(&self) -> Task<Message> {
+        let categories: Vec<_> = ["Libraries", "Binaries", "Examples", "Benchmarks"]
+            .map(str::to_string)
+            .into_iter()
+            .collect();
+
+        let mut selected = Vec::new();
+        let current = self.settings.target_types_filter.clone();
+
+        if self.settings.target_types_filter.bin {
+            selected.push("Libraries".to_string());
+        }
+
+        if self.settings.target_types_filter.lib {
+            selected.push("Binaries".to_string());
+        }
+
+        if self.settings.target_types_filter.example {
+            selected.push("Examples".to_string());
+        }
+
+        if self.settings.target_types_filter.benchmarks {
+            selected.push("Benchmarks".to_string());
+        }
+
+        let input = SelectInput {
+            options: categories,
+            current: selected,
+        };
+
+        let cmd_tx = self.cmd_tx.clone();
+        let filter_update = move |selected: Vec<String>| {
+            log(&format!(
+                "Received category filter update from quickpick'{selected:?}'"
+            ));
+            let mut tx = cmd_tx.clone();
+            spawn_local(async move {
+                let mut filter = TargetTypesFilter::all_filtered();
+                if selected.contains(&"Libraries".to_string()) {
+                    filter.lib = true;
+                }
+                if selected.contains(&"Binaries".to_string()) {
+                    filter.bin = true;
+                }
+                if selected.contains(&"Examples".to_string()) {
+                    filter.example = true;
+                }
+                if selected.contains(&"Benchmarks".to_string()) {
+                    filter.benchmarks = true;
+                }
+
+                if let Err(e) = tx.send(PO::EditTargetTypeFilter(filter).to_cmd()).await {
+                    log(&format!("Failed to queue msg: {}", e));
+                }
+            });
+        };
+
+        Task::future(async move {
+            let selected_categories = input
+                .select_multiple(filter_update)
+                .await
+                .map(|selected| {
+                    let mut filter = TargetTypesFilter::all_filtered();
+                    if selected.contains(&"Libraries".to_string()) {
+                        filter.lib = true;
+                    }
+                    if selected.contains(&"Binaries".to_string()) {
+                        filter.bin = true;
+                    }
+                    if selected.contains(&"Examples".to_string()) {
+                        filter.example = true;
+                    }
+                    if selected.contains(&"Benchmarks".to_string()) {
+                        filter.benchmarks = true;
+                    }
+                    filter
+                })
+                .unwrap_or(current);
+
+            SettingsUpdate::TargetTypesFilter(selected_categories)
+        })
+        .map(Message::SettingsChanged)
     }
 }
 
