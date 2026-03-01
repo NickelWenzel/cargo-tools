@@ -73,7 +73,7 @@ impl Runtime for VsCodeRuntime {
     }
 
     async fn persist_state(key: String, state: impl Serialize) {
-        let state = serde_wasm_bindgen::to_value(&state);
+        let state = serde_json::to_string(&state);
         let Ok(state) = state else {
             let e = state.unwrap_err();
             log(&format!("Failed to serialize state: {e}"));
@@ -87,8 +87,15 @@ impl Runtime for VsCodeRuntime {
     }
 
     fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T> {
-        let js_value = get_state(&key);
-        let state = serde_wasm_bindgen::from_value(js_value);
+        let state = get_state(&key);
+        let Ok(state) = state else {
+            log(&format!(
+                "Failed to get state: {}",
+                state.unwrap_err().to_error_string()
+            ));
+            return None;
+        };
+        let state = serde_json::from_str(&state);
         let Ok(state) = state else {
             let e = state.unwrap_err();
             log(&format!("Failed to deserialize state: {e}"));

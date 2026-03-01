@@ -113,11 +113,12 @@ extern "C" {
 #[wasm_bindgen(raw_module = "../context.ts")]
 extern "C" {
     /// Get a state value from VS Code workspace state storage.
-    pub fn get_state(key: &str) -> JsValue;
+    #[wasm_bindgen(catch)]
+    pub fn get_state(key: &str) -> Result<String, JsValue>;
 
     /// Set a state value in VS Code workspace state storage.
     #[wasm_bindgen(catch)]
-    pub async fn set_state(key: &str, value: JsValue) -> Result<(), JsValue>;
+    pub async fn set_state(key: &str, value: String) -> Result<(), JsValue>;
 }
 
 #[wasm_bindgen(raw_module = "../configuration.ts")]

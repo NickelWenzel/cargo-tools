@@ -134,7 +134,12 @@ impl Ui {
             Message::SelectionChanged(update) => {
                 self.data.selection.update(update);
                 self.update_ui();
-                Task::none()
+
+                Task::future(Runtime::persist_state(
+                    state_key(&self.base.root_dir),
+                    self.data.selection.clone(),
+                ))
+                .discard()
             }
             Message::MetadataChanged(update) => match update {
                 MetadataUpdate::Metadata(metadata) => {

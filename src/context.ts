@@ -13,12 +13,12 @@ function ensureContext(): vscode.ExtensionContext {
     return extensionContext;
 }
 
-export function get_state(key: string): any {
+export function get_state(key: string): string | undefined {
     const context = ensureContext();
     return context.workspaceState.get(key);
 }
 
-export async function set_state(key: string, value: any): Promise<void> {
+export async function set_state(key: string, value: string): Promise<void> {
     const context = ensureContext();
     await context.workspaceState.update(key, value);
 }
