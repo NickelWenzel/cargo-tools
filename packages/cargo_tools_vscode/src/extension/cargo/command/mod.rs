@@ -11,7 +11,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     extension::{TaskMap, VsCodeTask, cargo::TargetTypesFilter, register_tasks},
-    vs_code_api::log,
+    vs_code_api::{log, try_get_package, try_get_target},
 };
 
 pub mod process;
@@ -77,11 +77,12 @@ impl Command {
             ("cargo-tools.projectStatus.toggleFeature", |arg| {
                 take_first(arg).map(Self::ToggleFeature)
             }),
-            ("cargo-tools.projectOutline.select", |arg| {
-                PO::from_update(PO::Select, arg).map(PO::to_cmd)
+            ("cargo-tools.projectOutline.selectPackage", |arg| {
+                try_get_package(arg)
+                    .map(|pkg| PO::Select(Update::SelectedPackage(Some(pkg))).to_cmd())
             }),
-            ("cargo-tools.projectOutline.unselect", |arg| {
-                PO::from_update(PO::Unselect, arg).map(PO::to_cmd)
+            ("cargo-tools.projectOutline.unselectPackage", |_| {
+                Some(PO::Select(Update::SelectedPackage(None)).to_cmd())
             }),
             ("cargo-tools.projectOutline.build", |arg| {
                 PO::from_build_target(PO::Build, arg).map(PO::to_cmd)

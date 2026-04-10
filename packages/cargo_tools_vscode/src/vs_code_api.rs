@@ -301,6 +301,12 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn update(this: &CargoOutlineTreeProvider);
+
+    #[wasm_bindgen]
+    pub fn try_get_package(value: Array) -> Option<String>;
+
+    #[wasm_bindgen]
+    pub fn try_get_target(value: Array) -> Option<String>;
 }
 
 impl Debug for CargoOutlineTreeProvider {

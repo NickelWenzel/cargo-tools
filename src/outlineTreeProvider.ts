@@ -82,3 +82,11 @@ export class CargoOutlineTreeProvider implements vscode.TreeDataProvider<CargoOu
         return this.handler.children(element ? element.node_type : undefined);
     }
 }
+
+export function try_get_package(value: any[]): string | undefined {
+    return value[0] instanceof CargoOutlineNode ? value[0].target_package : undefined;
+}
+
+export function try_get_target(value: any[]): string | undefined {
+    return value[0] instanceof CargoOutlineNode ? value[0].target : undefined;
+}

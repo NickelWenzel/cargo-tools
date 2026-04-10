@@ -28,7 +28,7 @@ impl Command {
     pub const fn all() -> [(&'static str, CargoMakeCmdFn); 14] {
         [
             ("cargo-tools.makefile.runTask", |arg| {
-                try_task_from_node(arg, Self::RunTask)
+                try_get_task_label(arg).map(Self::RunTask)
             }),
             ("cargo-tools.makefile.selectAndRunTask", |_| {
                 Some(Self::SelectAndRunTask)
@@ -43,16 +43,20 @@ impl Command {
                 Some(Self::ClearAllFilters)
             }),
             ("cargo-tools.makefile.pinTask", |arg| {
-                try_task_from_node(arg, Self::PinTask)
+                try_get_task_label(arg).map(Self::PinTask)
             }),
             ("cargo-tools.pinnedMakefileTasks.add", |_| {
                 Some(Self::Pinned(Pinned::Add))
             }),
             ("cargo-tools.pinnedMakefileTasks.remove", |arg| {
-                try_task_from_node(arg, Pinned::Remove).map(Self::Pinned)
+                try_get_task_label(arg)
+                    .map(Pinned::Remove)
+                    .map(Self::Pinned)
             }),
             ("cargo-tools.pinnedMakefileTasks.execute", |arg| {
-                try_task_from_node(arg, Pinned::Execute).map(Self::Pinned)
+                try_get_task_label(arg)
+                    .map(Pinned::Execute)
+                    .map(Self::Pinned)
             }),
             ("cargo-tools.pinnedMakefileTasks.execute1", |_| {
                 Some(Self::Pinned(Pinned::Execute1))
@@ -85,10 +89,6 @@ pub enum Pinned {
     Execute3,
     Execute4,
     Execute5,
-}
-
-fn try_task_from_node<To>(arg: Array, cmd: fn(String) -> To) -> Option<To> {
-    try_get_task_label(arg).map(cmd)
 }
 
 pub fn register_cargo_make_commands(tx: Sender<Command>) -> Vec<VsCodeTask> {

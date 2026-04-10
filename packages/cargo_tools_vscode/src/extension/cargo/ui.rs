@@ -864,7 +864,7 @@ impl OutlineNodeData {
             description: Some(format!("{} target(s)", package.targets.len())),
             command: Some("vscode.open".to_string()),
             command_arg: Some(package.manifest.to_string()),
-            package: None,
+            package: Some(package.name.to_string()),
             target: None,
         }
     }
