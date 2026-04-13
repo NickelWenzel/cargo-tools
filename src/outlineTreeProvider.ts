@@ -12,8 +12,6 @@ export class CargoOutlineNode extends vscode.TreeItem {
         public readonly tooltip?: string,
         public readonly cmd?: string,
         public readonly cmd_arg?: string,
-        public readonly target_package?: string,
-        public readonly target?: string,
     ) {
         super(label, collapsibleState);
         this.iconPath = new vscode.ThemeIcon(icon.icon, new vscode.ThemeColor(icon.color));
@@ -26,8 +24,6 @@ export class CargoOutlineNode extends vscode.TreeItem {
         this.description = description;
         this.tooltip = tooltip;
         this.node_type = node_type;
-        this.target_package = target_package;
-        this.target = target;
     }
 
     static feature(
@@ -83,10 +79,6 @@ export class CargoOutlineTreeProvider implements vscode.TreeDataProvider<CargoOu
     }
 }
 
-export function try_get_package(value: any[]): string | undefined {
-    return value[0] instanceof CargoOutlineNode ? value[0].target_package : undefined;
-}
-
-export function try_get_target(value: any[]): string | undefined {
-    return value[0] instanceof CargoOutlineNode ? value[0].target : undefined;
+export function try_get_node_type(value: any[]): OutlineNodeType | undefined {
+    return value[0] instanceof CargoOutlineNode ? value[0].node_type : undefined;
 }

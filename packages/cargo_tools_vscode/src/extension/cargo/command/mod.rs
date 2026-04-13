@@ -11,7 +11,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     extension::{TaskMap, VsCodeTask, cargo::TargetTypesFilter, register_tasks},
-    vs_code_api::{log, try_get_package, try_get_target},
+    vs_code_api::{log, try_get_node_type},
 };
 
 pub mod process;
@@ -42,7 +42,7 @@ pub enum Command {
 pub type CargoCmdFn = fn(Array) -> Option<Command>;
 
 impl Command {
-    pub const fn all() -> [(&'static str, CargoCmdFn); 32] {
+    pub const fn all() -> [(&'static str, CargoCmdFn); 42] {
         use ProjectOutline as PO;
         [
             ("cargo-tools.selectProfile", |_| Some(Self::SelectProfile)),
@@ -78,28 +78,57 @@ impl Command {
                 take_first(arg).map(Self::ToggleFeature)
             }),
             ("cargo-tools.projectOutline.selectPackage", |arg| {
-                try_get_package(arg)
-                    .map(|pkg| PO::Select(Update::SelectedPackage(Some(pkg))).to_cmd())
+                try_get_node_type(arg).map(|_| todo!())
             }),
             ("cargo-tools.projectOutline.unselectPackage", |_| {
                 Some(PO::Select(Update::SelectedPackage(None)).to_cmd())
             }),
-            ("cargo-tools.projectOutline.build", |arg| {
+            ("cargo-tools.projectOutline.setBuildTarget", |arg| {
+                try_get_node_type(arg).map(|_| todo!())
+            }),
+            ("cargo-tools.projectOutline.unsetBuildTarget", |_| {
+                Some(PO::Select(Update::SelectedPackage(None)).to_cmd())
+            }),
+            ("cargo-tools.projectOutline.setRunTarget", |arg| {
+                try_get_node_type(arg).map(|_| todo!())
+            }),
+            ("cargo-tools.projectOutline.unsetRunTarget", |_| {
+                Some(PO::Select(Update::SelectedPackage(None)).to_cmd())
+            }),
+            ("cargo-tools.projectOutline.setBenchmarkTarget", |arg| {
+                try_get_node_type(arg).map(|_| todo!())
+            }),
+            ("cargo-tools.projectOutline.unsetBenchmarkTarget", |_| {
+                Some(PO::Select(Update::SelectedPackage(None)).to_cmd())
+            }),
+            ("cargo-tools.projectOutline.buildWorkspace", |arg| {
                 PO::from_build_target(PO::Build, arg).map(PO::to_cmd)
             }),
-            ("cargo-tools.projectOutline.test", |arg| {
+            ("cargo-tools.projectOutline.testWorkspace", |arg| {
                 PO::from_optional_str(PO::Test, arg).map(PO::to_cmd)
             }),
-            ("cargo-tools.projectOutline.clean", |arg| {
+            ("cargo-tools.projectOutline.cleanWorkspace", |arg| {
                 PO::from_optional_str(PO::Clean, arg).map(PO::to_cmd)
             }),
-            ("cargo-tools.projectOutline.run", |arg| {
+            ("cargo-tools.projectOutline.buildPackage", |arg| {
+                PO::from_build_target(PO::Build, arg).map(PO::to_cmd)
+            }),
+            ("cargo-tools.projectOutline.testPackage", |arg| {
+                PO::from_optional_str(PO::Test, arg).map(PO::to_cmd)
+            }),
+            ("cargo-tools.projectOutline.cleanPackage", |arg| {
+                PO::from_optional_str(PO::Clean, arg).map(PO::to_cmd)
+            }),
+            ("cargo-tools.projectOutline.buildTarget", |arg| {
+                PO::from_build_target(PO::Build, arg).map(PO::to_cmd)
+            }),
+            ("cargo-tools.projectOutline.runTarget", |arg| {
                 PO::from_run_target(PO::Run, arg).map(PO::to_cmd)
             }),
-            ("cargo-tools.projectOutline.debug", |arg| {
+            ("cargo-tools.projectOutline.debugTarget", |arg| {
                 PO::from_run_target(PO::Debug, arg).map(PO::to_cmd)
             }),
-            ("cargo-tools.projectOutline.bench", |arg| {
+            ("cargo-tools.projectOutline.benchTarget", |arg| {
                 PO::from_optional_str(PO::Bench, arg).map(PO::to_cmd)
             }),
             (

@@ -280,8 +280,6 @@ extern "C" {
         tooltip: Option<String>,
         command: Option<String>,
         command_args: Option<String>,
-        package: Option<String>,
-        target: Option<String>,
     ) -> CargoOutlineNode;
 
     #[wasm_bindgen(static_method_of = CargoOutlineNode)]
@@ -303,10 +301,7 @@ extern "C" {
     pub fn update(this: &CargoOutlineTreeProvider);
 
     #[wasm_bindgen]
-    pub fn try_get_package(value: Array) -> Option<String>;
-
-    #[wasm_bindgen]
-    pub fn try_get_target(value: Array) -> Option<String>;
+    pub fn try_get_node_type(value: Array) -> Option<OutlineNodeType>;
 }
 
 impl Debug for CargoOutlineTreeProvider {
