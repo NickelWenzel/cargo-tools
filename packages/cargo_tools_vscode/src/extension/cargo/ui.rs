@@ -375,68 +375,35 @@ pub struct OutlineUiRequest {
 #[wasm_bindgen]
 pub struct OutlineNodeType(OutlineNodeTypeInner);
 
-#[wasm_bindgen]
-impl OutlineNodeType {
-    pub fn is_feature(&self) -> bool {
-        matches!(self, &Self(OutlineNodeTypeInner::FeatureLeaf))
-    }
-}
-
 impl OutlineNodeType {
     pub fn children(
         &self,
         selection: &selection::State,
         packages: &[CondensedPackage],
+        grouping: Grouping,
     ) -> Vec<OutlineNodeData> {
+        use OutlineNodeTypeInner::*;
         match &self.0 {
-            OutlineNodeTypeInner::Packages(packages_type) => match packages_type {
-                Packages::Root => OutlineNodeData::packages_root_children(selection, packages),
-                Packages::Features(features) => match features {
-                    Features::Root => vec![OutlineNodeData::all_features(selection)],
-                    Features::Package(package) => try_package(package, packages)
-                        .map(|p| OutlineNodeData::package_features(selection, p))
-                        .unwrap_or_default(),
-                },
-                Packages::Package(package) => try_package(package, packages)
-                    .map(|p| OutlineNodeData::package_children(selection, p))
-                    .unwrap_or_default(),
-            },
-            OutlineNodeTypeInner::Targets(targets) => match targets {
-                Targets::Root => {
-                    OutlineNodeData::target_root_children(metadata::Target::counts(packages))
-                }
-                Targets::Package(target) => {
-                    OutlineNodeData::targets_children(*target, selection, packages)
-                }
-            },
-            OutlineNodeTypeInner::Leaf => Vec::new(),
-            OutlineNodeTypeInner::FeatureLeaf => Vec::new(),
+            Root => OutlineNodeData::root_children(selection, packages, grouping),
+            RootFeatures => vec![OutlineNodeData::root_features_children(selection)],
+            Package { name } => try_package(name, packages)
+                .map(|p| OutlineNodeData::package_children(selection, p))
+                .unwrap_or_default(),
+            PackageFeatures { package } => try_package(package, packages)
+                .map(|p| OutlineNodeData::package_features_children(selection, p))
+                .unwrap_or_default(),
+            Libraries => OutlineNodeData::targets_children(Target::Lib, selection, packages),
+            Binaries => OutlineNodeData::targets_children(Target::Bin, selection, packages),
+            Examples => OutlineNodeData::targets_children(Target::Example, selection, packages),
+            Benchmarks => OutlineNodeData::targets_children(Target::Bench, selection, packages),
+            // All others never have further child nodes
+            RootAllFeatures => Vec::new(),
+            Feature { .. } => Vec::new(),
+            Lib { .. } => Vec::new(),
+            Bin { .. } => Vec::new(),
+            Example { .. } => Vec::new(),
+            Bench { .. } => Vec::new(),
         }
-    }
-
-    fn root(grouping: Grouping) -> Self {
-        let inner = match grouping {
-            Grouping::Packages => OutlineNodeTypeInner::Packages(Packages::Root),
-            Grouping::TargetTypes => OutlineNodeTypeInner::Targets(Targets::Root),
-        };
-
-        Self(inner)
-    }
-
-    fn targets(targets: Targets) -> Self {
-        Self(OutlineNodeTypeInner::Targets(targets))
-    }
-
-    fn leaf() -> Self {
-        Self(OutlineNodeTypeInner::Leaf)
-    }
-
-    fn feature_leaf() -> Self {
-        Self(OutlineNodeTypeInner::FeatureLeaf)
-    }
-
-    fn features(features: Features) -> Self {
-        Self(OutlineNodeTypeInner::Packages(Packages::Features(features)))
     }
 }
 
@@ -449,53 +416,53 @@ fn try_package<'a>(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum OutlineNodeTypeInner {
-    Packages(Packages),
-    Targets(Targets),
-    Leaf,
-    FeatureLeaf,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Packages {
     Root,
-    Features(Features),
-    Package(String),
+    RootFeatures,
+    RootAllFeatures,
+    Package { name: String },
+    PackageFeatures { package: String },
+    Feature { package: String, name: String },
+    Lib { package: String, name: String },
+    Bin { package: String, name: String },
+    Example { package: String, name: String },
+    Bench { package: String, name: String },
+    Libraries,
+    Binaries,
+    Examples,
+    Benchmarks,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Features {
-    Root,
-    Package(String),
+trait TargetExt {
+    fn icon(&self) -> Icon;
+    fn label(&self) -> String;
+    fn targets_node_type(&self) -> OutlineNodeType;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Targets {
-    Root,
-    Package(Target),
-}
-
-impl Targets {
-    fn label(&self) -> String {
+impl TargetExt for Target {
+    fn icon(&self) -> Icon {
         match self {
-            Targets::Root => "Targets".to_string(),
-            Targets::Package(target) => match target {
-                Target::Lib => "Libraries".to_string(),
-                Target::Bin => "Binaries".to_string(),
-                Target::Example => "Examples".to_string(),
-                Target::Bench => "Benchmarks".to_string(),
-            },
+            Target::Lib => LIB_TARGET,
+            Target::Bin => BIN_TARGET,
+            Target::Example => EXAMPLE_TARGET,
+            Target::Bench => BENCH_TARGET,
         }
     }
 
-    fn icon(&self) -> Icon {
+    fn label(&self) -> String {
         match self {
-            Targets::Root => PROJECT,
-            Targets::Package(target) => match target {
-                Target::Lib => LIB_TARGET,
-                Target::Bin => BIN_TARGET,
-                Target::Example => EXAMPLE_TARGET,
-                Target::Bench => BENCH_TARGET,
-            },
+            Target::Lib => "Libraries".to_string(),
+            Target::Bin => "Binaries".to_string(),
+            Target::Example => "Examples".to_string(),
+            Target::Bench => "Benchmarks".to_string(),
+        }
+    }
+
+    fn targets_node_type(&self) -> OutlineNodeType {
+        match self {
+            Target::Lib => OutlineNodeType(OutlineNodeTypeInner::Libraries),
+            Target::Bin => OutlineNodeType(OutlineNodeTypeInner::Binaries),
+            Target::Example => OutlineNodeType(OutlineNodeTypeInner::Examples),
+            Target::Bench => OutlineNodeType(OutlineNodeTypeInner::Benchmarks),
         }
     }
 }
@@ -511,53 +478,60 @@ pub struct OutlineNodeData {
     description: Option<String>,
     command: Option<String>,
     command_arg: Option<String>,
-    package: Option<String>,
-    target: Option<String>,
 }
 
 impl OutlineNodeData {
-    pub fn root(label: String, grouping: Grouping, num_targets: usize) -> Self {
+    pub fn root(label: String, num_targets: usize) -> Self {
         OutlineNodeData {
             label,
             icon: PROJECT,
             collapsible_state: CollapsibleState::Expanded,
-            node_type: OutlineNodeType::root(grouping),
+            node_type: OutlineNodeType(OutlineNodeTypeInner::Root),
             context_value: Some("project".to_string()),
             tooltip: None,
             description: Some(format!("{num_targets} targets")),
             command: None,
             command_arg: None,
-            package: None,
-            target: None,
         }
     }
 
-    fn target_root_children(target_counts: HashMap<Target, usize>) -> Vec<Self> {
+    fn root_children(
+        selection: &selection::State,
+        packages: &[CondensedPackage],
+        grouping: Grouping,
+    ) -> Vec<Self> {
+        match grouping {
+            Grouping::Packages => OutlineNodeData::packages_root_children(selection, packages),
+            Grouping::TargetTypes => {
+                OutlineNodeData::target_types_root_children(metadata::Target::counts(packages))
+            }
+        }
+    }
+
+    fn target_types_root_children(target_counts: HashMap<Target, usize>) -> Vec<Self> {
         use metadata::Target::*;
         [Lib, Bin, Example, Bench]
-            .iter()
+            .into_iter()
             .filter_map(|target| {
                 target_counts
-                    .get(target)
+                    .get(&target)
                     .copied()
-                    .map(|num_targets| Self::target(Targets::Package(*target), num_targets))
+                    .map(|num_targets| Self::target(target, num_targets))
             })
             .collect()
     }
 
-    fn target(target: Targets, num_targets: usize) -> Self {
+    fn target(target: Target, num_targets: usize) -> Self {
         Self {
             label: target.label(),
             icon: target.icon(),
             collapsible_state: CollapsibleState::Expanded,
-            node_type: OutlineNodeType::targets(target),
+            node_type: target.targets_node_type(),
             context_value: None,
             tooltip: None,
             description: Some(num_targets.to_string()),
             command: None,
             command_arg: None,
-            package: None,
-            target: None,
         }
     }
 
@@ -619,11 +593,15 @@ impl OutlineNodeData {
             }
         }
 
+        let node_type = OutlineNodeType(OutlineNodeTypeInner::Lib {
+            package,
+            name: target.name.to_string(),
+        });
+
         Self::leaf(
             label,
-            target.name.to_string(),
-            package,
-            Targets::Package(Target::Lib).icon(),
+            node_type,
+            Target::Lib.icon(),
             context.join(","),
             Some(description),
             target.source.to_string(),
@@ -665,11 +643,15 @@ impl OutlineNodeData {
             }
         }
 
+        let node_type = OutlineNodeType(OutlineNodeTypeInner::Bin {
+            package,
+            name: target.name.to_string(),
+        });
+
         Self::leaf(
             label,
-            target.name.to_string(),
-            package,
-            Targets::Package(Target::Bin).icon(),
+            node_type,
+            Target::Bin.icon(),
             context.join(","),
             None,
             target.source.to_string(),
@@ -712,11 +694,15 @@ impl OutlineNodeData {
             }
         }
 
+        let node_type = OutlineNodeType(OutlineNodeTypeInner::Example {
+            package,
+            name: target.name.to_string(),
+        });
+
         Self::leaf(
             label,
-            target.name.to_string(),
-            package,
-            Targets::Package(Target::Example).icon(),
+            node_type,
+            Target::Example.icon(),
             context.join(","),
             None,
             target.source.to_string(),
@@ -752,11 +738,15 @@ impl OutlineNodeData {
             }
         }
 
+        let node_type = OutlineNodeType(OutlineNodeTypeInner::Bench {
+            package,
+            name: target.name.to_string(),
+        });
+
         Self::leaf(
             label,
-            target.name.to_string(),
-            package,
-            Targets::Package(Target::Bench).icon(),
+            node_type,
+            Target::Bench.icon(),
             context.join(","),
             None,
             target.source.to_string(),
@@ -765,8 +755,7 @@ impl OutlineNodeData {
 
     fn leaf(
         label: String,
-        target: String,
-        package: String,
+        node_type: OutlineNodeType,
         icon: Icon,
         context_value: String,
         description: Option<String>,
@@ -776,14 +765,12 @@ impl OutlineNodeData {
             label,
             icon,
             collapsible_state: CollapsibleState::None,
-            node_type: OutlineNodeType::leaf(),
+            node_type,
             context_value: Some(context_value),
             tooltip: None,
             description,
             command: Some("vscode.open".to_string()),
             command_arg: Some(source),
-            package: Some(package),
-            target: Some(target),
         }
     }
 
@@ -798,48 +785,63 @@ impl OutlineNodeData {
             description,
             command,
             command_arg,
-            package,
-            target,
         } = self;
 
-        if node_type == OutlineNodeType::feature_leaf() {
-            return CargoOutlineNode::feature(
+        match node_type.0.clone() {
+            OutlineNodeTypeInner::RootAllFeatures => CargoOutlineNode::feature(
                 label,
                 icon,
                 collapsible_state as u32,
                 node_type,
                 "cargo-tools.projectStatus.toggleFeature".to_string(),
-                package.into_iter().chain(target).collect(),
-            );
+                vec!["All features".to_string()],
+            ),
+            OutlineNodeTypeInner::Feature { package, name } => CargoOutlineNode::feature(
+                label,
+                icon,
+                collapsible_state as u32,
+                node_type,
+                "cargo-tools.projectStatus.toggleFeature".to_string(),
+                vec![package, name],
+            ),
+            _ => CargoOutlineNode::new(
+                label,
+                icon,
+                collapsible_state as u32,
+                node_type,
+                context_value,
+                description,
+                tooltip,
+                command,
+                command_arg,
+            ),
         }
-        CargoOutlineNode::new(
-            label,
-            icon,
-            collapsible_state as u32,
-            node_type,
-            context_value,
-            description,
-            tooltip,
-            command,
-            command_arg,
-            package,
-            target,
-        )
     }
 
     fn packages_root_children(
         selection: &selection::State,
         packages: &[CondensedPackage],
-    ) -> Vec<OutlineNodeData> {
+    ) -> Vec<Self> {
+        let root_features = Self {
+            label: "Features".to_string(),
+            icon: FEATURES_CONFIG,
+            collapsible_state: CollapsibleState::Expanded,
+            node_type: OutlineNodeType(OutlineNodeTypeInner::RootFeatures),
+            context_value: None,
+            tooltip: None,
+            description: None,
+            command: None,
+            command_arg: None,
+        };
+
         let packages = packages
             .iter()
             .map(|p| Self::package(selection.package.as_deref(), p));
-        iter::once(Self::features(Features::Root))
-            .chain(packages)
-            .collect()
+
+        iter::once(root_features).chain(packages).collect()
     }
 
-    fn package(selected_package: Option<&str>, package: &CondensedPackage) -> OutlineNodeData {
+    fn package(selected_package: Option<&str>, package: &CondensedPackage) -> Self {
         let mut label = package.name.to_string();
         let mut context = vec!["workspaceMember"];
 
@@ -852,52 +854,48 @@ impl OutlineNodeData {
             context.push("canBeSelectedPackage");
         }
 
+        let name = package.name.to_string();
+
         Self {
             label,
             icon: PACKAGE,
             collapsible_state: CollapsibleState::Expanded,
-            node_type: OutlineNodeType(OutlineNodeTypeInner::Packages(Packages::Package(
-                package.name.to_string(),
-            ))),
+            node_type: OutlineNodeType(OutlineNodeTypeInner::Package { name }),
             context_value: Some(context.join(",")),
             tooltip: None,
             description: Some(format!("{} target(s)", package.targets.len())),
             command: Some("vscode.open".to_string()),
             command_arg: Some(package.manifest.to_string()),
-            package: Some(package.name.to_string()),
-            target: None,
         }
     }
 
-    fn features(features: Features) -> OutlineNodeData {
-        let package = if let Features::Package(package) = &features {
-            Some(package.clone())
+    fn root_features_children(selection: &selection::State) -> Self {
+        let feature = "All features";
+        let selected = selection.features == selection::Features::All;
+
+        let icon = if selected {
+            SELECTED_STATE
         } else {
-            None
+            UNSELECTED_STATE
         };
 
         Self {
-            label: "Features".to_string(),
-            icon: FEATURES_CONFIG,
-            collapsible_state: CollapsibleState::Expanded,
-            node_type: OutlineNodeType::features(features),
+            label: feature.to_string(),
+            icon,
+            collapsible_state: CollapsibleState::None,
+            node_type: OutlineNodeType(OutlineNodeTypeInner::RootAllFeatures),
             context_value: None,
             tooltip: None,
             description: None,
             command: None,
             command_arg: None,
-            package,
-            target: None,
         }
     }
 
-    fn all_features(selection: &selection::State) -> Self {
-        let feature = "All features";
-        let selected = selection.features == selection::Features::All;
-        Self::feature(feature, selected, None)
-    }
-
-    fn package_features(selection: &selection::State, package: &CondensedPackage) -> Vec<Self> {
+    fn package_features_children(
+        selection: &selection::State,
+        package: &CondensedPackage,
+    ) -> Vec<Self> {
         let selected_features = selection
             .package_selection
             .get(&package.name)
@@ -910,19 +908,33 @@ impl OutlineNodeData {
         package
             .features
             .iter()
-            .map(|f| {
-                Self::feature(
-                    f,
-                    selected_features.contains(&f.as_str()),
-                    Some(package.name.as_str()),
-                )
+            .map(|feature| {
+                let name = feature.clone();
+                let package = package.name.clone();
+                let icon = if selected_features.contains(&feature.as_str()) {
+                    SELECTED_STATE
+                } else {
+                    UNSELECTED_STATE
+                };
+
+                Self {
+                    label: feature.clone(),
+                    icon,
+                    collapsible_state: CollapsibleState::None,
+                    node_type: OutlineNodeType(OutlineNodeTypeInner::Feature { package, name }),
+                    context_value: None,
+                    tooltip: None,
+                    description: None,
+                    command: None,
+                    command_arg: None,
+                }
             })
             .collect()
     }
 
     fn package_children(selection: &selection::State, package: &CondensedPackage) -> Vec<Self> {
         let package_name = &package.name;
-        let features = Self::features(Features::Package(package_name.clone()));
+
         let targets = package
             .targets
             .iter()
@@ -937,29 +949,21 @@ impl OutlineNodeData {
                 }
             });
 
-        iter::once(features).chain(targets).collect()
-    }
-
-    fn feature(feature: &str, selected: bool, package: Option<&str>) -> Self {
-        let icon = if selected {
-            SELECTED_STATE
-        } else {
-            UNSELECTED_STATE
-        };
-
-        Self {
-            label: feature.to_string(),
-            icon,
-            collapsible_state: CollapsibleState::None,
-            node_type: OutlineNodeType::feature_leaf(),
+        let features = Self {
+            label: "Features".to_string(),
+            icon: FEATURES_CONFIG,
+            collapsible_state: CollapsibleState::Expanded,
+            node_type: OutlineNodeType(OutlineNodeTypeInner::PackageFeatures {
+                package: package_name.clone(),
+            }),
             context_value: None,
             tooltip: None,
             description: None,
             command: None,
             command_arg: None,
-            package: package.map(|p| p.to_string()),
-            target: Some(feature.to_string()),
-        }
+        };
+
+        targets.chain(iter::once(features)).collect()
     }
 }
 

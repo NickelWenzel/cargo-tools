@@ -239,6 +239,7 @@ impl Ui {
         };
 
         let Some(node_type) = node_type else {
+            // Root node
             let Some(name) = Path::new(&self.base.root_dir)
                 .file_name()
                 .and_then(|n| n.to_str().map(|n| n.to_string()))
@@ -246,15 +247,15 @@ impl Ui {
                 return Task::none();
             };
             let num_packages = metadata.workspace_packages().len();
-            let root = vec![OutlineNodeData::root(
-                name,
-                self.settings.grouping,
-                num_packages,
-            )];
+            let root = vec![OutlineNodeData::root(name, num_packages)];
             return Task::future(async move { tx.send(root).await }).discard();
         };
 
-        let nodes = node_type.children(&self.data.selection, &self.filtered_packages);
+        let nodes = node_type.children(
+            &self.data.selection,
+            &self.filtered_packages,
+            self.settings.grouping,
+        );
         Task::future(async move { tx.send(nodes).await }).discard()
     }
 }
