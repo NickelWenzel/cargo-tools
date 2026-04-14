@@ -723,7 +723,7 @@ export class CargoWorkspace {
      */
     getAvailableFeatures(): string[] {
         const features = ['all-features']; // Always include all-features option
-    
+
         if (this._selectedPackage) {
             // When a specific package is selected, show its features
             const packageFeatures = this.getPackageFeatures(this._selectedPackage);
