@@ -705,6 +705,20 @@ export class CargoWorkspace {
     }
 
     /**
+     * Get all available features from all packages in the workspace
+     */
+    private getAllAvailableFeatures(): string[] {
+        const allFeatures = new Set<string>();
+        
+        // Collect features from all packages
+        for (const [, features] of this._packageFeatures) {
+            features.forEach(feature => allFeatures.add(feature));
+        }
+        
+        return Array.from(allFeatures).sort();
+    }
+    
+    /**
      * Get all available features for the current package context
      */
     getAvailableFeatures(): string[] {
@@ -714,9 +728,11 @@ export class CargoWorkspace {
             // When a specific package is selected, show its features
             const packageFeatures = this.getPackageFeatures(this._selectedPackage);
             features.push(...packageFeatures);
+        } else {
+            // When no package is selected, show all features from all packages
+            features.push(...this.getAllAvailableFeatures());
         }
-        // When no selection, only show "all-features"
-
+    
         return features;
     }
 
