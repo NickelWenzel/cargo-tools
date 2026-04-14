@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"module": "CommonJS",
+		"module": "nodenext",
 		"target": "ES2022",
 		"lib": [
 			"ES2022"
@@ -9,11 +9,15 @@
 		"rootDir": "src",
 		"outDir": "out",
 		"strict": true,
-		"moduleResolution": "node",
+		"moduleResolution": "nodenext",
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true,
 		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true
+		"resolveJsonModule": true,
+		"types": [
+			"node",
+			"mocha"
+		]
 		/* enable all strict type-checking options */
 		/* Additional Checks */
 		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
