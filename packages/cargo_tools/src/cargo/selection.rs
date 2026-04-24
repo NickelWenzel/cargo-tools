@@ -11,6 +11,12 @@ use crate::{
     profile::Profile,
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FeatureType {
+    Selection,
+    Package(Option<String>),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Features {
     All,
@@ -30,7 +36,10 @@ pub enum Update {
     SelectedRunTarget(Option<RunSubTarget>),
     SelectedBenchmarkTarget(Option<String>),
     SelectedPlatformTarget(Option<String>),
-    SelectedFeatures(Features),
+    SelectedFeatures {
+        feature_type: FeatureType,
+        features: Features,
+    },
     SelectedProfile(Profile),
     Refresh(HashMap<String, PackageSelection>),
 }
@@ -66,13 +75,27 @@ impl State {
                     s.benchmark_target = v;
                 }
             }
-            Update::SelectedFeatures(v) => {
-                if let Some(s) = self.package_selection_mut() {
-                    s.features = v;
-                } else {
-                    self.features = v;
+            Update::SelectedFeatures {
+                feature_type,
+                features,
+            } => match feature_type {
+                FeatureType::Selection => {
+                    if let Some(s) = self.package_selection_mut() {
+                        s.features = features;
+                    } else {
+                        self.features = features;
+                    }
                 }
-            }
+                FeatureType::Package(package) => match package {
+                    Some(p) => {
+                        let s = self.package_selection.entry(p).or_default();
+                        s.features = features;
+                    }
+                    None => {
+                        self.features = features;
+                    }
+                },
+            },
             Update::SelectedPlatformTarget(v) => self.platform_target = v,
             Update::SelectedProfile(v) => self.profile = v,
             Update::Refresh(package_selection) => self.package_selection = package_selection,
@@ -227,15 +250,6 @@ pub struct PackageSelection {
 }
 
 impl PackageSelection {
-    pub fn get(&self, target: Target) -> Option<String> {
-        match target {
-            Target::Lib => todo!(),
-            Target::Bin => todo!(),
-            Target::Example => todo!(),
-            Target::Bench => todo!(),
-        }
-    }
-
     pub fn build_target_matches(&self, target: Target, name: &str) -> bool {
         self.build_target
             .as_ref()

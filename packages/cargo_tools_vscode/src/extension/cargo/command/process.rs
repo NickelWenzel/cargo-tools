@@ -20,7 +20,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 use crate::{
     extension::cargo::{
         Grouping, Message, SettingsUpdate, TargetTypesFilter, Ui,
-        command::{Command, ProjectOutline as PO},
+        command::{Command, FeatureType, ProjectOutline as PO},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
     runtime::VsCodeRuntime as Runtime,
@@ -99,7 +99,7 @@ impl Ui {
             }
             Command::Test => self.cmd_exec(Implicit::Test),
             Command::Bench => self.cmd_exec(Implicit::Bench),
-            Command::ToggleFeature(feature) => self.toggle_feature(feature),
+            Command::ToggleFeature(feature) => self.toggle_feature(FeatureType::Selection, feature),
             Command::ProjectOutline(cmd) => self.process_outline_cmd(cmd),
         }
     }
@@ -131,6 +131,10 @@ impl Ui {
             PO::ToggleWorkspaceMemberGrouping => {
                 Task::done(self.settings.grouping.toggle().into_cargo_msg())
             }
+            PO::ToggleFeature {
+                feature_type,
+                feature,
+            } => self.toggle_feature(feature_type, feature),
         }
     }
 
@@ -219,13 +223,32 @@ impl Ui {
         })
     }
 
-    fn toggle_feature(&self, feature: String) -> Task<Message> {
-        let features = match self.data.selection.selected_features() {
+    fn toggle_feature(&self, feature_type: FeatureType, feature: String) -> Task<Message> {
+        let selected_features = match &feature_type {
+            FeatureType::Selection => self.data.selection.selected_features(),
+            FeatureType::Package(package) => {
+                match package {
+                    Some(package) => {
+                        let Some(features) = self
+                            .data
+                            .selection
+                            .get(package, |s| Some(s.features.clone()))
+                        else {
+                            return Task::none();
+                        };
+                        features
+                    }
+                    // Features on workspace node
+                    None => self.data.selection.features.clone(),
+                }
+            }
+        };
+
+        let features = match selected_features {
             Features::All => Features::Some(Vec::from_iter(
                 (&feature != "All features").then_some(feature),
             )),
-            Features::Some(features) => {
-                let mut features = features.clone();
+            Features::Some(mut features) => {
                 if &feature == "All features" {
                     Features::All
                 } else {
@@ -239,7 +262,13 @@ impl Ui {
             }
         };
 
-        Task::done(Update::SelectedFeatures(features).into_cargo_msg())
+        Task::done(
+            Update::SelectedFeatures {
+                feature_type,
+                features,
+            }
+            .into_cargo_msg(),
+        )
     }
 
     fn refresh(&self) -> Task<Message> {
@@ -458,7 +487,10 @@ async fn select_features(input: Option<SelectInput<String>>) -> Option<impl Into
         Features::Some(selected_features)
     };
 
-    Some(Update::SelectedFeatures(features))
+    Some(Update::SelectedFeatures {
+        feature_type: FeatureType::Selection,
+        features,
+    })
 }
 
 fn exec_path(target: &RunSubTarget, selection: &selection::State, target_dir: &str) -> String {

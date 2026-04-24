@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cargo_tools::cargo::{
     command::{BenchTarget, BuildTarget, RunTarget},
-    selection::Update,
+    selection::{FeatureType, Update},
 };
 use futures::{SinkExt, channel::mpsc::Sender};
 use serde::de::DeserializeOwned;
@@ -46,7 +46,7 @@ pub enum Command {
 pub type CargoCmdFn = fn(Array) -> Option<Command>;
 
 impl Command {
-    pub const fn all() -> [(&'static str, CargoCmdFn); 42] {
+    pub const fn all() -> [(&'static str, CargoCmdFn); 43] {
         use ProjectOutline as PO;
         [
             ("cargo-tools.selectProfile", |_| Some(Self::SelectProfile)),
@@ -201,6 +201,24 @@ impl Command {
                 "cargo-tools.projectOutline.toggleWorkspaceMemberGrouping",
                 |_| Some(PO::ToggleWorkspaceMemberGrouping.to_cmd()),
             ),
+            (
+                "cargo-tools.projectOutline.toggleFeature",
+                |arg| match arg.length() {
+                    1 => take_first(arg)
+                        .map(|feature| PO::ToggleFeature {
+                            feature_type: FeatureType::Package(None),
+                            feature,
+                        })
+                        .map(PO::to_cmd),
+                    2 => take_first_two(arg)
+                        .map(|(package, feature)| PO::ToggleFeature {
+                            feature_type: FeatureType::Package(Some(package)),
+                            feature,
+                        })
+                        .map(PO::to_cmd),
+                    _ => None,
+                },
+            ),
         ]
     }
 }
@@ -221,6 +239,10 @@ pub enum ProjectOutline {
     EditTargetTypeFilter(TargetTypesFilter),
     ClearAllFilters,
     ToggleWorkspaceMemberGrouping,
+    ToggleFeature {
+        feature_type: FeatureType,
+        feature: String,
+    },
 }
 
 impl ProjectOutline {
@@ -260,6 +282,23 @@ fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
     match serde_wasm_bindgen::from_value(array.get(0)) {
         Ok(v) => Some(v),
         Err(e) => {
+            log(&format!("Failed to deserialize update: {e}"));
+            None
+        }
+    }
+}
+
+fn take_first_two<T: DeserializeOwned, U: DeserializeOwned>(array: Array) -> Option<(T, U)> {
+    match (
+        serde_wasm_bindgen::from_value(array.get(0)),
+        serde_wasm_bindgen::from_value(array.get(1)),
+    ) {
+        (Ok(v_0), Ok(v_1)) => Some((v_0, v_1)),
+        (Err(e_0), Err(e_1)) => {
+            log(&format!("Failed to deserialize update: {e_0}, {e_1}"));
+            None
+        }
+        (Err(e), _) | (_, Err(e)) => {
             log(&format!("Failed to deserialize update: {e}"));
             None
         }

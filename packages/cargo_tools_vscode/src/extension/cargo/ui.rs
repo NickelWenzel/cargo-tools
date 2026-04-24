@@ -852,7 +852,7 @@ impl OutlineNodeData {
                 icon,
                 collapsible_state as u32,
                 node_type,
-                "cargo-tools.projectStatus.toggleFeature".to_string(),
+                "cargo-tools.projectOutline.toggleFeature".to_string(),
                 vec!["All features".to_string()],
             ),
             OutlineNodeTypeInner::Feature { package, name } => CargoOutlineNode::feature(
@@ -860,7 +860,7 @@ impl OutlineNodeData {
                 icon,
                 collapsible_state as u32,
                 node_type,
-                "cargo-tools.projectStatus.toggleFeature".to_string(),
+                "cargo-tools.projectOutline.toggleFeature".to_string(),
                 vec![package, name],
             ),
             _ => CargoOutlineNode::new(

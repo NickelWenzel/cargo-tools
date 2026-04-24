@@ -46,7 +46,7 @@ impl Runtime for TestRuntime {
         let Task { cmd, args, env } = match task {
             CargoTask::Cargo(task) => task,
             CargoTask::CargoMake(task) => task,
-            CargoTask::RustUp(task) => todo!(),
+            CargoTask::RustUp(task) => task,
         };
         let env = env
             .into_iter()
@@ -73,7 +73,7 @@ impl Runtime for TestRuntime {
     }
 
     async fn read_file(file_path: String) -> Result<String, String> {
-        todo!()
+        Err("Not implemented".to_string())
     }
 }
 
