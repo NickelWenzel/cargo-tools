@@ -113,7 +113,7 @@ impl Ui {
             PO::Clean(package) => self.cmd_exec(Explicit::Clean { package }),
             PO::Run(target) => self.cmd_exec(Explicit::Run(Some(target))),
             PO::Debug(target) => self.debug(target),
-            PO::Bench(package) => self.cmd_exec(Explicit::Bench { package }),
+            PO::Bench(target) => self.cmd_exec(Explicit::Bench(Some(target))),
             PO::SelectWorkspaceMemberFilter => self.select_workspace_member_filter(),
             PO::EditWorkspaceMemberFilter(filter) => Task::done(Message::SettingsChanged(
                 SettingsUpdate::PackageFilter(filter),

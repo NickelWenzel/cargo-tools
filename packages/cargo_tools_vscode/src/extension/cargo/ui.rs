@@ -1,6 +1,7 @@
 use std::{collections::HashMap, iter};
 
 use cargo_tools::cargo::{
+    command::{BenchTarget, BuildSubTarget, BuildTarget, RunSubTarget, RunTarget},
     metadata::{self, CondensedPackage, CondensedTarget, Target},
     selection::{self},
 };
@@ -375,6 +376,14 @@ pub struct OutlineUiRequest {
 #[wasm_bindgen]
 pub struct OutlineNodeType(OutlineNodeTypeInner);
 
+#[wasm_bindgen]
+impl OutlineNodeType {
+    #[wasm_bindgen]
+    pub fn cloned(&self) -> Self {
+        self.clone()
+    }
+}
+
 impl OutlineNodeType {
     pub fn children(
         &self,
@@ -403,6 +412,56 @@ impl OutlineNodeType {
             Bin { .. } => Vec::new(),
             Example { .. } => Vec::new(),
             Bench { .. } => Vec::new(),
+        }
+    }
+
+    pub fn try_into_package(self) -> Option<String> {
+        match self.0 {
+            OutlineNodeTypeInner::Package { name } => Some(name),
+            _ => None,
+        }
+    }
+
+    pub fn try_into_build_target(self) -> Option<BuildTarget> {
+        use OutlineNodeTypeInner::*;
+        let build_target = |package, target| {
+            Some(BuildTarget {
+                package,
+                target: Some(target),
+            })
+        };
+        match self.0 {
+            Lib { package, name } => build_target(package, BuildSubTarget::Lib(name)),
+            Bin { package, name } => build_target(package, BuildSubTarget::Bin(name)),
+            Example { package, name } => build_target(package, BuildSubTarget::Example(name)),
+            Bench { package, name } => build_target(package, BuildSubTarget::Bench(name)),
+            _ => None,
+        }
+    }
+
+    pub fn try_into_run_target(self) -> Option<RunTarget> {
+        use OutlineNodeTypeInner::*;
+        let run_target = |package, target| {
+            Some(RunTarget {
+                package,
+                target: Some(target),
+            })
+        };
+        match self.0 {
+            Bin { package, name } => run_target(package, RunSubTarget::Bin(name)),
+            Example { package, name } => run_target(package, RunSubTarget::Example(name)),
+            _ => None,
+        }
+    }
+
+    pub fn try_into_bench_target(self) -> Option<BenchTarget> {
+        use OutlineNodeTypeInner::*;
+        match self.0 {
+            Bench { package, name } => Some(BenchTarget {
+                package,
+                target: Some(name),
+            }),
+            _ => None,
         }
     }
 }

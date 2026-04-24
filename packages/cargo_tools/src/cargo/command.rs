@@ -55,8 +55,13 @@ impl Implicit {
                 Explicit::Test { package }
             }
             Implicit::Bench => {
-                let package = selection.package.clone();
-                Explicit::Bench { package }
+                let target = if let Some(package) = selection.package.clone() {
+                    let target = selection.get(&package, |s| s.benchmark_target.clone());
+                    Some(BenchTarget { package, target })
+                } else {
+                    None
+                };
+                Explicit::Bench(target)
             }
             Implicit::Clean => {
                 let package = selection.package.clone();
@@ -72,7 +77,7 @@ pub enum Explicit {
     Run(Option<RunTarget>),
     Debug(Option<RunTarget>),
     Test { package: Option<String> },
-    Bench { package: Option<String> },
+    Bench(Option<BenchTarget>),
     Doc,
     Clean { package: Option<String> },
 }
@@ -151,11 +156,15 @@ impl Explicit {
                 args.extend(selection_args);
                 args
             }
-            Explicit::Bench { package } => {
-                let mut args: Vec<_> = vec!["bench".to_string()];
-                let selection_args = selection.args(package.is_some());
-                if let Some(package) = package {
+            Explicit::Bench(bench_target) => {
+                let mut args = vec!["bench".to_string()];
+                let selection_args = selection.args(bench_target.is_some());
+                if let Some(BenchTarget { package, target }) = bench_target {
                     args.extend(["--package".to_string(), package]);
+
+                    if let Some(target) = target {
+                        args.push(target);
+                    }
                 }
                 args.extend(selection_args);
                 args
@@ -183,7 +192,7 @@ impl Explicit {
             Explicit::Run(_) | Explicit::Debug(_) => Context::Run,
             Explicit::Test { package: _ } => Context::Test,
             Explicit::Build(_)
-            | Explicit::Bench { package: _ }
+            | Explicit::Bench(_)
             | Explicit::Doc
             | Explicit::Clean { package: _ } => Context::General,
         }
@@ -196,10 +205,25 @@ pub struct BuildTarget {
     pub target: Option<BuildSubTarget>,
 }
 
+impl BuildTarget {
+    pub fn package_only(package: String) -> Self {
+        Self {
+            package,
+            target: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunTarget {
     pub package: String,
     pub target: Option<RunSubTarget>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BenchTarget {
+    pub package: String,
+    pub target: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -75,10 +75,10 @@ export class CargoOutlineTreeProvider implements vscode.TreeDataProvider<CargoOu
     }
 
     async getChildren(element?: CargoOutlineNode): Promise<CargoOutlineNode[]> {
-        return this.handler.children(element ? element.node_type : undefined);
+        return this.handler.children(element ? element.node_type.cloned() : undefined);
     }
 }
 
 export function try_get_node_type(value: any[]): OutlineNodeType | undefined {
-    return value[0] instanceof CargoOutlineNode ? value[0].node_type : undefined;
+    return value[0] instanceof CargoOutlineNode ? value[0].node_type.cloned() : undefined;
 }
