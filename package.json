@@ -2,10 +2,10 @@
   "name": "cargo-tools",
   "displayName": "Cargo Tools",
   "description": "Cargo/Rust development tools for Visual Studio Code",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "NickelWenzel",
   "license": "MIT",
-  "icon": "rustacean-flat-happy.png",
+  "icon": "Ferris-big-tools.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/NickelWenzel/cargo-tools.git"
