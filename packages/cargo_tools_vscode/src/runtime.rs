@@ -1,40 +1,4 @@
-//! VS Code Runtime implementation for executing commands and watching file system events.
-//!
-//! This module provides the concrete implementation of the `Runtime` trait for VS Code,
-//! bridging Rust/WASM code to VS Code's TypeScript APIs for command execution and
-//! file system watching.
-//!
-//! # Architecture
-//!
-//! - **Command Execution**: Delegates to `vs_code_api::execute_async` which calls TypeScript
-//! - **Logging**: Delegates to `vs_code_api::log` which uses VS Code's console API
-//! - **File Watching**: Uses bounded channels (capacity 100) with multi-subscriber support
-//!   - Directory changes are broadcast to all `current_dir_notitifier()` subscribers
-//!   - File changes are routed to subscribers of specific file paths
-//!   - **One-time events**: Watchers are automatically disposed after the first event fires
-//!   - Dead receivers are automatically cleaned up on send failures
-//!
-//! # TypeScript Integration
-//!
-//! This module requires corresponding TypeScript implementations in `runtime.ts`:
-//! - `watch_current_dir()` - Creates VS Code workspace folder watcher, returns handle
-//! - `unwatch_current_dir(handle)` - Disposes watcher by handle
-//! - `watch_file(path)` - Creates VS Code file system watcher for specific path, returns handle
-//! - `unwatch_file(handle)` - Disposes file watcher by handle
-//!
-//! TypeScript must call `on_current_dir_changed(dir)` and `on_file_changed(path)`
-//! when events occur to propagate changes to Rust subscribers. After calling these
-//! functions, Rust will automatically call the unwatch functions to dispose of watchers.
-//!
-//! # Testing
-//!
-//! Unit tests are provided but cannot be executed directly on wasm32 target.
-//! They serve as documentation and can be validated through integration tests
-//! or manual testing in the VS Code extension.
-use cargo_tools::{
-    environment::Environment,
-    runtime::{CargoTask, Runtime, Task},
-};
+use cargo_tools::runtime::{CargoTask, Runtime, Task};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_wasm_bindgen::to_value;
 use std::fmt::Debug;
@@ -42,7 +6,7 @@ use wasm_async_trait::wasm_async_trait;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Map;
 
-use crate::{configuration, vs_code_api::*};
+use crate::vs_code_api::*;
 
 pub const CHANNEL_CAPACITY: usize = 100;
 
@@ -102,10 +66,6 @@ impl Runtime for VsCodeRuntime {
             return None;
         };
         Some(state)
-    }
-
-    fn get_configuration() -> impl Environment {
-        configuration::Configuration
     }
 }
 

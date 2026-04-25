@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cargo::{metadata::Target, selection},
-    environment::{Context, Environment},
+    environment::Environment,
     runtime::{CargoTask, Task},
 };
 
@@ -17,10 +17,6 @@ pub enum Implicit {
 }
 
 impl Implicit {
-    pub fn to_task(self, selection: &selection::State, config: &impl Environment) -> CargoTask {
-        self.to_explicit(selection).to_task(selection, config)
-    }
-
     pub fn to_explicit(self, selection: &selection::State) -> Explicit {
         match self {
             Implicit::Build => {
@@ -83,20 +79,19 @@ pub enum Explicit {
 }
 
 impl Explicit {
-    pub fn to_task(self, selection: &selection::State, config: &impl Environment) -> CargoTask {
-        let ctx = self.task_context();
+    pub fn to_task(self, selection: &selection::State, environment: Environment) -> CargoTask {
+        let Environment {
+            env,
+            extra_args,
+            cargo_command,
+        } = environment;
 
-        let config_cmd = config.get_cargo_command(ctx);
-        let mut cmd = config_cmd.split_whitespace().map(String::from);
+        let mut cmd = cargo_command.split_whitespace().map(String::from);
         let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
         args.extend(self.into_args(selection));
-        args.extend(config.get_extra_args(ctx));
+        args.extend(extra_args);
 
-        CargoTask::Cargo(Task {
-            cmd,
-            args,
-            env: config.get_env(ctx),
-        })
+        CargoTask::Cargo(Task { cmd, args, env })
     }
 
     pub fn into_args(self, selection: &selection::State) -> Vec<String> {
@@ -187,17 +182,6 @@ impl Explicit {
                 args.extend(selection.profile.cargo_args());
                 args
             }
-        }
-    }
-
-    fn task_context(&self) -> Context {
-        match self {
-            Explicit::Run(_) | Explicit::Debug(_) => Context::Run,
-            Explicit::Test { package: _ } => Context::Test,
-            Explicit::Build(_)
-            | Explicit::Bench(_)
-            | Explicit::Doc
-            | Explicit::Clean { package: _ } => Context::General,
         }
     }
 }

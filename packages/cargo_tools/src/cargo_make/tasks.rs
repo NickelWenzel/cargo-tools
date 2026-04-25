@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    environment::{Context, Environment},
+    environment::Environment,
     runtime::{CargoTask, Runtime, Task},
 };
 
@@ -15,18 +15,15 @@ pub struct MakefileTask {
 }
 
 impl MakefileTask {
-    pub fn into_task(task: String, config: &impl Environment) -> CargoTask {
-        let ctx = Context::General;
-        let config_cmd = config.get_cargo_command(ctx);
-        let mut cmd = config_cmd.split_whitespace().map(String::from);
+    pub fn into_task(task: String, environment: Environment) -> CargoTask {
+        let Environment {
+            env, cargo_command, ..
+        } = environment;
+        let mut cmd = cargo_command.split_whitespace().map(String::from);
         let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
         args.extend(["make".to_string(), task]);
 
-        CargoTask::CargoMake(Task {
-            cmd,
-            args,
-            env: config.get_env(ctx),
-        })
+        CargoTask::CargoMake(Task { cmd, args, env })
     }
 
     fn keep(&self, task_filter: &str, category_filters: &[String]) -> bool {

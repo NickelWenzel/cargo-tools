@@ -1,14 +1,21 @@
 use std::collections::HashMap;
 
-pub trait Environment {
-    fn get_env(&self, context: Context) -> HashMap<String, String>;
-    fn get_extra_args(&self, config_context: Context) -> Vec<String>;
-    fn get_cargo_command(&self, config_context: Context) -> String;
+pub struct Environment {
+    pub env: HashMap<String, String>,
+    pub extra_args: Vec<String>,
+    pub cargo_command: String,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Context {
-    General,
-    Run,
-    Test,
+impl Environment {
+    pub fn new(
+        env: HashMap<String, String>,
+        extra_args: Vec<String>,
+        cargo_command: String,
+    ) -> Self {
+        Self {
+            env,
+            extra_args,
+            cargo_command,
+        }
+    }
 }

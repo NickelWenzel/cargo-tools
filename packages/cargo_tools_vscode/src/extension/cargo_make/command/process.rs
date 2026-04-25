@@ -9,6 +9,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
+    environment::{TaskContext, environment},
     extension::cargo_make::{
         Message, SettingsUpdate, Ui,
         command::{Command, Pinned},
@@ -106,7 +107,7 @@ impl Ui {
     }
 
     fn make_task_exec(&self, make_task: String) -> Task<Message> {
-        let task = MakefileTask::into_task(make_task, &Runtime::get_configuration());
+        let task = MakefileTask::into_task(make_task, environment(TaskContext::General));
         Task::future(Runtime::exec_task(task)).discard()
     }
 

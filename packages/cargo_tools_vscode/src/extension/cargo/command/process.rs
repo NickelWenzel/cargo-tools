@@ -18,6 +18,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
+    environment::{TaskContext, environment},
     extension::cargo::{
         Grouping, Message, SettingsUpdate, TargetTypesFilter, Ui,
         command::{Command, FeatureType, ProjectOutline as PO},
@@ -157,8 +158,8 @@ impl Ui {
         let mut selection = self.data.selection.clone();
         selection.profile = Profile::Dev; // For now always use standard dev profile
         // TODO: make it possible to run shell commands with env arguments
-        let build_debug_task =
-            Explicit::Build(Some(build_target)).to_task(&selection, &Runtime::get_configuration());
+        let build_debug_task = Explicit::Build(Some(build_target))
+            .to_task(&selection, environment(TaskContext::General));
 
         let Some(target_dir) = self
             .data
@@ -402,13 +403,23 @@ trait ToTask {
 
 impl ToTask for Implicit {
     fn into_task(self, selection: &selection::State) -> CargoTask {
-        self.to_task(selection, &Runtime::get_configuration())
+        let explicit = self.to_explicit(selection);
+        explicit.into_task(selection)
     }
 }
 
 impl ToTask for Explicit {
     fn into_task(self, selection: &selection::State) -> CargoTask {
-        self.to_task(selection, &Runtime::get_configuration())
+        let ctx = match self {
+            Explicit::Run(_) | Explicit::Debug(_) => TaskContext::Run,
+            Explicit::Test { package: _ } => TaskContext::Test,
+            Explicit::Build(_)
+            | Explicit::Bench(_)
+            | Explicit::Doc
+            | Explicit::Clean { package: _ } => TaskContext::General,
+        };
+
+        self.to_task(selection, environment(ctx))
     }
 }
 

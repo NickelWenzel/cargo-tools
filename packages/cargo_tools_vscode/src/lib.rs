@@ -1,5 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-pub mod configuration;
+pub mod environment;
 #[cfg(target_arch = "wasm32")]
 pub mod extension;
 #[cfg(target_arch = "wasm32")]
