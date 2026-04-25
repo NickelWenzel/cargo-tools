@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cargo::{metadata::Target, selection},
-    configuration::{Configuration, Context},
+    environment::{Context, Environment},
     runtime::{CargoTask, Task},
 };
 
@@ -17,7 +17,7 @@ pub enum Implicit {
 }
 
 impl Implicit {
-    pub fn to_task(self, selection: &selection::State, config: &impl Configuration) -> CargoTask {
+    pub fn to_task(self, selection: &selection::State, config: &impl Environment) -> CargoTask {
         self.to_explicit(selection).to_task(selection, config)
     }
 
@@ -83,7 +83,7 @@ pub enum Explicit {
 }
 
 impl Explicit {
-    pub fn to_task(self, selection: &selection::State, config: &impl Configuration) -> CargoTask {
+    pub fn to_task(self, selection: &selection::State, config: &impl Environment) -> CargoTask {
         let ctx = self.task_context();
 
         let config_cmd = config.get_cargo_command(ctx);

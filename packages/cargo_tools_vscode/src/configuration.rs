@@ -1,4 +1,4 @@
-use cargo_tools::configuration;
+use cargo_tools::environment;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_wasm_bindgen::{from_value, to_value};
 use std::collections::HashMap;
@@ -24,8 +24,8 @@ impl Configuration {
     }
 }
 
-impl configuration::Configuration for Configuration {
-    fn get_env(&self, context: configuration::Context) -> HashMap<String, String> {
+impl environment::Environment for Configuration {
+    fn get_env(&self, context: environment::Context) -> HashMap<String, String> {
         let mut env = Self::get(CARGO_TOOLS_SECTION, "extraEnv", HashMap::new());
 
         if Self::use_rust_analyzer_env_and_args() {
@@ -37,15 +37,15 @@ impl configuration::Configuration for Configuration {
         }
 
         match context {
-            configuration::Context::General => {}
-            configuration::Context::Run => {
+            environment::Context::General => {}
+            environment::Context::Run => {
                 env.extend(Self::get(
                     CARGO_TOOLS_SECTION,
                     "run.extraEnv",
                     HashMap::new(),
                 ));
             }
-            configuration::Context::Test => {
+            environment::Context::Test => {
                 env.extend(Self::get(
                     CARGO_TOOLS_SECTION,
                     "test.extraEnv",
@@ -57,7 +57,7 @@ impl configuration::Configuration for Configuration {
         env
     }
 
-    fn get_extra_args(&self, config_context: configuration::Context) -> Vec<String> {
+    fn get_extra_args(&self, config_context: environment::Context) -> Vec<String> {
         let mut args = Self::get(CARGO_TOOLS_SECTION, "buildArgs", Vec::new());
 
         if Self::use_rust_analyzer_env_and_args() {
@@ -68,15 +68,15 @@ impl configuration::Configuration for Configuration {
             ));
 
             match config_context {
-                configuration::Context::General => {}
-                configuration::Context::Run => {
+                environment::Context::General => {}
+                environment::Context::Run => {
                     args.extend(Self::get(
                         RUST_ANALYZER_SECTION,
                         "runnables.extraArgs",
                         Vec::new(),
                     ));
                 }
-                configuration::Context::Test => {
+                environment::Context::Test => {
                     args.extend(Self::get(
                         RUST_ANALYZER_SECTION,
                         "runnables.extraTestBinaryArgs",
@@ -87,11 +87,11 @@ impl configuration::Configuration for Configuration {
         }
 
         match config_context {
-            configuration::Context::General => {}
-            configuration::Context::Run => {
+            environment::Context::General => {}
+            environment::Context::Run => {
                 args.extend(Self::get(CARGO_TOOLS_SECTION, "run.extraArgs", Vec::new()));
             }
-            configuration::Context::Test => {
+            environment::Context::Test => {
                 args.extend(Self::get(CARGO_TOOLS_SECTION, "test.extraArgs", Vec::new()));
             }
         }
@@ -99,7 +99,7 @@ impl configuration::Configuration for Configuration {
         args
     }
 
-    fn get_cargo_command(&self, _config_context: configuration::Context) -> String {
+    fn get_cargo_command(&self, _config_context: environment::Context) -> String {
         Self::get(CARGO_TOOLS_SECTION, "cargoCommand", "cargo".to_string())
     }
 }

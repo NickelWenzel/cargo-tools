@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    configuration::{Configuration, Context},
+    environment::{Context, Environment},
     runtime::{CargoTask, Runtime, Task},
 };
 
@@ -15,7 +15,7 @@ pub struct MakefileTask {
 }
 
 impl MakefileTask {
-    pub fn into_task(task: String, config: &impl Configuration) -> CargoTask {
+    pub fn into_task(task: String, config: &impl Environment) -> CargoTask {
         let ctx = Context::General;
         let config_cmd = config.get_cargo_command(ctx);
         let mut cmd = config_cmd.split_whitespace().map(String::from);

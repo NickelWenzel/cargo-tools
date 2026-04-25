@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Debug};
 use serde::{Serialize, de::DeserializeOwned};
 use wasm_async_trait::wasm_async_trait;
 
-use crate::configuration::Configuration;
+use crate::environment::Environment;
 
 pub enum CargoTask {
     Cargo(Task),
@@ -28,5 +28,5 @@ pub trait Runtime: 'static {
     async fn persist_state(key: String, state: impl Serialize + Send);
     fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T>;
 
-    fn get_configuration() -> impl Configuration;
+    fn get_configuration() -> impl Environment;
 }

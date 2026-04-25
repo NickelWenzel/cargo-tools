@@ -32,7 +32,7 @@
 //! They serve as documentation and can be validated through integration tests
 //! or manual testing in the VS Code extension.
 use cargo_tools::{
-    configuration::Configuration,
+    environment::Environment,
     runtime::{CargoTask, Runtime, Task},
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -104,7 +104,7 @@ impl Runtime for VsCodeRuntime {
         Some(state)
     }
 
-    fn get_configuration() -> impl Configuration {
+    fn get_configuration() -> impl Environment {
         configuration::Configuration
     }
 }

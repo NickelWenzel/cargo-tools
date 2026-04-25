@@ -4,7 +4,7 @@
 //! tracing logging framework, enabling log verification in tests via tracing-test.
 use async_broadcast::Receiver;
 use cargo_tools::{
-    configuration::{self, Configuration},
+    environment::{self, Environment},
     runtime::{CargoTask, Runtime, Task},
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -68,7 +68,7 @@ impl Runtime for TestRuntime {
         None
     }
 
-    fn get_configuration() -> impl configuration::Configuration {
+    fn get_configuration() -> impl environment::Environment {
         TestConfig
     }
 
@@ -79,16 +79,16 @@ impl Runtime for TestRuntime {
 
 pub struct TestConfig;
 
-impl Configuration for TestConfig {
-    fn get_env(&self, _: cargo_tools::configuration::Context) -> HashMap<String, String> {
+impl Environment for TestConfig {
+    fn get_env(&self, _: cargo_tools::environment::Context) -> HashMap<String, String> {
         HashMap::new()
     }
 
-    fn get_extra_args(&self, _: cargo_tools::configuration::Context) -> Vec<String> {
+    fn get_extra_args(&self, _: cargo_tools::environment::Context) -> Vec<String> {
         Vec::new()
     }
 
-    fn get_cargo_command(&self, _: cargo_tools::configuration::Context) -> String {
+    fn get_cargo_command(&self, _: cargo_tools::environment::Context) -> String {
         "cargo".to_string()
     }
 }
