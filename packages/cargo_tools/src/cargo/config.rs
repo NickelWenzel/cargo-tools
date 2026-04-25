@@ -4,12 +4,10 @@ use cargo_metadata::{Metadata, Package, TargetKind};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    cargo::{
-        command::{BuildSubTarget, RunSubTarget},
-        metadata::Target,
-    },
-    profile::Profile,
+use crate::cargo::{
+    Profile,
+    command::{BuildSubTarget, RunSubTarget},
+    metadata::Target,
 };
 
 /// A feature either targets the [Self::Workspace] or a named [Self::Package]

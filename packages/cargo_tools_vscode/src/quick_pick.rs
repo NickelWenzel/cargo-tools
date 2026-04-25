@@ -1,7 +1,7 @@
 use cargo_tools::{
+    cargo::Profile,
     cargo::command::{BuildSubTarget, RunSubTarget},
     cargo_make::MakefileTask,
-    profile::Profile,
 };
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;

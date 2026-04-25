@@ -6,7 +6,7 @@ use std::{iter, path::Path};
 use cargo_metadata::Metadata;
 use cargo_tools::{
     cargo::{
-        Config, ConfigUpdate,
+        Config, ConfigUpdate, Profile,
         command::{BuildSubTarget, RunSubTarget},
         config::Features,
         metadata::{
@@ -14,7 +14,6 @@ use cargo_tools::{
             parse_profiles, workspace_manifests,
         },
     },
-    profile::Profile,
     runtime::Runtime as _,
 };
 use futures::{

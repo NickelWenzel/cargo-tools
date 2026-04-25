@@ -5,10 +5,9 @@ use std::{collections::HashMap, iter};
 use cargo_tools::{
     CargoCommand,
     cargo::{
-        Config, ConfigUpdate, Features,
+        Config, ConfigUpdate, Features, Profile,
         command::{BenchTarget, BuildSubTarget, BuildTarget, RunSubTarget, RunTarget},
     },
-    profile::Profile,
     runtime::{self, CargoTask, Runtime as _},
 };
 use futures::SinkExt;

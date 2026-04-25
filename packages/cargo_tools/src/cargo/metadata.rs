@@ -5,7 +5,7 @@ use toml::Table;
 
 use cargo_metadata::{Metadata, MetadataCommand, TargetKind};
 
-use crate::{profile::Profile, runtime::Runtime};
+use crate::{cargo::Profile, runtime::Runtime};
 
 /// Represents the kinds of targets which a `cargo` command can target
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
