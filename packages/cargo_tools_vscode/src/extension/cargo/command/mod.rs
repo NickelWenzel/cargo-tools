@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cargo_tools::cargo::{
     command::{BenchTarget, BuildTarget, RunTarget},
-    selection::{FeatureType, Update},
+    config::{FeatureTarget, Update},
 };
 use futures::{SinkExt, channel::mpsc::Sender};
 use serde::de::DeserializeOwned;
@@ -206,13 +206,13 @@ impl Command {
                 |arg| match arg.length() {
                     1 => take_first(arg)
                         .map(|feature| PO::ToggleFeature {
-                            feature_type: FeatureType::Package(None),
+                            feature_type: FeatureTarget::Workspace,
                             feature,
                         })
                         .map(PO::to_cmd),
                     2 => take_first_two(arg)
                         .map(|(package, feature)| PO::ToggleFeature {
-                            feature_type: FeatureType::Package(Some(package)),
+                            feature_type: FeatureTarget::Package(package),
                             feature,
                         })
                         .map(PO::to_cmd),
@@ -240,7 +240,7 @@ pub enum ProjectOutline {
     ClearAllFilters,
     ToggleWorkspaceMemberGrouping,
     ToggleFeature {
-        feature_type: FeatureType,
+        feature_type: FeatureTarget,
         feature: String,
     },
 }

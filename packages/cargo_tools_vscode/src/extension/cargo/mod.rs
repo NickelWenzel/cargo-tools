@@ -6,12 +6,13 @@ use std::{iter, path::Path};
 use cargo_metadata::Metadata;
 use cargo_tools::{
     cargo::{
+        Config, ConfigUpdate,
         command::{BuildSubTarget, RunSubTarget},
+        config::Features,
         metadata::{
             CondensedPackage, CondensedTarget, MetadataUpdate, Target, parse_metadata,
             parse_profiles, workspace_manifests,
         },
-        selection::{self, Features},
     },
     profile::Profile,
     runtime::Runtime as _,
@@ -47,7 +48,7 @@ use crate::{
 pub enum Message {
     ManifestChanged,
     MetadataChanged(MetadataUpdate),
-    SelectionChanged(selection::Update),
+    SelectionChanged(ConfigUpdate),
     SettingsChanged(SettingsUpdate),
     Cmd(Command),
     ConfigUiRequest(ConfigUiRequest),
@@ -83,8 +84,7 @@ impl Ui {
         let cmds = register_cargo_commands(cmd_tx.clone());
 
         let settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
-        let selection: selection::State =
-            Runtime::get_state(state_key(&root_dir)).unwrap_or_default();
+        let selection: Config = Runtime::get_state(state_key(&root_dir)).unwrap_or_default();
 
         let base = Base {
             cmds,
@@ -99,7 +99,7 @@ impl Ui {
 
         let data = CommandData {
             metadata: UiMetadata::default(),
-            selection,
+            config: selection,
         };
 
         let this = Self {
@@ -133,12 +133,12 @@ impl Ui {
     pub fn update(&mut self, msg: Message) -> Task<Message> {
         match msg {
             Message::SelectionChanged(update) => {
-                self.data.selection.update(update);
+                self.data.config.update(update);
                 self.update_ui();
 
                 Task::future(Runtime::persist_state(
                     state_key(&self.base.root_dir),
-                    self.data.selection.clone(),
+                    self.data.config.clone(),
                 ))
                 .discard()
             }
@@ -215,7 +215,7 @@ impl Ui {
     fn send_config_nodes(&self, request: ConfigUiRequest) -> Task<Message> {
         let ConfigUiRequest { mut tx, node_type } = request;
 
-        let selection = self.data.selection.clone();
+        let selection = self.data.config.clone();
         let available_features = self.data.available_features().unwrap_or_default();
         let nodes = node_type
             .map(|h| h.children(&selection, &available_features))
@@ -252,7 +252,7 @@ impl Ui {
         };
 
         let nodes = node_type.children(
-            &self.data.selection,
+            &self.data.config,
             &self.filtered_packages,
             self.settings.grouping,
         );
@@ -365,27 +365,27 @@ impl Grouping {
 #[derive(Debug, Clone, Default)]
 struct CommandData {
     metadata: UiMetadata,
-    selection: selection::State,
+    config: Config,
 }
 
 impl CommandData {
     fn profiles(&self) -> SelectInput<Profile> {
         let options = self.metadata.profiles().to_vec();
-        let current = vec![self.selection.profile.clone()];
+        let current = vec![self.config.profile.clone()];
 
         SelectInput { options, current }
     }
 
     fn packages(&self) -> SelectInput<Option<String>> {
         let options = self.metadata.package_options();
-        let current = vec![self.selection.package.clone()];
+        let current = vec![self.config.selected_package.clone()];
 
         SelectInput { options, current }
     }
 
     fn build_target_options(&self) -> Option<SelectInput<Option<BuildSubTarget>>> {
         let metadata = self.metadata.metadata.as_ref()?;
-        let selection = &self.selection;
+        let selection = &self.config;
 
         let options = selection.build_target_options(metadata);
         let current = vec![
@@ -400,7 +400,7 @@ impl CommandData {
     fn run_target_options(&self) -> Option<SelectInput<Option<RunSubTarget>>> {
         let metadata = self.metadata.metadata.as_ref()?;
 
-        let selection = &self.selection;
+        let selection = &self.config;
 
         let options = selection.run_target_options(metadata);
         let current = vec![
@@ -414,7 +414,7 @@ impl CommandData {
 
     fn bench_target_options(&self) -> Option<SelectInput<Option<String>>> {
         let metadata = self.metadata.metadata.as_ref()?;
-        let selection = &self.selection;
+        let selection = &self.config;
 
         let options = selection.bench_target_options(metadata);
         let current = vec![
@@ -429,12 +429,12 @@ impl CommandData {
     fn available_features(&self) -> Option<Vec<String>> {
         let metadata = self.metadata.metadata.as_ref()?;
 
-        Some(self.selection.feature_options(metadata))
+        Some(self.config.feature_options(metadata))
     }
 
     fn feature_options(&self) -> Option<SelectInput<String>> {
         let options = self.available_features()?;
-        let current = match self.selection.selected_features() {
+        let current = match self.config.selected_features() {
             Features::All => ["All features".to_string()].to_vec(),
             Features::Some(features) => features,
         };

@@ -4,8 +4,8 @@ use std::{collections::HashMap, iter};
 
 use cargo_tools::{
     cargo::{
+        Config, ConfigUpdate, Features,
         command::{BuildSubTarget, BuildTarget, Explicit, Implicit, RunSubTarget, RunTarget},
-        selection::{self, Features, Update},
     },
     profile::Profile,
     runtime::{self, CargoTask, Runtime as _},
@@ -21,7 +21,7 @@ use crate::{
     environment::{TaskContext, environment},
     extension::cargo::{
         Grouping, Message, SettingsUpdate, TargetTypesFilter, Ui,
-        command::{Command, FeatureType, ProjectOutline as PO},
+        command::{Command, FeatureTarget, ProjectOutline as PO},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
     runtime::VsCodeRuntime as Runtime,
@@ -32,7 +32,7 @@ trait IntoMessage {
     fn into_cargo_msg(self) -> Message;
 }
 
-impl IntoMessage for selection::Update {
+impl IntoMessage for ConfigUpdate {
     fn into_cargo_msg(self) -> Message {
         Message::SelectionChanged(self)
     }
@@ -55,26 +55,31 @@ impl Ui {
         match cmd {
             Command::SelectProfile => {
                 let input = self.data.profiles();
-                done(async move { input.select().await.map(Update::SelectedProfile) })
+                done(async move { input.select().await.map(ConfigUpdate::SelectedProfile) })
             }
             Command::SelectPackage => {
                 let input = self.data.packages();
-                done(async move { input.select().await.map(Update::SelectedPackage) })
+                done(async move { input.select().await.map(ConfigUpdate::SelectedPackage) })
             }
             Command::SelectBuildTarget => {
                 let input = self.data.build_target_options();
-                done(async move { input?.select().await.map(Update::SelectedBuildTarget) })
+                done(async move { input?.select().await.map(ConfigUpdate::SelectedBuildTarget) })
             }
             Command::SelectRunTarget => {
                 let input = self.data.run_target_options();
-                done(async move { input?.select().await.map(Update::SelectedRunTarget) })
+                done(async move { input?.select().await.map(ConfigUpdate::SelectedRunTarget) })
             }
             Command::SelectBenchmarkTarget => {
                 let input = self.data.bench_target_options();
-                done(async move { input?.select().await.map(Update::SelectedBenchmarkTarget) })
+                done(async move {
+                    input?
+                        .select()
+                        .await
+                        .map(ConfigUpdate::SelectedBenchmarkTarget)
+                })
             }
             Command::SelectPlatformTarget => {
-                let current = self.data.selection.platform_target.clone();
+                let current = self.data.config.platform_target.clone();
                 done(async move { select_platform_target(current.clone()).await })
             }
             Command::InstallPlatformTarget => Task::future(install_platform_target()).discard(),
@@ -84,15 +89,15 @@ impl Ui {
             Command::BuildDocs => self.cmd_exec(Explicit::Doc),
             Command::SelectFeatures => {
                 let input = self.data.feature_options();
-                done(async move { select_features(input).await })
+                let feature_target = self.data.config.feature_target();
+                done(async move { select_features(input, feature_target).await })
             }
             Command::Refresh => self.refresh(),
             Command::Clean => self.cmd_exec(Implicit::Clean),
             Command::Build => self.cmd_exec(Implicit::Build),
             Command::Run => self.cmd_exec(Implicit::Run),
             Command::Debug => {
-                let Explicit::Debug(Some(target)) =
-                    Implicit::Debug.to_explicit(&self.data.selection)
+                let Explicit::Debug(Some(target)) = Implicit::Debug.to_explicit(&self.data.config)
                 else {
                     return Task::none();
                 };
@@ -100,7 +105,10 @@ impl Ui {
             }
             Command::Test => self.cmd_exec(Implicit::Test),
             Command::Bench => self.cmd_exec(Implicit::Bench),
-            Command::ToggleFeature(feature) => self.toggle_feature(FeatureType::Selection, feature),
+            Command::ToggleFeature(feature) => {
+                let feature_target = self.data.config.feature_target();
+                self.toggle_feature(feature_target, feature)
+            }
             Command::ProjectOutline(cmd) => self.process_outline_cmd(cmd),
         }
     }
@@ -140,7 +148,7 @@ impl Ui {
     }
 
     fn cmd_exec(&self, cmd: impl ToTask) -> Task<Message> {
-        Task::future(Runtime::exec_task(cmd.into_task(&self.data.selection))).discard()
+        Task::future(Runtime::exec_task(cmd.into_task(&self.data.config))).discard()
     }
 
     fn debug(&self, target: RunTarget) -> Task<Message> {
@@ -155,7 +163,7 @@ impl Ui {
             package: target.package.clone(),
             target: Some(build_sub_target),
         };
-        let mut selection = self.data.selection.clone();
+        let mut selection = self.data.config.clone();
         selection.profile = Profile::Dev; // For now always use standard dev profile
         // TODO: make it possible to run shell commands with env arguments
         let build_debug_task = Explicit::Build(Some(build_target))
@@ -171,7 +179,7 @@ impl Ui {
             return Task::none();
         };
 
-        let target_exe_path = exec_path(run_target, &self.data.selection, &target_dir);
+        let target_exe_path = exec_path(run_target, &self.data.config, &target_dir);
 
         Task::future(async move {
             Runtime::exec_task(build_debug_task).await;
@@ -224,25 +232,16 @@ impl Ui {
         })
     }
 
-    fn toggle_feature(&self, feature_type: FeatureType, feature: String) -> Task<Message> {
+    fn toggle_feature(&self, feature_type: FeatureTarget, feature: String) -> Task<Message> {
         let selected_features = match &feature_type {
-            FeatureType::Selection => self.data.selection.selected_features(),
-            FeatureType::Package(package) => {
-                match package {
-                    Some(package) => {
-                        let Some(features) = self
-                            .data
-                            .selection
-                            .get(package, |s| Some(s.features.clone()))
-                        else {
-                            return Task::none();
-                        };
-                        features
-                    }
-                    // Features on workspace node
-                    None => self.data.selection.features.clone(),
-                }
+            FeatureTarget::Package(package) => {
+                let Some(features) = self.data.config.get(package, |s| Some(s.features.clone()))
+                else {
+                    return Task::none();
+                };
+                features
             }
+            FeatureTarget::Workspace => self.data.config.features.clone(),
         };
 
         let features = match selected_features {
@@ -264,8 +263,8 @@ impl Ui {
         };
 
         Task::done(
-            Update::SelectedFeatures {
-                feature_type,
+            ConfigUpdate::SelectedFeatures {
+                feature_target: feature_type,
                 features,
             }
             .into_cargo_msg(),
@@ -276,14 +275,14 @@ impl Ui {
         // Weed out packages that do not exist anymore except for current selection
         let package_selection = self
             .data
-            .selection
-            .package_selection
+            .config
+            .package_configs
             .iter()
             .filter(|(package, _)| {
                 let is_selected = self
                     .data
-                    .selection
-                    .package
+                    .config
+                    .selected_package
                     .as_ref()
                     .is_some_and(|p| &p == package);
                 let is_in_metadata = self
@@ -303,7 +302,7 @@ impl Ui {
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
-        Task::done(Update::Refresh(package_selection).into_cargo_msg())
+        Task::done(ConfigUpdate::Refresh(package_selection).into_cargo_msg())
     }
 
     fn select_target_type_filter(&self) -> Task<Message> {
@@ -398,18 +397,18 @@ fn done(fut: impl Future<Output = Option<impl IntoMessage + 'static>> + 'static)
 }
 
 trait ToTask {
-    fn into_task(self, selection: &selection::State) -> CargoTask;
+    fn into_task(self, config: &Config) -> CargoTask;
 }
 
 impl ToTask for Implicit {
-    fn into_task(self, selection: &selection::State) -> CargoTask {
-        let explicit = self.to_explicit(selection);
-        explicit.into_task(selection)
+    fn into_task(self, config: &Config) -> CargoTask {
+        let explicit = self.to_explicit(config);
+        explicit.into_task(config)
     }
 }
 
 impl ToTask for Explicit {
-    fn into_task(self, selection: &selection::State) -> CargoTask {
+    fn into_task(self, config: &Config) -> CargoTask {
         let ctx = match self {
             Explicit::Run(_) | Explicit::Debug(_) => TaskContext::Run,
             Explicit::Test { package: _ } => TaskContext::Test,
@@ -419,7 +418,7 @@ impl ToTask for Explicit {
             | Explicit::Clean { package: _ } => TaskContext::General,
         };
 
-        self.to_task(selection, environment(ctx))
+        self.to_task(config, environment(ctx))
     }
 }
 
@@ -439,7 +438,10 @@ async fn select_platform_target(current: Option<String>) -> Option<impl IntoMess
         }
     };
 
-    input.select().await.map(Update::SelectedPlatformTarget)
+    input
+        .select()
+        .await
+        .map(ConfigUpdate::SelectedPlatformTarget)
 }
 
 async fn install_platform_target() {
@@ -471,7 +473,7 @@ async fn install_platform_target() {
 fn set_rust_analyzer_check_targets() -> Option<impl IntoMessage> {
     // TODO
     log("'Set rust-analyzer check targets' not yet implemented");
-    Option::<Update>::None
+    Option::<ConfigUpdate>::None
 }
 
 async fn platform_targets() -> Option<Vec<String>> {
@@ -490,7 +492,10 @@ async fn platform_targets() -> Option<Vec<String>> {
     }
 }
 
-async fn select_features(input: Option<SelectInput<String>>) -> Option<impl IntoMessage> {
+async fn select_features(
+    input: Option<SelectInput<String>>,
+    feature_target: FeatureTarget,
+) -> Option<impl IntoMessage> {
     let selected_features = input?.select_multiple(|_| {}).await?;
     let features = if selected_features.iter().any(|f| f == "All features") {
         Features::All
@@ -498,13 +503,13 @@ async fn select_features(input: Option<SelectInput<String>>) -> Option<impl Into
         Features::Some(selected_features)
     };
 
-    Some(Update::SelectedFeatures {
-        feature_type: FeatureType::Selection,
+    Some(ConfigUpdate::SelectedFeatures {
+        feature_target,
         features,
     })
 }
 
-fn exec_path(target: &RunSubTarget, selection: &selection::State, target_dir: &str) -> String {
+fn exec_path(target: &RunSubTarget, selection: &Config, target_dir: &str) -> String {
     let path_components = iter::once(target_dir.to_string())
         .chain(iter::once("debug".to_string())) // For now always assume debug profile
         .chain(selection.platform_target.as_ref().map(|t| t.to_string()))

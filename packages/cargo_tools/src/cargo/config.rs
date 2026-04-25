@@ -12,10 +12,11 @@ use crate::{
     profile::Profile,
 };
 
+/// The feature
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum FeatureType {
-    Selection,
-    Package(Option<String>),
+pub enum FeatureTarget {
+    Package(String),
+    Workspace,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -38,28 +39,28 @@ pub enum Update {
     SelectedBenchmarkTarget(Option<String>),
     SelectedPlatformTarget(Option<String>),
     SelectedFeatures {
-        feature_type: FeatureType,
+        feature_target: FeatureTarget,
         features: Features,
     },
     SelectedProfile(Profile),
-    Refresh(HashMap<String, PackageSelection>),
+    Refresh(HashMap<String, PackageConfig>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
-pub struct State {
-    pub package: Option<String>,
-    pub package_selection: HashMap<String, PackageSelection>,
+pub struct Config {
+    pub selected_package: Option<String>,
+    pub package_configs: HashMap<String, PackageConfig>,
     pub platform_target: Option<String>,
     pub profile: Profile,
     pub features: Features,
 }
 
-impl State {
+impl Config {
     pub fn update(&mut self, update: Update) {
         match update {
             Update::SelectedPackage(package) => {
-                self.package = package;
+                self.selected_package = package;
             }
             Update::SelectedBuildTarget(v) => {
                 if let Some(s) = self.package_selection_mut() {
@@ -77,44 +78,33 @@ impl State {
                 }
             }
             Update::SelectedFeatures {
-                feature_type,
+                feature_target: feature_type,
                 features,
             } => match feature_type {
-                FeatureType::Selection => {
-                    if let Some(s) = self.package_selection_mut() {
-                        s.features = features;
-                    } else {
-                        self.features = features;
-                    }
+                FeatureTarget::Package(package) => {
+                    let s = self.package_configs.entry(package).or_default();
+                    s.features = features;
                 }
-                FeatureType::Package(package) => match package {
-                    Some(p) => {
-                        let s = self.package_selection.entry(p).or_default();
-                        s.features = features;
-                    }
-                    None => {
-                        self.features = features;
-                    }
-                },
+                FeatureTarget::Workspace => self.features = features,
             },
             Update::SelectedPlatformTarget(v) => self.platform_target = v,
             Update::SelectedProfile(v) => self.profile = v,
-            Update::Refresh(package_selection) => self.package_selection = package_selection,
+            Update::Refresh(package_selection) => self.package_configs = package_selection,
         }
     }
 
-    fn package_selection_mut(&mut self) -> Option<&mut PackageSelection> {
-        let p = self.package.clone()?;
-        Some(self.package_selection.entry(p).or_default())
+    fn package_selection_mut(&mut self) -> Option<&mut PackageConfig> {
+        let p = self.selected_package.clone()?;
+        Some(self.package_configs.entry(p).or_default())
     }
 
-    pub fn package_selection(&self) -> Option<&PackageSelection> {
-        let p = self.package.clone()?;
-        self.package_selection.get(&p)
+    pub fn package_selection(&self) -> Option<&PackageConfig> {
+        let p = self.selected_package.clone()?;
+        self.package_configs.get(&p)
     }
 
-    pub fn get<T>(&self, package: &str, get: impl Fn(&PackageSelection) -> Option<T>) -> Option<T> {
-        if let Some(package) = self.package_selection.get(package) {
+    pub fn get<T>(&self, package: &str, get: impl Fn(&PackageConfig) -> Option<T>) -> Option<T> {
+        if let Some(package) = self.package_configs.get(package) {
             get(package)
         } else {
             None
@@ -128,7 +118,7 @@ impl State {
         }
         args.extend(self.profile.cargo_args());
 
-        let features = if let Some(config) = package.and_then(|p| self.package_selection.get(p)) {
+        let features = if let Some(config) = package.and_then(|p| self.package_configs.get(p)) {
             &config.features
         } else {
             &self.features
@@ -153,7 +143,7 @@ impl State {
     }
 
     fn selected_package(&self, metadata: &Metadata) -> Option<Package> {
-        let selected = self.package.as_ref()?;
+        let selected = self.selected_package.as_ref()?;
 
         metadata
             .workspace_packages()
@@ -245,17 +235,24 @@ impl State {
             }
         }
     }
+
+    pub fn feature_target(&self) -> FeatureTarget {
+        match &self.selected_package {
+            Some(package) => FeatureTarget::Package(package.clone()),
+            None => FeatureTarget::Workspace,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct PackageSelection {
+pub struct PackageConfig {
     pub build_target: Option<BuildSubTarget>,
     pub run_target: Option<RunSubTarget>,
     pub benchmark_target: Option<String>,
     pub features: Features,
 }
 
-impl PackageSelection {
+impl PackageConfig {
     pub fn build_target_matches(&self, target: Target, name: &str) -> bool {
         self.build_target
             .as_ref()

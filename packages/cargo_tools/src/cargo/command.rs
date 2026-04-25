@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cargo::{metadata::Target, selection},
+    cargo::{Config, metadata::Target},
     environment::Environment,
     runtime::{CargoTask, Task},
 };
 
+/// Implicit needs information from [Config] to be transformed into an executable task
 #[derive(Debug, Clone, Copy)]
 pub enum Implicit {
     Build,
@@ -17,11 +18,11 @@ pub enum Implicit {
 }
 
 impl Implicit {
-    pub fn to_explicit(self, selection: &selection::State) -> Explicit {
+    pub fn to_explicit(self, config: &Config) -> Explicit {
         match self {
             Implicit::Build => {
-                let target = if let Some(package) = selection.package.clone() {
-                    let target = selection.get(&package, |s| s.build_target.clone());
+                let target = if let Some(package) = config.selected_package.clone() {
+                    let target = config.get(&package, |s| s.build_target.clone());
                     Some(BuildTarget { package, target })
                 } else {
                     None
@@ -29,8 +30,8 @@ impl Implicit {
                 Explicit::Build(target)
             }
             Implicit::Run => {
-                let target = if let Some(package) = selection.package.clone() {
-                    let target = selection.get(&package, |s| s.run_target.clone());
+                let target = if let Some(package) = config.selected_package.clone() {
+                    let target = config.get(&package, |s| s.run_target.clone());
                     Some(RunTarget { package, target })
                 } else {
                     None
@@ -38,8 +39,8 @@ impl Implicit {
                 Explicit::Run(target)
             }
             Implicit::Debug => {
-                let target = if let Some(package) = selection.package.clone() {
-                    let target = selection.get(&package, |s| s.run_target.clone());
+                let target = if let Some(package) = config.selected_package.clone() {
+                    let target = config.get(&package, |s| s.run_target.clone());
                     Some(RunTarget { package, target })
                 } else {
                     None
@@ -47,12 +48,12 @@ impl Implicit {
                 Explicit::Debug(target)
             }
             Implicit::Test => {
-                let package = selection.package.clone();
+                let package = config.selected_package.clone();
                 Explicit::Test { package }
             }
             Implicit::Bench => {
-                let target = if let Some(package) = selection.package.clone() {
-                    let target = selection.get(&package, |s| s.benchmark_target.clone());
+                let target = if let Some(package) = config.selected_package.clone() {
+                    let target = config.get(&package, |s| s.benchmark_target.clone());
                     Some(BenchTarget { package, target })
                 } else {
                     None
@@ -60,13 +61,14 @@ impl Implicit {
                 Explicit::Bench(target)
             }
             Implicit::Clean => {
-                let package = selection.package.clone();
+                let package = config.selected_package.clone();
                 Explicit::Clean { package }
             }
         }
     }
 }
 
+/// Represents a cargo command which can be executed as a [CargoTask]
 #[derive(Debug, Clone)]
 pub enum Explicit {
     Build(Option<BuildTarget>),
@@ -79,7 +81,7 @@ pub enum Explicit {
 }
 
 impl Explicit {
-    pub fn to_task(self, selection: &selection::State, environment: Environment) -> CargoTask {
+    pub fn to_task(self, selection: &Config, environment: Environment) -> CargoTask {
         let Environment {
             env,
             extra_args,
@@ -94,7 +96,7 @@ impl Explicit {
         CargoTask::Cargo(Task { cmd, args, env })
     }
 
-    pub fn into_args(self, selection: &selection::State) -> Vec<String> {
+    pub fn into_args(self, selection: &Config) -> Vec<String> {
         match self {
             Explicit::Build(build_target) => {
                 let mut args = vec!["build".to_string()];
