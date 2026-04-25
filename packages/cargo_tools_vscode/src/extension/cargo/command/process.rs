@@ -8,7 +8,7 @@ use cargo_tools::{
         Config, ConfigUpdate, Features, Profile,
         command::{BenchTarget, BuildSubTarget, BuildTarget, RunSubTarget, RunTarget},
     },
-    runtime::{self, CargoTask, Runtime as _},
+    task::{self, CargoTask},
 };
 use futures::SinkExt;
 use iced_headless::Task;
@@ -24,7 +24,7 @@ use crate::{
         command::{Command, FeatureTarget, ProjectOutline as PO},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
-    runtime::VsCodeRuntime as Runtime,
+    runtime::exec_task_vs_code,
     vs_code_api::{JsValueExt, debug, execute_async, host_platform, log, show_quick_pick_type},
 };
 
@@ -184,7 +184,7 @@ impl Ui {
             | CargoCommand::Clean { package: _ } => TaskContext::General,
         };
 
-        Task::future(Runtime::exec_task(
+        Task::future(exec_task_vs_code(
             cmd.into_task(&self.data.config, environment(ctx)),
         ))
         .discard()
@@ -221,7 +221,7 @@ impl Ui {
         let target_exe_path = exec_path(run_target, &self.data.config, &target_dir);
 
         Task::future(async move {
-            Runtime::exec_task(build_debug_task).await;
+            exec_task_vs_code(build_debug_task).await;
 
             if let Err(e) = debug(&target_exe_path, &target.package).await {
                 log(&format!("Error while dbugging: {}", e.to_error_string()));
@@ -478,7 +478,7 @@ async fn install_platform_target() {
         return;
     };
 
-    Runtime::exec_task(CargoTask::Cargo(runtime::Task {
+    exec_task_vs_code(CargoTask::Cargo(task::Task {
         cmd: "rustup".to_string(),
         args: vec!["target".to_string(), "add".to_string(), target],
         env: HashMap::new(),

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use cargo_tools::{cargo_make::MakefileTask, runtime::Runtime as _};
+use cargo_tools::cargo_make::MakefileTask;
 use futures::SinkExt;
 use iced_headless::Task;
 use itertools::Itertools;
@@ -15,7 +15,7 @@ use crate::{
         command::{Command, Pinned},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
-    runtime::VsCodeRuntime as Runtime,
+    runtime::exec_task_vs_code,
     vs_code_api::{log, show_quick_pick_type, showInformationMessage},
 };
 
@@ -108,7 +108,7 @@ impl Ui {
 
     fn make_task_exec(&self, make_task: String) -> Task<Message> {
         let task = MakefileTask::into_task(make_task, environment(TaskContext::General));
-        Task::future(Runtime::exec_task(task)).discard()
+        Task::future(exec_task_vs_code(task)).discard()
     }
 
     fn select_task_filter(&self) -> Task<Message> {

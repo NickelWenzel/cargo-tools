@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     cargo::{Config, metadata::Target},
     environment::Environment,
-    runtime::{CargoTask, Task},
+    task::{CargoTask, Task},
 };
 
 /// Represents a cargo command which can be executed as a [CargoTask]

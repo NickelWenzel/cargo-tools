@@ -3,12 +3,10 @@
 //! These tests verify the metadata and makefile task discovery functionality
 //! using the test-rust-project as test data.
 
-mod support;
-use cargo_tools::app::{
+use cargo_tools::{
     cargo::metadata::{MetadataUpdate, parse_metadata},
-    cargo_make::tasks::{MakefileTasksUpdate, parse_tasks},
+    cargo_make::{MakefileTasksUpdate, parse_tasks},
 };
-use support::TestRuntime;
 
 /// Test successful metadata discovery from test-rust-project.
 #[tokio::test]
@@ -25,17 +23,17 @@ async fn test_update_metadata_success() {
         .unwrap()
         .to_string();
 
-    let result = parse_metadata::<TestRuntime>(manifest).await;
+    let result = todo!(); // parse_metadata(manifest, todo!()).await;
 
     // Verify success variant
     assert!(
-        matches!(result, MetadataUpdate::New(_)),
+        matches!(result, MetadataUpdate::Metadata(_)),
         "Expected MetadataUpdate::New, got: {:?}",
         result
     );
 
     // Extract and verify metadata contents
-    if let MetadataUpdate::New(metadata) = result {
+    if let MetadataUpdate::Metadata(metadata) = result {
         // Verify workspace members are present
         let workspace_members: Vec<&str> = metadata
             .workspace_packages()
@@ -83,7 +81,7 @@ async fn test_update_makefile_tasks_success() {
     )
     .to_string();
 
-    let result = parse_tasks::<TestRuntime>(test_project_path).await;
+    let result = todo!(); //parse_tasks::<TestRuntime>(test_project_path).await;
 
     // The result depends on whether cargo-make is installed
     match result {
@@ -128,11 +126,11 @@ async fn test_update_makefile_tasks_success() {
             // Verify success log message
             assert!(logs_contain("Discovered"));
         }
-        MakefileTasksUpdate::NoMakefile => {
+        MakefileTasksUpdate::NoMakefile(e) => {
             // cargo-make is not installed - this is acceptable in CI/test environments
             assert!(logs_contain("cargo-make not available"));
         }
-        MakefileTasksUpdate::FailedToRetrieve => {
+        MakefileTasksUpdate::FailedToRetrieve(e) => {
             panic!("Unexpected FailedToRetrieve variant");
         }
     }
@@ -144,11 +142,11 @@ async fn test_update_makefile_tasks_success() {
 async fn test_update_metadata_no_cargo_toml() {
     let nonexistent_path = "/nonexistent/path/that/does/not/exist".to_string();
 
-    let result = parse_metadata::<TestRuntime>(nonexistent_path).await;
+    let result = todo!(); // parse_metadata::<TestRuntime>(nonexistent_path).await;
 
     // Verify error variant
     assert!(
-        matches!(result, MetadataUpdate::NoCargoToml),
+        matches!(result, MetadataUpdate::NoCargoToml(e)),
         "Expected MetadataUpdate::NoCargoToml, got: {:?}",
         result
     );
@@ -165,18 +163,18 @@ async fn test_update_makefile_tasks_no_cargo_make() {
     let test_project_path =
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project").to_string();
 
-    let result = parse_tasks::<TestRuntime>(test_project_path).await;
+    let result = todo!(); //parse_tasks::<TestRuntime>(test_project_path).await;
 
     // The result depends on whether cargo-make is installed
     // All outcomes are valid for this test
     match result {
-        MakefileTasksUpdate::NoMakefile => {
+        MakefileTasksUpdate::NoMakefile(e) => {
             // cargo-make not available or command failed - this is acceptable
         }
         MakefileTasksUpdate::New(_) => {
             // cargo-make is available and tasks were discovered - also valid
         }
-        MakefileTasksUpdate::FailedToRetrieve => {
+        MakefileTasksUpdate::FailedToRetrieve(e) => {
             // Some other error occurred - also acceptable
         }
     }
@@ -191,12 +189,12 @@ async fn test_update_makefile_tasks_no_makefile() {
     let path_without_makefile =
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project/core").to_string();
 
-    let result = parse_tasks::<TestRuntime>(path_without_makefile).await;
+    let result = todo!(); //parse_tasks::<TestRuntime>(path_without_makefile).await;
 
     // When given an invalid makefile path, cargo-make command fails
     // The current implementation returns NoMakefile in this case
     match result {
-        MakefileTasksUpdate::NoMakefile => {
+        MakefileTasksUpdate::NoMakefile(e) => {
             // Expected: cargo-make failed because the path doesn't point to a valid Makefile.toml
         }
         MakefileTasksUpdate::New(tasks) => {

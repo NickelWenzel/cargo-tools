@@ -30,14 +30,12 @@ wasm-bindgen-futures = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
-console_log = { workspace = true }
 tracing = { workspace = true }
 tracing-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 iced_headless = { workspace = true, features = ["tokio"] }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
-tokio-stream = { workspace = true }
 
 [features]
 default = ["thread-pool"]

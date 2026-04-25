@@ -128,14 +128,8 @@ extern "C" {
     /// # Parameters
     /// - `section`: The configuration section (e.g., "cargoTools")
     /// - `key`: The configuration key within the section
-    /// - `config_type`: The type of the configuration property
     /// - `default_value`: The default value to return if the key is not found
-    pub fn get_config(
-        section: &str,
-        key: &str,
-        config_type: u32,
-        default_value: JsValue,
-    ) -> JsValue;
+    pub fn get_config(section: &str, key: &str, default_value: &str) -> JsValue;
 }
 
 #[wasm_bindgen(raw_module = "../window.ts")]

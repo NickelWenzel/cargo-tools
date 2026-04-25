@@ -11,7 +11,6 @@ crate-type = ["cdylib"]
 [dependencies]
 cargo_tools = { workspace = true }
 iced_headless = { workspace = true }
-wasm_async_trait = { workspace = true }
 
 cargo_metadata = { workspace = true }
 wasm-bindgen = { workspace = true }
@@ -19,11 +18,7 @@ wasm-bindgen-futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
-async-trait = { workspace = true }
-async-broadcast = { workspace = true }
-thiserror = { workspace = true }
 futures = { workspace = true }
-once_cell = { workspace = true }
 itertools = { workspace = true }
 
 [dev-dependencies]

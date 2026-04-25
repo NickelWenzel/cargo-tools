@@ -1,5 +1,0 @@
-error: wasm_async_trait can only be applied to trait definitions or trait implementations
- --> tests/compile_fail/wasm_async_trait_function.rs:5:1
-  |
-5 | fn invalid_function() {}
-  | ^^^^^^^^^^^^^^^^^^^^^^^^

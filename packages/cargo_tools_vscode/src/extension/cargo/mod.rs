@@ -4,17 +4,14 @@ pub mod ui;
 use std::{iter, path::Path};
 
 use cargo_metadata::Metadata;
-use cargo_tools::{
-    cargo::{
-        Config, ConfigUpdate, Profile,
-        command::{BuildSubTarget, RunSubTarget},
-        config::Features,
-        metadata::{
-            CondensedPackage, CondensedTarget, MetadataUpdate, Target, parse_metadata,
-            parse_profiles, workspace_manifests,
-        },
+use cargo_tools::cargo::{
+    Config, ConfigUpdate, Profile,
+    command::{BuildSubTarget, RunSubTarget},
+    config::Features,
+    metadata::{
+        CondensedPackage, CondensedTarget, MetadataUpdate, Target, parse_metadata, parse_profiles,
+        workspace_manifests,
     },
-    runtime::Runtime as _,
 };
 use futures::{
     SinkExt,
@@ -37,7 +34,9 @@ use crate::{
         },
     },
     quick_pick::SelectInput,
-    runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
+    runtime::{
+        CHANNEL_CAPACITY, exec_vs_code, get_state_vs_code, persist_state_vs_code, read_file_vs_code,
+    },
     vs_code_api::{
         CargoConfigurationTreeProvider, CargoOutlineTreeProvider, TsFileWatcher, set_cargo_context,
     },
@@ -82,8 +81,8 @@ impl Ui {
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
         let cmds = register_cargo_commands(cmd_tx.clone());
 
-        let settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
-        let selection: Config = Runtime::get_state(state_key(&root_dir)).unwrap_or_default();
+        let settings = get_state_vs_code(settings_key(&root_dir)).unwrap_or_default();
+        let selection: Config = get_state_vs_code(state_key(&root_dir)).unwrap_or_default();
 
         let base = Base {
             cmds,
@@ -135,7 +134,7 @@ impl Ui {
                 self.data.config.update(update);
                 self.update_ui();
 
-                Task::future(Runtime::persist_state(
+                Task::future(persist_state_vs_code(
                     state_key(&self.base.root_dir),
                     self.data.config.clone(),
                 ))
@@ -157,7 +156,8 @@ impl Ui {
                     self.data.metadata.profiles = profiles;
                     Task::none()
                 }
-                MetadataUpdate::NoCargoToml => {
+                MetadataUpdate::NoCargoToml(_error) => {
+                    // TODO: log error
                     // Always check for mainfest in root dir
                     self.base
                         .file_watcher
@@ -188,7 +188,7 @@ impl Ui {
         }
         self.update_ui();
 
-        Task::future(Runtime::persist_state(
+        Task::future(persist_state_vs_code(
             settings_key(&self.base.root_dir),
             self.settings.clone(),
         ))
@@ -202,8 +202,11 @@ impl Ui {
     }
 
     fn parse_manifest(&self) -> Task<Message> {
-        let metadata = Task::future(parse_metadata::<Runtime>(self.root_manifest()));
-        let profiles = Task::future(parse_profiles::<Runtime>(self.base.root_dir.clone()));
+        let metadata = Task::future(parse_metadata(self.root_manifest(), exec_vs_code));
+        let profiles = Task::future(parse_profiles(
+            self.base.root_dir.clone(),
+            read_file_vs_code,
+        ));
         Task::batch([metadata, profiles]).map(Message::MetadataChanged)
     }
 

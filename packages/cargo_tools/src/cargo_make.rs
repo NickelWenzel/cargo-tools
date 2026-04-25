@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     environment::Environment,
-    runtime::{CargoTask, Runtime, Task},
+    task::{CargoTask, Task},
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -81,17 +81,19 @@ impl From<Vec<MakefileTask>> for MakefileTasks {
 #[derive(Debug, Clone)]
 pub enum MakefileTasksUpdate {
     New(MakefileTasks),
-    NoMakefile,
-    FailedToRetrieve,
+    NoMakefile(String),
+    FailedToRetrieve(String),
 }
 
-pub async fn parse_tasks<RT: Runtime>(makefile: String) -> MakefileTasksUpdate {
+pub async fn parse_tasks(
+    makefile: String,
+    exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
+) -> MakefileTasksUpdate {
     // Check if cargo-make is available
     let cargo = "cargo".to_string();
     let args = vec!["make".to_string(), "--version".to_string()];
-    if RT::exec(cargo.clone(), args).await.is_err() {
-        RT::log("cargo-make not available, skipping task discovery".to_string());
-        return MakefileTasksUpdate::NoMakefile;
+    if let Err(e) = exec(cargo.clone(), args).await {
+        return MakefileTasksUpdate::NoMakefile(e);
     }
 
     // Execute cargo-make to list all tasks
@@ -103,17 +105,14 @@ pub async fn parse_tasks<RT: Runtime>(makefile: String) -> MakefileTasksUpdate {
         "--output-format".to_string(),
         "markdown-single-page".to_string(),
     ];
-    match RT::exec(cargo, args).await {
-        Ok(output) => parse_makefile_output::<RT>(&output).await,
-        Err(e) => {
-            RT::log(format!("Failed to list cargo-make tasks: {e}"));
-            MakefileTasksUpdate::NoMakefile
-        }
+    match exec(cargo, args).await {
+        Ok(output) => parse_makefile_output(&output).await,
+        Err(e) => MakefileTasksUpdate::NoMakefile(e),
     }
 }
 
 /// Parse cargo-make task list output into structured task data
-async fn parse_makefile_output<RT: Runtime>(output: &str) -> MakefileTasksUpdate {
+async fn parse_makefile_output(output: &str) -> MakefileTasksUpdate {
     let mut tasks = Vec::new();
     let lines: Vec<&str> = output.lines().collect();
     let mut current_category = String::new();
@@ -145,6 +144,5 @@ async fn parse_makefile_output<RT: Runtime>(output: &str) -> MakefileTasksUpdate
         }
     }
 
-    RT::log(format!("Discovered {} cargo-make tasks", tasks.len()));
     MakefileTasksUpdate::New(MakefileTasks(tasks))
 }

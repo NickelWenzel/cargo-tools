@@ -4,7 +4,6 @@ pub mod cargo_make;
 
 use std::collections::HashMap;
 
-use cargo_tools::runtime::Runtime as _;
 use futures::{
     SinkExt,
     channel::mpsc::{Receiver, Sender, channel},
@@ -14,7 +13,7 @@ use wasm_bindgen::prelude::{Closure, wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
+    runtime::{CHANNEL_CAPACITY, log_vs_code},
     vs_code_api::{log, register_command},
 };
 
@@ -67,7 +66,7 @@ struct Extension {
 
 impl Extension {
     fn update(&mut self, msg: Message) -> Task<Message> {
-        Runtime::log(format!("Cargo tools extension received message:\n{msg:?}"));
+        log_vs_code(format!("Cargo tools extension received message:\n{msg:?}"));
         match msg {
             Message::Cargo(msg) => self.cargo.update(msg).map(Message::Cargo),
             Message::CargoMake(msg) => self.cargo_make.update(msg).map(Message::CargoMake),
@@ -137,13 +136,23 @@ pub mod tests {
     use futures::channel::mpsc::channel;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{
-        contributes::data::all_commands,
-        extension::{
-            cargo::command::task_map as cargo_task_map,
-            cargo_make::command::task_map as cargo_make_task_map,
-        },
+    use crate::extension::{
+        cargo::command::task_map as cargo_task_map,
+        cargo_make::command::task_map as cargo_make_task_map,
     };
+
+    fn all_commands() -> Vec<String> {
+        let package_json = include_str!("../../../../package.json");
+        let json: serde_json::Value =
+            serde_json::from_str(package_json).expect("Failed to parse package.json");
+
+        json["contributes"]["commands"]
+            .as_array()
+            .expect("commands should be an array")
+            .iter()
+            .filter_map(|cmd| cmd["command"].as_str().map(|s| s.to_string()))
+            .collect()
+    }
 
     #[wasm_bindgen_test]
     fn all_commands_are_registered() {
@@ -158,9 +167,8 @@ pub mod tests {
 
         for cmd in commands {
             assert!(
-                closures.contains_key(cmd.command.as_str()),
-                "Command '{}' from all_commands() was not registered in COMMAND_CLOSURES",
-                cmd.command
+                closures.contains_key(cmd.as_str()),
+                "Command '{cmd}' from all_commands() was not registered in COMMAND_CLOSURES."
             );
         }
     }

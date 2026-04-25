@@ -1,10 +1,10 @@
 use cargo_tools::environment::Environment;
 use serde::{Serialize, de::DeserializeOwned};
-use serde_wasm_bindgen::{from_value, to_value};
+use serde_json::to_string;
+use serde_wasm_bindgen::from_value;
 use std::collections::HashMap;
-use wasm_bindgen::JsValue;
 
-use crate::{contributes::ConfigPropertyType, vs_code_api};
+use crate::vs_code_api;
 
 const CARGO_TOOLS_SECTION: &str = "cargoTools";
 const RUST_ANALYZER_SECTION: &str = "rust-analyzer";
@@ -18,7 +18,7 @@ pub enum TaskContext {
     Test,
 }
 
-/// Get the environment in which a VSCopde task is run
+/// Get the environment in which a VSCode task is run
 /// This is done by accessing the VSCode configuration of the extension
 /// by leveraging wasm bindgen and the VSCode API
 pub fn environment(ctx: TaskContext) -> Environment {
@@ -30,9 +30,8 @@ pub fn environment(ctx: TaskContext) -> Environment {
 }
 
 fn get<T: Serialize + DeserializeOwned>(section: &str, key: &str, default: T) -> T {
-    let config_type = ConfigPropertyType::String as u32;
-    let default_value = to_value(&default).unwrap_or(JsValue::NULL);
-    let result = vs_code_api::get_config(section, key, config_type, default_value);
+    let default_value = to_string(&default).unwrap_or_default();
+    let result = vs_code_api::get_config(section, key, &default_value);
     from_value(result).unwrap_or(default)
 }
 

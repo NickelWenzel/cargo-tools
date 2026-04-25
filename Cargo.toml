@@ -2,13 +2,11 @@
 members = [
     "packages/cargo_tools",
     "packages/cargo_tools_vscode",
-    "packages/wasm_async_trait",
     "packages/iced_headless",
 ]
 default-members = [
     "packages/cargo_tools",
     "packages/cargo_tools_vscode",
-    "packages/wasm_async_trait",
     "packages/iced_headless",
 ]
 
@@ -17,7 +15,6 @@ resolver = "2"
 [workspace.dependencies]
 cargo_tools = { path = "packages/cargo_tools" }
 cargo_tools_vscode = { path = "packages/cargo_tools_vscode" }
-wasm_async_trait = { path = "packages/wasm_async_trait" }
 iced_headless = { path = "packages/iced_headless" }
 
 console_log = "1.0.0"

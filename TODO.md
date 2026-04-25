@@ -1,4 +1,4 @@
-* rename project status pane to project config pane
+* fix tests
 * run test under wasm32
 * proper vscode logging
 * rust CI

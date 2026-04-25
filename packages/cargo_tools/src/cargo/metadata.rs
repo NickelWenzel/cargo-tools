@@ -5,7 +5,7 @@ use toml::Table;
 
 use cargo_metadata::{Metadata, MetadataCommand, TargetKind};
 
-use crate::{cargo::Profile, runtime::Runtime};
+use crate::cargo::Profile;
 
 /// Represents the kinds of targets which a `cargo` command can target
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -49,7 +49,7 @@ impl Target {
 pub enum MetadataUpdate {
     Metadata(Metadata),
     Profiles(Vec<Profile>),
-    NoCargoToml,
+    NoCargoToml(String),
     FailedToRetrieve,
 }
 
@@ -63,7 +63,10 @@ pub fn workspace_manifests(metadata: &Metadata) -> Vec<String> {
 }
 
 /// Parses the metadata and returns a metadata update
-pub async fn parse_metadata<RT: Runtime>(manifest_file: String) -> MetadataUpdate {
+pub async fn parse_metadata(
+    manifest_file: String,
+    exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
+) -> MetadataUpdate {
     // Construct cargo metadata command with manifest path
     let cargo_args = vec![
         "metadata".to_string(),
@@ -75,24 +78,24 @@ pub async fn parse_metadata<RT: Runtime>(manifest_file: String) -> MetadataUpdat
     ];
 
     // Execute command via runtime
-    match RT::exec("cargo".to_string(), cargo_args).await {
-        Ok(metadata) => extract_raw_metadata::<RT>(&metadata).await,
-        Err(e) => {
-            RT::log(format!("Failed to generate cargo metadata: {e}"));
-            MetadataUpdate::NoCargoToml
-        }
+    match exec("cargo".to_string(), cargo_args).await {
+        Ok(metadata) => extract_raw_metadata(&metadata).await,
+        Err(e) => MetadataUpdate::NoCargoToml(e),
     }
 }
 
 /// Parses the metadata for profiles and returns a metadata update
-pub async fn parse_profiles<RT: Runtime>(root_dir: String) -> MetadataUpdate {
+pub async fn parse_profiles(
+    root_dir: String,
+    read_file: impl AsyncFn(String) -> Result<String, String>,
+) -> MetadataUpdate {
     let mut profiles = Profile::standards_profiles();
 
     let manifest_file = format!("{root_dir}/Cargo.toml");
     let config_file = format!("{root_dir}/.cargo/Config.toml");
 
     for file in [manifest_file, config_file] {
-        let Ok(toml) = RT::read_file(file).await else {
+        let Ok(toml) = read_file(file).await else {
             continue;
         };
         for profile in extract_profiles(toml) {
@@ -105,19 +108,15 @@ pub async fn parse_profiles<RT: Runtime>(root_dir: String) -> MetadataUpdate {
     MetadataUpdate::Profiles(profiles)
 }
 
-async fn extract_raw_metadata<RT: Runtime>(raw_metadata: &str) -> MetadataUpdate {
+async fn extract_raw_metadata(raw_metadata: &str) -> MetadataUpdate {
     let Some(metadata) = raw_metadata.lines().find(|line| line.starts_with('{')) else {
-        RT::log("Cargo metadata do not contain valid JSON".to_string());
         return MetadataUpdate::FailedToRetrieve;
     };
 
     // Parse JSON output into Metadata
     match MetadataCommand::parse(metadata) {
         Ok(metadata) => MetadataUpdate::Metadata(metadata),
-        Err(e) => {
-            RT::log(format!("Failed to parse cargo metadata: {e}"));
-            MetadataUpdate::NoCargoToml
-        }
+        Err(e) => MetadataUpdate::NoCargoToml(e.to_string()),
     }
 }
 

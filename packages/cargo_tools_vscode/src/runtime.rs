@@ -1,8 +1,7 @@
-use cargo_tools::runtime::{CargoTask, Runtime, Task};
+use cargo_tools::task::{CargoTask, Task};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_wasm_bindgen::to_value;
 use std::fmt::Debug;
-use wasm_async_trait::wasm_async_trait;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Map;
 
@@ -10,63 +9,58 @@ use crate::vs_code_api::*;
 
 pub const CHANNEL_CAPACITY: usize = 100;
 
-pub struct VsCodeRuntime;
+pub async fn read_file_vs_code(file_path: String) -> Result<String, String> {
+    read_file(&file_path)
+        .await
+        .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
+        .map_err(|e| e.to_error_string())
+}
 
-#[wasm_async_trait]
-impl Runtime for VsCodeRuntime {
-    async fn exec(command: String, args: Vec<String>) -> Result<String, String> {
-        execute_async(&command, args)
-            .await
-            .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
-            .map_err(|e| e.to_error_string())
+pub async fn persist_state_vs_code(key: String, state: impl Serialize) {
+    let state = serde_json::to_string(&state);
+    let Ok(state) = state else {
+        let e = state.unwrap_err();
+        log(&format!("Failed to serialize state: {e}"));
+        return;
+    };
+
+    if let Err(e) = set_state(&key, state).await {
+        let e = e.to_error_string();
+        log(&format!("Failed to set state: {e}"));
     }
+}
 
-    async fn exec_task(task: CargoTask) {
-        execute_task(VsCodeTask(task)).await;
-    }
+pub fn get_state_vs_code<T: DeserializeOwned + Debug>(key: String) -> Option<T> {
+    let state = get_state(&key);
+    let Ok(state) = state else {
+        log(&format!(
+            "Failed to get state: {}",
+            state.unwrap_err().to_error_string()
+        ));
+        return None;
+    };
+    let state = serde_json::from_str(&state);
+    let Ok(state) = state else {
+        let e = state.unwrap_err();
+        log(&format!("Failed to deserialize state: {e}"));
+        return None;
+    };
+    Some(state)
+}
 
-    fn log(msg: String) {
-        log(&msg);
-    }
+pub fn log_vs_code(msg: String) {
+    log(&msg);
+}
 
-    async fn read_file(file_path: String) -> Result<String, String> {
-        read_file(&file_path)
-            .await
-            .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
-            .map_err(|e| e.to_error_string())
-    }
+pub async fn exec_vs_code(command: String, args: Vec<String>) -> Result<String, String> {
+    execute_async(&command, args)
+        .await
+        .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
+        .map_err(|e| e.to_error_string())
+}
 
-    async fn persist_state(key: String, state: impl Serialize) {
-        let state = serde_json::to_string(&state);
-        let Ok(state) = state else {
-            let e = state.unwrap_err();
-            log(&format!("Failed to serialize state: {e}"));
-            return;
-        };
-
-        if let Err(e) = set_state(&key, state).await {
-            let e = e.to_error_string();
-            log(&format!("Failed to set state: {e}"));
-        }
-    }
-
-    fn get_state<T: DeserializeOwned + Debug>(key: String) -> Option<T> {
-        let state = get_state(&key);
-        let Ok(state) = state else {
-            log(&format!(
-                "Failed to get state: {}",
-                state.unwrap_err().to_error_string()
-            ));
-            return None;
-        };
-        let state = serde_json::from_str(&state);
-        let Ok(state) = state else {
-            let e = state.unwrap_err();
-            log(&format!("Failed to deserialize state: {e}"));
-            return None;
-        };
-        Some(state)
-    }
+pub async fn exec_task_vs_code(task: CargoTask) {
+    execute_task(VsCodeTask(task)).await;
 }
 
 /// Task type which is exported in typescript code

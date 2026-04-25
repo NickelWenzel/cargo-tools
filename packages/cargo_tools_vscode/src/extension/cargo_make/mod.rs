@@ -3,10 +3,7 @@ pub mod ui;
 
 use std::iter;
 
-use cargo_tools::{
-    cargo_make::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},
-    runtime::Runtime as _,
-};
+use cargo_tools::cargo_make::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks};
 use futures::channel::mpsc::{Sender, channel};
 use iced_headless::Task;
 
@@ -20,7 +17,7 @@ use crate::{
             ui::{CargoMakePinnedTreeProviderHandler, CargoMakeTreeProviderHandler},
         },
     },
-    runtime::{CHANNEL_CAPACITY, VsCodeRuntime as Runtime},
+    runtime::{CHANNEL_CAPACITY, exec_vs_code, get_state_vs_code, persist_state_vs_code},
     vs_code_api::{
         CargoMakePinnedTreeProvider, CargoMakeTreeProvider, TsFileWatcher, set_makefile_context,
         showInformationMessage,
@@ -64,7 +61,7 @@ impl Ui {
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
         let cmds = register_cargo_make_commands(cmd_tx.clone());
 
-        let settings: Settings = Runtime::get_state(settings_key(&root_dir)).unwrap_or_default();
+        let settings: Settings = get_state_vs_code(settings_key(&root_dir)).unwrap_or_default();
 
         let base = Base {
             cmds,
@@ -89,7 +86,7 @@ impl Ui {
         let manifest_update = Task::stream(makefile_changed_rx).map(|()| Message::MakefileChanged);
         let cmd = Task::stream(cmd_rx).map(Message::Cmd);
         // makefile_tasks is to initially parse the available makefile tasks
-        let makefile_tasks = Task::future(parse_tasks::<Runtime>(makefile(&this.base.root_dir)))
+        let makefile_tasks = Task::future(parse_tasks(makefile(&this.base.root_dir), exec_vs_code))
             .map(Message::MakefileTasksChanged);
         let tasks = Task::batch([manifest_update, cmd, makefile_tasks]);
 
@@ -104,16 +101,17 @@ impl Ui {
                     self.update_ui();
                     Task::future(set_makefile_context(true)).discard()
                 }
-                MakefileTasksUpdate::NoMakefile => {
+                MakefileTasksUpdate::NoMakefile(_e) => {
+                    // TODO: log error
                     self.makefile_tasks = MakefileTasks::default();
                     self.update_ui();
                     Task::future(set_makefile_context(false)).discard()
                 }
                 // For invalid makefiles leave everything as is
-                MakefileTasksUpdate::FailedToRetrieve => Task::none(),
+                MakefileTasksUpdate::FailedToRetrieve(_e) => Task::none(), // TODO: log error
             },
             Message::MakefileChanged => {
-                Task::future(parse_tasks::<Runtime>(makefile(&self.base.root_dir)))
+                Task::future(parse_tasks(makefile(&self.base.root_dir), exec_vs_code))
                     .map(Message::MakefileTasksChanged)
             }
             Message::SettingsChanged(update) => self.update_state(update),
@@ -172,7 +170,7 @@ impl Ui {
         };
 
         let tasks = iter::once(
-            Task::future(Runtime::persist_state(
+            Task::future(persist_state_vs_code(
                 settings_key(&self.base.root_dir),
                 self.settings.clone(),
             ))
