@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    iter,
-};
+use std::{collections::HashMap, iter};
 
 use cargo_metadata::{Metadata, Package, TargetKind};
 use itertools::Itertools;
@@ -124,17 +121,15 @@ impl State {
         }
     }
 
-    pub fn args(&self, for_package: bool) -> Vec<String> {
+    pub fn args(&self, package: Option<&str>) -> Vec<String> {
         let mut args = Vec::new();
         if let Some(platform) = self.platform_target.clone() {
             args.extend(["--target".to_string(), platform]);
         }
         args.extend(self.profile.cargo_args());
 
-        let features = if let Some(s) = self.package_selection()
-            && for_package
-        {
-            &s.features
+        let features = if let Some(config) = package.and_then(|p| self.package_selection.get(p)) {
+            &config.features
         } else {
             &self.features
         };

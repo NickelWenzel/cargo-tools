@@ -103,7 +103,8 @@ impl Explicit {
         match self {
             Explicit::Build(build_target) => {
                 let mut args = vec!["build".to_string()];
-                let selection_args = selection.args(build_target.is_some());
+                let selection_args =
+                    selection.args(build_target.as_ref().map(|t| t.package.as_str()));
                 if let Some(BuildTarget { package, target }) = build_target {
                     args.extend(["--package".to_string(), package]);
 
@@ -127,7 +128,8 @@ impl Explicit {
             }
             Explicit::Run(run_target) => {
                 let mut args = vec!["run".to_string()];
-                let selection_args = selection.args(run_target.is_some());
+                let selection_args =
+                    selection.args(run_target.as_ref().map(|t| t.package.as_str()));
                 if let Some(RunTarget { package, target }) = run_target {
                     args.extend(["--package".to_string(), package]);
 
@@ -149,7 +151,7 @@ impl Explicit {
             Explicit::Debug(_) => Vec::new(),
             Explicit::Test { package } => {
                 let mut args: Vec<_> = vec!["test".to_string()];
-                let selection_args = selection.args(package.is_some());
+                let selection_args = selection.args(package.as_deref());
                 if let Some(package) = package {
                     args.extend(["--package".to_string(), package]);
                 }
@@ -158,7 +160,8 @@ impl Explicit {
             }
             Explicit::Bench(bench_target) => {
                 let mut args = vec!["bench".to_string()];
-                let selection_args = selection.args(bench_target.is_some());
+                let selection_args =
+                    selection.args(bench_target.as_ref().map(|t| t.package.as_str()));
                 if let Some(BenchTarget { package, target }) = bench_target {
                     args.extend(["--package".to_string(), package]);
 
