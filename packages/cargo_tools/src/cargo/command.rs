@@ -6,71 +6,9 @@ use crate::{
     runtime::{CargoTask, Task},
 };
 
-/// Implicit needs information from [Config] to be transformed into an executable task
-#[derive(Debug, Clone, Copy)]
-pub enum Implicit {
-    Build,
-    Run,
-    Debug,
-    Test,
-    Bench,
-    Clean,
-}
-
-impl Implicit {
-    pub fn to_explicit(self, config: &Config) -> Explicit {
-        match self {
-            Implicit::Build => {
-                let target = if let Some(package) = config.selected_package.clone() {
-                    let target = config.get(&package, |s| s.build_target.clone());
-                    Some(BuildTarget { package, target })
-                } else {
-                    None
-                };
-                Explicit::Build(target)
-            }
-            Implicit::Run => {
-                let target = if let Some(package) = config.selected_package.clone() {
-                    let target = config.get(&package, |s| s.run_target.clone());
-                    Some(RunTarget { package, target })
-                } else {
-                    None
-                };
-                Explicit::Run(target)
-            }
-            Implicit::Debug => {
-                let target = if let Some(package) = config.selected_package.clone() {
-                    let target = config.get(&package, |s| s.run_target.clone());
-                    Some(RunTarget { package, target })
-                } else {
-                    None
-                };
-                Explicit::Debug(target)
-            }
-            Implicit::Test => {
-                let package = config.selected_package.clone();
-                Explicit::Test { package }
-            }
-            Implicit::Bench => {
-                let target = if let Some(package) = config.selected_package.clone() {
-                    let target = config.get(&package, |s| s.benchmark_target.clone());
-                    Some(BenchTarget { package, target })
-                } else {
-                    None
-                };
-                Explicit::Bench(target)
-            }
-            Implicit::Clean => {
-                let package = config.selected_package.clone();
-                Explicit::Clean { package }
-            }
-        }
-    }
-}
-
 /// Represents a cargo command which can be executed as a [CargoTask]
 #[derive(Debug, Clone)]
-pub enum Explicit {
+pub enum Command {
     Build(Option<BuildTarget>),
     Run(Option<RunTarget>),
     Debug(Option<RunTarget>),
@@ -80,8 +18,8 @@ pub enum Explicit {
     Clean { package: Option<String> },
 }
 
-impl Explicit {
-    pub fn to_task(self, selection: &Config, environment: Environment) -> CargoTask {
+impl Command {
+    pub fn into_task(self, selection: &Config, environment: Environment) -> CargoTask {
         let Environment {
             env,
             extra_args,
@@ -96,9 +34,9 @@ impl Explicit {
         CargoTask::Cargo(Task { cmd, args, env })
     }
 
-    pub fn into_args(self, selection: &Config) -> Vec<String> {
+    fn into_args(self, selection: &Config) -> Vec<String> {
         match self {
-            Explicit::Build(build_target) => {
+            Command::Build(build_target) => {
                 let mut args = vec!["build".to_string()];
                 let selection_args =
                     selection.args(build_target.as_ref().map(|t| t.package.as_str()));
@@ -123,7 +61,7 @@ impl Explicit {
                 args.extend(selection_args);
                 args
             }
-            Explicit::Run(run_target) => {
+            Command::Run(run_target) => {
                 let mut args = vec!["run".to_string()];
                 let selection_args =
                     selection.args(run_target.as_ref().map(|t| t.package.as_str()));
@@ -145,8 +83,8 @@ impl Explicit {
                 args
             }
             // Debug is special and does not translate into arguments
-            Explicit::Debug(_) => Vec::new(),
-            Explicit::Test { package } => {
+            Command::Debug(_) => Vec::new(),
+            Command::Test { package } => {
                 let mut args: Vec<_> = vec!["test".to_string()];
                 let selection_args = selection.args(package.as_deref());
                 if let Some(package) = package {
@@ -155,7 +93,7 @@ impl Explicit {
                 args.extend(selection_args);
                 args
             }
-            Explicit::Bench(bench_target) => {
+            Command::Bench(bench_target) => {
                 let mut args = vec!["bench".to_string()];
                 let selection_args =
                     selection.args(bench_target.as_ref().map(|t| t.package.as_str()));
@@ -169,11 +107,11 @@ impl Explicit {
                 args.extend(selection_args);
                 args
             }
-            Explicit::Doc => ["doc", "--no-deps", "release"]
+            Command::Doc => ["doc", "--no-deps", "release"]
                 .into_iter()
                 .map(ToString::to_string)
                 .collect(),
-            Explicit::Clean { package } => {
+            Command::Clean { package } => {
                 let mut args = vec!["clean".to_string()];
                 if let Some(package) = package {
                     args.extend(["--package".to_string(), package]);

@@ -3,9 +3,10 @@
 use std::{collections::HashMap, iter};
 
 use cargo_tools::{
+    CargoCommand,
     cargo::{
         Config, ConfigUpdate, Features,
-        command::{BuildSubTarget, BuildTarget, Explicit, Implicit, RunSubTarget, RunTarget},
+        command::{BenchTarget, BuildSubTarget, BuildTarget, RunSubTarget, RunTarget},
     },
     profile::Profile,
     runtime::{self, CargoTask, Runtime as _},
@@ -86,25 +87,52 @@ impl Ui {
             Command::SetRustAnalyzerCheckTargets => Task::done(set_rust_analyzer_check_targets())
                 .and_then(Task::done)
                 .map(IntoMessage::into_cargo_msg),
-            Command::BuildDocs => self.cmd_exec(Explicit::Doc),
+            Command::BuildDocs => self.cmd_exec(CargoCommand::Doc),
             Command::SelectFeatures => {
                 let input = self.data.feature_options();
                 let feature_target = self.data.config.feature_target();
                 done(async move { select_features(input, feature_target).await })
             }
             Command::Refresh => self.refresh(),
-            Command::Clean => self.cmd_exec(Implicit::Clean),
-            Command::Build => self.cmd_exec(Implicit::Build),
-            Command::Run => self.cmd_exec(Implicit::Run),
-            Command::Debug => {
-                let Explicit::Debug(Some(target)) = Implicit::Debug.to_explicit(&self.data.config)
-                else {
-                    return Task::none();
-                };
-                self.debug(target)
+            Command::Clean => {
+                let package = self.data.config.selected_package.clone();
+                self.cmd_exec(CargoCommand::Clean { package })
             }
-            Command::Test => self.cmd_exec(Implicit::Test),
-            Command::Bench => self.cmd_exec(Implicit::Bench),
+            Command::Build => {
+                let target = self.data.config.selected_package.clone().map(|package| {
+                    let target = self.data.config.get(&package, |s| s.build_target.clone());
+                    BuildTarget { package, target }
+                });
+                self.cmd_exec(CargoCommand::Build(target))
+            }
+            Command::Run => {
+                let target = self.data.config.selected_package.clone().map(|package| {
+                    let target = self.data.config.get(&package, |s| s.run_target.clone());
+                    RunTarget { package, target }
+                });
+                self.cmd_exec(CargoCommand::Run(target))
+            }
+            Command::Debug => match self.data.config.selected_package.clone() {
+                Some(package) => {
+                    let target = self.data.config.get(&package, |s| s.run_target.clone());
+                    self.debug(RunTarget { package, target })
+                }
+                None => Task::none(),
+            },
+            Command::Test => {
+                let package = self.data.config.selected_package.clone();
+                self.cmd_exec(CargoCommand::Test { package })
+            }
+            Command::Bench => {
+                let target = self.data.config.selected_package.clone().map(|package| {
+                    let target = self
+                        .data
+                        .config
+                        .get(&package, |s| s.benchmark_target.clone());
+                    BenchTarget { package, target }
+                });
+                self.cmd_exec(CargoCommand::Bench(target))
+            }
             Command::ToggleFeature(feature) => {
                 let feature_target = self.data.config.feature_target();
                 self.toggle_feature(feature_target, feature)
@@ -117,12 +145,12 @@ impl Ui {
         match cmd {
             PO::Select(update) => Task::done(update.into_cargo_msg()),
             PO::Unselect(update) => Task::done(update.into_cargo_msg()),
-            PO::Build(target) => self.cmd_exec(Explicit::Build(target)),
-            PO::Test(package) => self.cmd_exec(Explicit::Test { package }),
-            PO::Clean(package) => self.cmd_exec(Explicit::Clean { package }),
-            PO::Run(target) => self.cmd_exec(Explicit::Run(Some(target))),
+            PO::Build(target) => self.cmd_exec(CargoCommand::Build(target)),
+            PO::Test(package) => self.cmd_exec(CargoCommand::Test { package }),
+            PO::Clean(package) => self.cmd_exec(CargoCommand::Clean { package }),
+            PO::Run(target) => self.cmd_exec(CargoCommand::Run(Some(target))),
             PO::Debug(target) => self.debug(target),
-            PO::Bench(target) => self.cmd_exec(Explicit::Bench(Some(target))),
+            PO::Bench(target) => self.cmd_exec(CargoCommand::Bench(Some(target))),
             PO::SelectWorkspaceMemberFilter => self.select_workspace_member_filter(),
             PO::EditWorkspaceMemberFilter(filter) => Task::done(Message::SettingsChanged(
                 SettingsUpdate::PackageFilter(filter),
@@ -147,8 +175,20 @@ impl Ui {
         }
     }
 
-    fn cmd_exec(&self, cmd: impl ToTask) -> Task<Message> {
-        Task::future(Runtime::exec_task(cmd.into_task(&self.data.config))).discard()
+    fn cmd_exec(&self, cmd: CargoCommand) -> Task<Message> {
+        let ctx = match &cmd {
+            CargoCommand::Run(_) | CargoCommand::Debug(_) => TaskContext::Run,
+            CargoCommand::Test { package: _ } => TaskContext::Test,
+            CargoCommand::Build(_)
+            | CargoCommand::Bench(_)
+            | CargoCommand::Doc
+            | CargoCommand::Clean { package: _ } => TaskContext::General,
+        };
+
+        Task::future(Runtime::exec_task(
+            cmd.into_task(&self.data.config, environment(ctx)),
+        ))
+        .discard()
     }
 
     fn debug(&self, target: RunTarget) -> Task<Message> {
@@ -166,8 +206,8 @@ impl Ui {
         let mut selection = self.data.config.clone();
         selection.profile = Profile::Dev; // For now always use standard dev profile
         // TODO: make it possible to run shell commands with env arguments
-        let build_debug_task = Explicit::Build(Some(build_target))
-            .to_task(&selection, environment(TaskContext::General));
+        let build_debug_task = CargoCommand::Build(Some(build_target))
+            .into_task(&selection, environment(TaskContext::General));
 
         let Some(target_dir) = self
             .data
@@ -397,32 +437,6 @@ fn done(fut: impl Future<Output = Option<impl IntoMessage + 'static>> + 'static)
     Task::future(fut)
         .and_then(Task::done)
         .map(IntoMessage::into_cargo_msg)
-}
-
-trait ToTask {
-    fn into_task(self, config: &Config) -> CargoTask;
-}
-
-impl ToTask for Implicit {
-    fn into_task(self, config: &Config) -> CargoTask {
-        let explicit = self.to_explicit(config);
-        explicit.into_task(config)
-    }
-}
-
-impl ToTask for Explicit {
-    fn into_task(self, config: &Config) -> CargoTask {
-        let ctx = match self {
-            Explicit::Run(_) | Explicit::Debug(_) => TaskContext::Run,
-            Explicit::Test { package: _ } => TaskContext::Test,
-            Explicit::Build(_)
-            | Explicit::Bench(_)
-            | Explicit::Doc
-            | Explicit::Clean { package: _ } => TaskContext::General,
-        };
-
-        self.to_task(config, environment(ctx))
-    }
 }
 
 async fn select_platform_target(current: Option<String>) -> Option<impl IntoMessage> {
