@@ -18,15 +18,16 @@ use crate::{
     runtime::VsCodeTask,
 };
 
-#[wasm_bindgen(raw_module = "../cargoTools.ts")]
+#[wasm_bindgen(raw_module = "../execute.ts")]
 extern "C" {
-    pub async fn echo_task(msg: &str);
-
     #[wasm_bindgen(catch)]
     pub async fn execute_async(command: &str, args: Vec<String>) -> Result<JsString, JsValue>;
 
     #[wasm_bindgen(catch)]
     pub async fn executeCommand(command: &str, rest: Array) -> Result<JsValue, JsValue>;
+
+    /// Get a state value from VS Code workspace state storage.
+    pub async fn execute_task(task: VsCodeTask);
 
     #[wasm_bindgen(catch)]
     pub async fn showInformationMessage(
@@ -89,12 +90,6 @@ impl Debug for TsFileWatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("TsFileWatcher").finish()
     }
-}
-
-#[wasm_bindgen(raw_module = "../task.ts")]
-extern "C" {
-    /// Get a state value from VS Code workspace state storage.
-    pub async fn execute_task(task: VsCodeTask);
 }
 
 #[wasm_bindgen(raw_module = "../command.ts")]

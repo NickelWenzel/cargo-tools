@@ -2,19 +2,6 @@ import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import { VsCodeTask } from './wasm/cargo_tools_vscode';
 
-export async function echo_task(msg: string) {
-    const task = new vscode.Task(
-        { type: 'shell' },
-        vscode.TaskScope.Workspace,
-        'echo',
-        'echo',
-        new vscode.ShellExecution("echo", [msg])
-    );
-
-    await vscode.tasks.executeTask(task);
-    vscode.window.showInformationMessage(`Running echo cmd...`);
-}
-
 function spawnWithOutput(
     cmd: string,
     args: string[]
