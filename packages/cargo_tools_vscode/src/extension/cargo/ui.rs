@@ -394,7 +394,7 @@ impl OutlineNodeType {
         use OutlineNodeTypeInner::*;
         match &self.0 {
             Root => OutlineNodeData::root_children(selection, packages, grouping),
-            RootFeatures => vec![OutlineNodeData::root_features_children(selection)],
+            RootFeatures => OutlineNodeData::root_features_children(selection, packages),
             Package { name } => try_package(name, packages)
                 .map(|p| OutlineNodeData::package_children(selection, p))
                 .unwrap_or_default(),
@@ -406,7 +406,7 @@ impl OutlineNodeType {
             Examples => OutlineNodeData::targets_children(Target::Example, selection, packages),
             Benchmarks => OutlineNodeData::targets_children(Target::Bench, selection, packages),
             // All others never have further child nodes
-            RootAllFeatures => Vec::new(),
+            RootFeature(_) => Vec::new(),
             Feature { .. } => Vec::new(),
             Lib { .. } => Vec::new(),
             Bin { .. } => Vec::new(),
@@ -477,7 +477,7 @@ fn try_package<'a>(
 enum OutlineNodeTypeInner {
     Root,
     RootFeatures,
-    RootAllFeatures,
+    RootFeature(String),
     Package { name: String },
     PackageFeatures { package: String },
     Feature { package: String, name: String },
@@ -847,13 +847,13 @@ impl OutlineNodeData {
         } = self;
 
         match node_type.0.clone() {
-            OutlineNodeTypeInner::RootAllFeatures => CargoOutlineNode::feature(
+            OutlineNodeTypeInner::RootFeature(name) => CargoOutlineNode::feature(
                 label,
                 icon,
                 collapsible_state as u32,
                 node_type,
                 "cargo-tools.projectOutline.toggleFeature".to_string(),
-                vec!["All features".to_string()],
+                vec![name],
             ),
             OutlineNodeTypeInner::Feature { package, name } => CargoOutlineNode::feature(
                 label,
@@ -928,27 +928,41 @@ impl OutlineNodeData {
         }
     }
 
-    fn root_features_children(selection: &selection::State) -> Self {
-        let feature = "All features";
-        let selected = selection.features == selection::Features::All;
-
-        let icon = if selected {
-            SELECTED_STATE
-        } else {
-            UNSELECTED_STATE
+    fn root_features_children(
+        selection: &selection::State,
+        packages: &[CondensedPackage],
+    ) -> Vec<Self> {
+        let selected_features = match &selection.features {
+            selection::Features::All => vec!["All features"],
+            selection::Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
         };
 
-        Self {
-            label: feature.to_string(),
-            icon,
-            collapsible_state: CollapsibleState::None,
-            node_type: OutlineNodeType(OutlineNodeTypeInner::RootAllFeatures),
-            context_value: None,
-            tooltip: None,
-            description: None,
-            command: None,
-            command_arg: None,
-        }
+        packages
+            .iter()
+            .flat_map(|p| &p.features)
+            .sorted()
+            .unique()
+            .map(|feature| {
+                let name = feature.to_string();
+                let icon = if selected_features.contains(&feature.as_str()) {
+                    SELECTED_STATE
+                } else {
+                    UNSELECTED_STATE
+                };
+
+                Self {
+                    label: name.clone(),
+                    icon,
+                    collapsible_state: CollapsibleState::None,
+                    node_type: OutlineNodeType(OutlineNodeTypeInner::RootFeature(name)),
+                    context_value: None,
+                    tooltip: None,
+                    description: None,
+                    command: None,
+                    command_arg: None,
+                }
+            })
+            .collect()
     }
 
     fn package_features_children(
@@ -967,6 +981,7 @@ impl OutlineNodeData {
         package
             .features
             .iter()
+            .sorted()
             .map(|feature| {
                 let name = feature.clone();
                 let package = package.name.clone();

@@ -1,6 +1,10 @@
-use std::{collections::HashMap, iter};
+use std::{
+    collections::{HashMap, HashSet},
+    iter,
+};
 
 use cargo_metadata::{Metadata, Package, TargetKind};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -233,10 +237,17 @@ impl State {
 
     pub fn feature_options(&self, metadata: &Metadata) -> Vec<String> {
         let features = iter::once("All features".to_string());
-        if let Some(package) = self.selected_package(metadata) {
-            features.chain(package.features.keys().cloned()).collect()
-        } else {
-            features.collect()
+        match self.selected_package(metadata) {
+            Some(package) => features.chain(package.features.keys().cloned()).collect(),
+            None => {
+                let package_features = metadata
+                    .workspace_packages()
+                    .into_iter()
+                    .flat_map(|package| package.features.keys().cloned())
+                    .sorted()
+                    .unique();
+                features.chain(package_features).collect()
+            }
         }
     }
 }
