@@ -969,7 +969,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
+    "@types/node": "^20.19.39",
     "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
@@ -977,12 +977,12 @@
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.6.0",
     "@wasm-tool/wasm-pack-plugin": "^1.5.1",
+    "copy-webpack-plugin": "^13.0.1",
     "esbuild": "^0.25.10",
     "eslint": "^9.25.1",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
     "webpack": "^5.99.7",
-    "webpack-cli": "^6.0.1",
-    "copy-webpack-plugin": "^13.0.1"
+    "webpack-cli": "^6.0.1"
   }
 }
