@@ -19,6 +19,7 @@ pub enum Command {
 }
 
 impl Command {
+    /// Converts [self] into an executable [CargoTask]
     pub fn into_task(self, selection: &Config, environment: Environment) -> CargoTask {
         let Environment {
             env,
@@ -126,6 +127,7 @@ impl Command {
     }
 }
 
+/// Represents the target options of the `cargo build` command
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildTarget {
     pub package: String,
@@ -141,18 +143,21 @@ impl BuildTarget {
     }
 }
 
+/// Represents the target options of the `cargo run` command
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunTarget {
     pub package: String,
     pub target: Option<RunSubTarget>,
 }
 
+/// Represents the target options of the `cargo bench` command
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchTarget {
     pub package: String,
     pub target: Option<String>,
 }
 
+/// The type of sub target which can be built via `cargo build -p <package>`
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BuildSubTarget {
     Bin(String),
@@ -181,6 +186,7 @@ impl BuildSubTarget {
     }
 }
 
+/// The type of sub target which can be run via `cargo run -p <package>`
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RunSubTarget {
     Bin(String),

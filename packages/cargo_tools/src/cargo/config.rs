@@ -48,6 +48,7 @@ pub enum Update {
     Refresh(HashMap<String, PackageConfig>),
 }
 
+/// Represents the parameters which can serve as arguments for a `cargo` command
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Config {
@@ -249,6 +250,7 @@ impl Config {
     }
 }
 
+/// Represents the parameters which can serve as arguments for a `cargo` command which targets a specific package
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct PackageConfig {
     pub build_target: Option<BuildSubTarget>,

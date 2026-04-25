@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cargo_tools::cargo_make::tasks::{MakefileTask, MakefileTasks};
+use cargo_tools::cargo_make::{MakefileTask, MakefileTasks};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

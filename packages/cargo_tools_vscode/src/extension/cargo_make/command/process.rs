@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use cargo_tools::{cargo_make::tasks::MakefileTask, runtime::Runtime as _};
+use cargo_tools::{cargo_make::MakefileTask, runtime::Runtime as _};
 use futures::SinkExt;
 use iced_headless::Task;
 use itertools::Itertools;

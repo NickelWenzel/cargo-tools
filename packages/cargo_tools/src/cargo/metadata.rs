@@ -7,6 +7,7 @@ use cargo_metadata::{Metadata, MetadataCommand, TargetKind};
 
 use crate::{profile::Profile, runtime::Runtime};
 
+/// Represents the kinds of targets which a `cargo` command can target
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Target {
     Lib,
@@ -52,6 +53,7 @@ pub enum MetadataUpdate {
     FailedToRetrieve,
 }
 
+/// Returns the filenames of the manifests of the metadata's workspace packages
 pub fn workspace_manifests(metadata: &Metadata) -> Vec<String> {
     metadata
         .workspace_packages()
@@ -60,6 +62,7 @@ pub fn workspace_manifests(metadata: &Metadata) -> Vec<String> {
         .collect()
 }
 
+/// Parses the metadata and returns a metadata update
 pub async fn parse_metadata<RT: Runtime>(manifest_file: String) -> MetadataUpdate {
     // Construct cargo metadata command with manifest path
     let cargo_args = vec![
@@ -81,6 +84,7 @@ pub async fn parse_metadata<RT: Runtime>(manifest_file: String) -> MetadataUpdat
     }
 }
 
+/// Parses the metadata for profiles and returns a metadata update
 pub async fn parse_profiles<RT: Runtime>(root_dir: String) -> MetadataUpdate {
     let mut profiles = Profile::standards_profiles();
 
@@ -133,6 +137,7 @@ fn extract_profiles(toml: String) -> Vec<Profile> {
     profiles.keys().cloned().map(Profile::from).collect()
 }
 
+/// The condensed package information holding only information needed to build `cargo` commands
 #[derive(Debug)]
 pub struct CondensedPackage {
     pub name: String,
@@ -141,6 +146,7 @@ pub struct CondensedPackage {
     pub features: Vec<String>,
 }
 
+/// The condensed target information holding only information needed to build `cargo` commands
 #[derive(Debug)]
 pub struct CondensedTarget {
     pub name: String,

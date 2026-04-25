@@ -4,7 +4,7 @@ pub mod ui;
 use std::iter;
 
 use cargo_tools::{
-    cargo_make::tasks::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},
+    cargo_make::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks},
     runtime::Runtime as _,
 };
 use futures::channel::mpsc::{Sender, channel};
