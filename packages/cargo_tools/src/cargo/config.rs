@@ -12,13 +12,14 @@ use crate::{
     profile::Profile,
 };
 
-/// The feature
+/// A feature either targets the [Self::Workspace] or a named [Self::Package]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FeatureTarget {
     Package(String),
     Workspace,
 }
 
+/// Mutually exclusive either [Self::All] or explicitly [Self::Some] features can be chosen
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Features {
     All,
@@ -31,6 +32,7 @@ impl Default for Features {
     }
 }
 
+/// Holds an update for some aspect of [Config]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Update {
     SelectedPackage(Option<String>),
@@ -53,7 +55,7 @@ pub struct Config {
     pub package_configs: HashMap<String, PackageConfig>,
     pub platform_target: Option<String>,
     pub profile: Profile,
-    pub features: Features,
+    pub selected_features: Features,
 }
 
 impl Config {
@@ -83,13 +85,16 @@ impl Config {
             } => match feature_type {
                 FeatureTarget::Package(package) => {
                     let s = self.package_configs.entry(package).or_default();
-                    s.features = features;
+                    s.selected_features = features;
                 }
-                FeatureTarget::Workspace => self.features = features,
+                FeatureTarget::Workspace => self.selected_features = features,
             },
             Update::SelectedPlatformTarget(v) => self.platform_target = v,
             Update::SelectedProfile(v) => self.profile = v,
-            Update::Refresh(package_selection) => self.package_configs = package_selection,
+            Update::Refresh(package_selection) => {
+                self.package_configs = package_selection
+                // TODO: Should include selected workspace features
+            }
         }
     }
 
@@ -119,9 +124,9 @@ impl Config {
         args.extend(self.profile.cargo_args());
 
         let features = if let Some(config) = package.and_then(|p| self.package_configs.get(p)) {
-            &config.features
+            &config.selected_features
         } else {
-            &self.features
+            &self.selected_features
         };
 
         match features {
@@ -137,8 +142,8 @@ impl Config {
 
     pub fn selected_features(&self) -> Features {
         self.package_selection()
-            .map(|p| &p.features)
-            .unwrap_or(&self.features)
+            .map(|p| &p.selected_features)
+            .unwrap_or(&self.selected_features)
             .clone()
     }
 
@@ -249,7 +254,7 @@ pub struct PackageConfig {
     pub build_target: Option<BuildSubTarget>,
     pub run_target: Option<RunSubTarget>,
     pub benchmark_target: Option<String>,
-    pub features: Features,
+    pub selected_features: Features,
 }
 
 impl PackageConfig {

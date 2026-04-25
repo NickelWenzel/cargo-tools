@@ -235,13 +235,16 @@ impl Ui {
     fn toggle_feature(&self, feature_type: FeatureTarget, feature: String) -> Task<Message> {
         let selected_features = match &feature_type {
             FeatureTarget::Package(package) => {
-                let Some(features) = self.data.config.get(package, |s| Some(s.features.clone()))
+                let Some(features) = self
+                    .data
+                    .config
+                    .get(package, |s| Some(s.selected_features.clone()))
                 else {
                     return Task::none();
                 };
                 features
             }
-            FeatureTarget::Workspace => self.data.config.features.clone(),
+            FeatureTarget::Workspace => self.data.config.selected_features.clone(),
         };
 
         let features = match selected_features {

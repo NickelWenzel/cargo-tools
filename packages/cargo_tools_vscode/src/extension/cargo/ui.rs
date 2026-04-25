@@ -932,7 +932,7 @@ impl OutlineNodeData {
         selection: &config::Config,
         packages: &[CondensedPackage],
     ) -> Vec<Self> {
-        let selected_features = match &selection.features {
+        let selected_features = match &selection.selected_features {
             config::Features::All => vec!["All features"],
             config::Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
         };
@@ -972,7 +972,7 @@ impl OutlineNodeData {
         let selected_features = selection
             .package_configs
             .get(&package.name)
-            .map(|selected| match &selected.features {
+            .map(|selected| match &selected.selected_features {
                 config::Features::All => vec!["All features"],
                 config::Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
             })
