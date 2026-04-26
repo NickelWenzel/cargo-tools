@@ -25,7 +25,10 @@ use crate::{
     },
     quick_pick::{SelectInput, ToQuickPickItem},
     runtime::exec_task_vs_code,
-    vs_code_api::{JsValueExt, debug, execute_async, host_platform, log, show_quick_pick_type},
+    vs_code_api::{
+        JsValueExt, debug, execute_async, get_rust_analyzer_check_targets, host_platform, log,
+        show_quick_pick_type, update_rust_analyzer_check_targets,
+    },
 };
 
 trait IntoMessage {
@@ -83,9 +86,9 @@ impl Ui {
                 done(async move { select_platform_target(current.clone()).await })
             }
             Command::InstallPlatformTarget => Task::future(install_platform_target()).discard(),
-            Command::SetRustAnalyzerCheckTargets => Task::done(set_rust_analyzer_check_targets())
-                .and_then(Task::done)
-                .map(IntoMessage::into_cargo_msg),
+            Command::SetRustAnalyzerCheckTargets => {
+                Task::future(set_rust_analyzer_check_targets()).discard()
+            }
             Command::BuildDocs => self.cmd_exec(CargoCommand::Doc),
             Command::SelectFeatures => {
                 let input = self.data.feature_options();
@@ -439,13 +442,13 @@ fn done(fut: impl Future<Output = Option<impl IntoMessage + 'static>> + 'static)
 }
 
 async fn select_platform_target(current: Option<String>) -> Option<impl IntoMessage> {
-    let options = match platform_targets().await {
-        Some(targets) => targets.into_iter().filter_map(|t| {
-            (t.ends_with("(installed)"))
-                .then_some(Some(t.trim_end_matches("(installed)").trim().to_string()))
-        }),
-        None => return None,
-    };
+    let options = platform_targets().await.map(|targets| {
+        targets
+            .into_iter()
+            .filter(|t| t.ends_with("(installed)"))
+            .map(|t| t.trim_end_matches("(installed)").trim().to_string())
+            .map(Some)
+    })?;
 
     let input = {
         SelectInput {
@@ -486,10 +489,22 @@ async fn install_platform_target() {
     .await
 }
 
-fn set_rust_analyzer_check_targets() -> Option<impl IntoMessage> {
-    // TODO
-    log("'Set rust-analyzer check targets' not yet implemented");
-    Option::<ConfigUpdate>::None
+async fn set_rust_analyzer_check_targets() {
+    let current = get_rust_analyzer_check_targets();
+    let options = match platform_targets().await {
+        Some(targets) => targets
+            .into_iter()
+            .filter(|t| t.ends_with("(installed)"))
+            .map(|t| t.trim_end_matches("(installed)").trim().to_string())
+            .collect(),
+        None => return,
+    };
+
+    let input = SelectInput { options, current };
+
+    if let Some(targets) = input.select_multiple(|_| {}).await {
+        update_rust_analyzer_check_targets(targets).await;
+    }
 }
 
 async fn platform_targets() -> Option<Vec<String>> {

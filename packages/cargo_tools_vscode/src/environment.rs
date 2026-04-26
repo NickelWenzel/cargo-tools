@@ -1,8 +1,8 @@
 use cargo_tools::environment::Environment;
 use serde::{Serialize, de::DeserializeOwned};
-use serde_json::to_string;
-use serde_wasm_bindgen::from_value;
+use serde_wasm_bindgen::{from_value, to_value};
 use std::collections::HashMap;
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::vs_code_api;
 
@@ -29,10 +29,51 @@ pub fn environment(ctx: TaskContext) -> Environment {
     }
 }
 
-fn get<T: Serialize + DeserializeOwned>(section: &str, key: &str, default: T) -> T {
-    let default_value = to_string(&default).unwrap_or_default();
-    let result = vs_code_api::get_config(section, key, &default_value);
+fn get<T: Serialize + DeserializeOwned + ToConfigValueType>(
+    section: &str,
+    key: &str,
+    default: T,
+) -> T {
+    let value_type = T::to_config_value_type() as u32;
+    let default_value = to_value(&default).unwrap_or(JsValue::NULL);
+    let result = vs_code_api::get_config(section, key, value_type, default_value);
     from_value(result).unwrap_or(default)
+}
+
+#[wasm_bindgen]
+pub enum ConfigValueType {
+    Boolean,
+    String,
+    VecString,
+    HashMapString,
+}
+
+trait ToConfigValueType {
+    fn to_config_value_type() -> ConfigValueType;
+}
+
+impl ToConfigValueType for bool {
+    fn to_config_value_type() -> ConfigValueType {
+        ConfigValueType::Boolean
+    }
+}
+
+impl ToConfigValueType for String {
+    fn to_config_value_type() -> ConfigValueType {
+        ConfigValueType::String
+    }
+}
+
+impl ToConfigValueType for Vec<String> {
+    fn to_config_value_type() -> ConfigValueType {
+        ConfigValueType::VecString
+    }
+}
+
+impl ToConfigValueType for HashMap<String, String> {
+    fn to_config_value_type() -> ConfigValueType {
+        ConfigValueType::HashMapString
+    }
 }
 
 fn use_rust_analyzer_env_and_args() -> bool {

@@ -14,7 +14,7 @@ test-rust-project/target/
 src/wasm/**/*
 
 # IDE and editor files
-.vscode/settings.json
+**/.vscode/settings.json
 .idea/
 *.swp
 *.swo

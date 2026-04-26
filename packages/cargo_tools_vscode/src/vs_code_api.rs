@@ -123,8 +123,23 @@ extern "C" {
     /// # Parameters
     /// - `section`: The configuration section (e.g., "cargoTools")
     /// - `key`: The configuration key within the section
+    /// - `config_value_type`: The type of the value retrieved
     /// - `default_value`: The default value to return if the key is not found
-    pub fn get_config(section: &str, key: &str, default_value: &str) -> JsValue;
+    pub fn get_config(
+        section: &str,
+        key: &str,
+        config_value_type: u32,
+        default_value: JsValue,
+    ) -> JsValue;
+
+    /// Get rust analyzer check targets from VS Code settings.
+    pub fn get_rust_analyzer_check_targets() -> Vec<String>;
+
+    /// Get a configuration value from VS Code settings.
+    ///
+    /// # Parameters
+    /// - `targets`: The new rust analyzer check targets
+    pub async fn update_rust_analyzer_check_targets(targets: Vec<String>);
 }
 
 #[wasm_bindgen(raw_module = "../window.ts")]

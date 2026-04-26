@@ -1,4 +1,3 @@
-* rust-analyzer check targets
 * fix tests
 * run test under wasm32
 * proper vscode logging
