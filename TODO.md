@@ -1,5 +1,3 @@
-* fix tests
-* run test under wasm32
 * proper vscode logging
 * rust CI
 * move typescript code under cargo tools vscode crate

@@ -10,3 +10,5 @@ pub mod quick_pick;
 pub mod runtime;
 #[cfg(target_arch = "wasm32")]
 pub mod vs_code_api;
+
+pub mod commands;

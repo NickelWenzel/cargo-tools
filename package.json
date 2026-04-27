@@ -350,22 +350,10 @@
         "icon": "$(edit)"
       },
       {
-        "command": "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
-        "title": "Clear Member Filter",
-        "category": "Cargo Tools",
-        "icon": "$(clear-all)"
-      },
-      {
         "command": "cargo-tools.projectOutline.showTargetTypeFilter",
         "title": "Filter Target Types",
         "category": "Cargo Tools",
         "icon": "$(symbol-class)"
-      },
-      {
-        "command": "cargo-tools.projectOutline.clearTargetTypeFilter",
-        "title": "Clear Type Filter",
-        "category": "Cargo Tools",
-        "icon": "$(clear-all)"
       },
       {
         "command": "cargo-tools.projectOutline.clearAllFilters",
@@ -660,19 +648,9 @@
           "group": "inline"
         },
         {
-          "command": "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
-          "when": "view == cargoToolsProjectOutline && viewItem == memberFilter",
-          "group": "modify@1"
-        },
-        {
           "command": "cargo-tools.projectOutline.showTargetTypeFilter",
           "when": "view == cargoToolsProjectOutline && viewItem == typeFilter",
           "group": "inline"
-        },
-        {
-          "command": "cargo-tools.projectOutline.clearTargetTypeFilter",
-          "when": "view == cargoToolsProjectOutline && viewItem == typeFilter",
-          "group": "modify@1"
         },
         {
           "command": "cargo-tools.projectOutline.clearAllFilters",
@@ -762,15 +740,7 @@
           "when": "never"
         },
         {
-          "command": "cargo-tools.projectOutline.clearWorkspaceMemberFilter",
-          "when": "never"
-        },
-        {
           "command": "cargo-tools.projectOutline.showTargetTypeFilter",
-          "when": "never"
-        },
-        {
-          "command": "cargo-tools.projectOutline.clearTargetTypeFilter",
           "when": "never"
         },
         {

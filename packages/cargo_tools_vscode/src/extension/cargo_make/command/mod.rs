@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
+    commands::cargo_make::*,
     extension::{TaskMap, VsCodeTask, register_tasks},
     vs_code_api::{log, try_get_task_label},
 };
@@ -25,52 +26,52 @@ pub enum Command {
 }
 
 impl Command {
-    pub const fn all() -> [(&'static str, CargoMakeCmdFn); 14] {
+    pub const fn all() -> [(&'static str, CargoMakeCmdFn); NUMBER_CMDS] {
         [
-            ("cargo-tools.makefile.runTask", |arg| {
+            (CARGO_TOOLS_MAKEFILE_RUNTASK, |arg| {
                 try_get_task_label(arg).map(Self::RunTask)
             }),
-            ("cargo-tools.makefile.selectAndRunTask", |_| {
+            (CARGO_TOOLS_MAKEFILE_SELECTANDRUNTASK, |_| {
                 Some(Self::SelectAndRunTask)
             }),
-            ("cargo-tools.makefile.selectTaskFilter", |_| {
+            (CARGO_TOOLS_MAKEFILE_SELECTTASKFILTER, |_| {
                 Some(Self::SelectTaskFilter)
             }),
-            ("cargo-tools.makefile.selectCategoryFilter", |_| {
+            (CARGO_TOOLS_MAKEFILE_SELECTCATEGORYFILTER, |_| {
                 Some(Self::SelectCategoryFilter)
             }),
-            ("cargo-tools.makefile.clearAllFilters", |_| {
+            (CARGO_TOOLS_MAKEFILE_CLEARALLFILTERS, |_| {
                 Some(Self::ClearAllFilters)
             }),
-            ("cargo-tools.makefile.pinTask", |arg| {
+            (CARGO_TOOLS_MAKEFILE_PINTASK, |arg| {
                 try_get_task_label(arg).map(Self::PinTask)
             }),
-            ("cargo-tools.pinnedMakefileTasks.add", |_| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_ADD, |_| {
                 Some(Self::Pinned(Pinned::Add))
             }),
-            ("cargo-tools.pinnedMakefileTasks.remove", |arg| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_REMOVE, |arg| {
                 try_get_task_label(arg)
                     .map(Pinned::Remove)
                     .map(Self::Pinned)
             }),
-            ("cargo-tools.pinnedMakefileTasks.execute", |arg| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE, |arg| {
                 try_get_task_label(arg)
                     .map(Pinned::Execute)
                     .map(Self::Pinned)
             }),
-            ("cargo-tools.pinnedMakefileTasks.execute1", |_| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE1, |_| {
                 Some(Self::Pinned(Pinned::Execute1))
             }),
-            ("cargo-tools.pinnedMakefileTasks.execute2", |_| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE2, |_| {
                 Some(Self::Pinned(Pinned::Execute2))
             }),
-            ("cargo-tools.pinnedMakefileTasks.execute3", |_| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE3, |_| {
                 Some(Self::Pinned(Pinned::Execute3))
             }),
-            ("cargo-tools.pinnedMakefileTasks.execute4", |_| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE4, |_| {
                 Some(Self::Pinned(Pinned::Execute4))
             }),
-            ("cargo-tools.pinnedMakefileTasks.execute5", |_| {
+            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE5, |_| {
                 Some(Self::Pinned(Pinned::Execute5))
             }),
         ]

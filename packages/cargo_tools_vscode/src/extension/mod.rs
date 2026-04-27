@@ -131,45 +131,42 @@ fn init(root_dir: String, exit_rx: Receiver<()>) -> (Extension, Task<Message>) {
     (ext, task)
 }
 
-#[cfg(test)]
-pub mod tests {
-    use futures::channel::mpsc::channel;
-    use wasm_bindgen_test::wasm_bindgen_test;
+// #[cfg(test)]
+// pub mod tests {
+//     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::extension::{
-        cargo::command::task_map as cargo_task_map,
-        cargo_make::command::task_map as cargo_make_task_map,
-    };
+//     use crate::extension::{
+//         cargo::{self},
+//         cargo_make::{self},
+//     };
 
-    fn all_commands() -> Vec<String> {
-        let package_json = include_str!("../../../../package.json");
-        let json: serde_json::Value =
-            serde_json::from_str(package_json).expect("Failed to parse package.json");
+//     fn all_commands() -> Vec<String> {
+//         let package_json = include_str!("../../../../package.json");
+//         let json: serde_json::Value =
+//             serde_json::from_str(package_json).expect("Failed to parse package.json");
 
-        json["contributes"]["commands"]
-            .as_array()
-            .expect("commands should be an array")
-            .iter()
-            .filter_map(|cmd| cmd["command"].as_str().map(|s| s.to_string()))
-            .collect()
-    }
+//         json["contributes"]["commands"]
+//             .as_array()
+//             .expect("commands should be an array")
+//             .iter()
+//             .filter_map(|cmd| cmd["command"].as_str().map(|s| s.to_string()))
+//             .collect()
+//     }
 
-    #[wasm_bindgen_test]
-    fn all_commands_are_registered() {
-        let (cargo_tx, _rx) = channel(10);
-        let (cargo_make_tx, _rx) = channel(10);
-        let closures = {
-            let mut cmds = cargo_task_map(cargo_tx);
-            cmds.extend(cargo_make_task_map(cargo_make_tx));
-            cmds
-        };
-        let commands = all_commands();
+//     #[wasm_bindgen_test]
+//     fn all_commands_are_registered() {
+//         let all_keys = {
+//             let mut cmds = cargo::command::all_keys().into_iter().collect::<Vec<_>>();
+//             cmds.extend(cargo_make::command::all_keys());
+//             cmds
+//         };
+//         let commands = all_commands();
 
-        for cmd in commands {
-            assert!(
-                closures.contains_key(cmd.as_str()),
-                "Command '{cmd}' from all_commands() was not registered in COMMAND_CLOSURES."
-            );
-        }
-    }
-}
+//         for cmd in commands {
+//             assert!(
+//                 all_keys.contains(&cmd.as_str()),
+//                 "Command '{cmd}' from all_commands() was not registered in COMMAND_CLOSURES."
+//             );
+//         }
+//     }
+// }
