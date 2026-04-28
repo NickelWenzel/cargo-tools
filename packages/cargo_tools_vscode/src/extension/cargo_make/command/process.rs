@@ -16,7 +16,7 @@ use crate::{
     },
     quick_pick::{SelectInput, ToQuickPickItem},
     runtime::exec_task_vs_code,
-    vs_code_api::{log, show_quick_pick_type, showInformationMessage},
+    vs_code_api::{log_error, log_info, show_quick_pick_type, showInformationMessage},
 };
 
 trait IntoCargoMakeMessage {
@@ -129,9 +129,9 @@ impl Ui {
             let filter_update = Closure::new(move |filter: String| {
                 let mut tx = cmd_tx.clone();
                 spawn_local(async move {
-                    log(&format!("Sending cargo make task filter '{filter}'"));
+                    log_info(&format!("Sending cargo make task filter '{filter}'"));
                     if let Err(e) = tx.send(Command::EditTaskFilter(filter)).await {
-                        log(&format!("Failed to queue msg: {}", e));
+                        log_error(&format!("Failed to queue msg: {}", e));
                     }
                 });
             });
@@ -170,7 +170,7 @@ impl Ui {
         let cmd_tx = self.cmd_tx.clone();
         let categories_filter_update = categories.clone();
         let filter_update = move |selected: Vec<String>| {
-            log(&format!(
+            log_info(&format!(
                 "Received category filter update from quickpick'{selected:?}'"
             ));
             let mut tx = cmd_tx.clone();
@@ -181,11 +181,11 @@ impl Ui {
                     .filter(|category| !selected.contains(category))
                     .cloned()
                     .collect();
-                log(&format!(
+                log_info(&format!(
                     "Sending cargo make category filter '{selected:?}'"
                 ));
                 if let Err(e) = tx.send(Command::EditCategoryFilter(selected)).await {
-                    log(&format!("Failed to queue msg: {}", e));
+                    log_error(&format!("Failed to queue msg: {}", e));
                 }
             });
         };

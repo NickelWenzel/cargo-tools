@@ -4,7 +4,7 @@ use wasm_bindgen_futures::spawn_local;
 
 use crate::{
     extension::{OnFileChanged, VsCodeTask},
-    vs_code_api::{TsFileWatcher, log},
+    vs_code_api::{TsFileWatcher, log_error},
 };
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub fn send_file_changed(tx: Sender<()>) -> OnFileChanged {
         let tx = tx.clone();
         spawn_local(async move {
             if let Err(e) = tx.clone().send(()).await {
-                log(&format!("Failed to notify about file change: {e}",))
+                log_error(&format!("Failed to notify about file change: {e}",))
             }
         })
     })

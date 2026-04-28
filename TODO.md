@@ -1,4 +1,3 @@
-* proper vscode logging
 * rust CI
 * move typescript code under cargo tools vscode crate
 * polish and release rust re-write

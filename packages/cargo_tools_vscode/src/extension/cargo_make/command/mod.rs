@@ -7,7 +7,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 use crate::{
     commands::cargo_make::*,
     extension::{TaskMap, VsCodeTask, register_tasks},
-    vs_code_api::{log, try_get_task_label},
+    vs_code_api::{log_error, log_info, try_get_task_label},
 };
 
 pub mod process;
@@ -107,12 +107,12 @@ fn create_vs_code_command(
         let tx = tx.clone();
         spawn_local(async move {
             let Some(cmd) = cargo_cmd_fn(args) else {
-                log("Failed to extract cargo make command");
+                log_error("Failed to extract cargo make command");
                 return;
             };
-            log(&format!("Sending VS Code cargo make command '{cmd:?}'"));
+            log_info(&format!("Sending VS Code cargo make command '{cmd:?}'"));
             if let Err(e) = tx.clone().send(cmd).await {
-                log(&format!("Failed to queue msg: {}", e));
+                log_error(&format!("Failed to queue msg: {}", e));
             }
         });
     });

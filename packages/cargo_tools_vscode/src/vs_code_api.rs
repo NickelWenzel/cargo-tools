@@ -60,6 +60,26 @@ extern "C" {
     pub async fn debug(target_exe_path: &str, target_name: &str) -> Result<JsValue, JsValue>;
 
     pub fn host_platform() -> String;
+
+    pub fn log_debug(msg: &str);
+    pub fn log_info(msg: &str);
+    pub fn log_warn(msg: &str);
+    pub fn log_error(msg: &str);
+
+    /// Get a state value from VS Code workspace state storage.
+    #[wasm_bindgen(catch)]
+    pub fn register_command(
+        command: &str,
+        callback: &Closure<dyn FnMut(Array)>,
+    ) -> Result<(), JsValue>;
+
+    /// Get a state value from VS Code workspace state storage.
+    #[wasm_bindgen(catch)]
+    pub fn get_state(key: &str) -> Result<String, JsValue>;
+
+    /// Set a state value in VS Code workspace state storage.
+    #[wasm_bindgen(catch)]
+    pub async fn set_state(key: &str, value: String) -> Result<(), JsValue>;
 }
 
 pub struct TsFileWatcher {
@@ -90,30 +110,6 @@ impl Debug for TsFileWatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("TsFileWatcher").finish()
     }
-}
-
-#[wasm_bindgen(raw_module = "../command.ts")]
-extern "C" {
-    /// Get a state value from VS Code workspace state storage.
-    #[wasm_bindgen(catch)]
-    pub fn register_command(
-        command: &str,
-        callback: &Closure<dyn FnMut(Array)>,
-    ) -> Result<(), JsValue>;
-
-    /// Set a state value in VS Code workspace state storage.
-    pub fn dispose_commands();
-}
-
-#[wasm_bindgen(raw_module = "../context.ts")]
-extern "C" {
-    /// Get a state value from VS Code workspace state storage.
-    #[wasm_bindgen(catch)]
-    pub fn get_state(key: &str) -> Result<String, JsValue>;
-
-    /// Set a state value in VS Code workspace state storage.
-    #[wasm_bindgen(catch)]
-    pub async fn set_state(key: &str, value: String) -> Result<(), JsValue>;
 }
 
 #[wasm_bindgen(raw_module = "../configuration.ts")]
@@ -314,12 +310,6 @@ impl Debug for CargoOutlineTreeProvider {
     }
 }
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn log(s: &str);
-}
-
 pub async fn set_cargo_context(has_cargo: bool) {
     let res = executeCommand(
         "setContext",
@@ -330,7 +320,7 @@ pub async fn set_cargo_context(has_cargo: bool) {
     )
     .await;
     if let Err(e) = res {
-        log(&e.to_error_string());
+        log_error(&e.to_error_string());
     }
 }
 
@@ -344,7 +334,7 @@ pub async fn set_makefile_context(has_makefile: bool) {
     )
     .await;
     if let Err(e) = res {
-        log(&e.to_error_string());
+        log_error(&e.to_error_string());
     }
 }
 

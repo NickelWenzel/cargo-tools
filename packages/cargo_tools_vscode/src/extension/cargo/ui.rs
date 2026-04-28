@@ -20,7 +20,7 @@ use crate::{
         Icon, LIB_TARGET, PACKAGE, PLATFORM_CONFIG, PROFILE_CONFIG, PROJECT, RUN_ACTION,
         SELECTED_STATE, TARGET_CONFIG, UNSELECTED_STATE,
     },
-    vs_code_api::{CargoNode, CargoOutlineNode, log},
+    vs_code_api::{CargoNode, CargoOutlineNode, log_error},
 };
 
 const PACKAGE_CTX: &str = "packageSelection";
@@ -315,7 +315,7 @@ impl CargoConfigurationTreeProviderHandler {
         let request = ConfigUiRequest { tx, node_type };
 
         if let Err(e) = self.tx.clone().send(request).await {
-            log(&format!("Failed to send UiConfigUpdate: {e}"));
+            log_error(&format!("Failed to send UiConfigUpdate: {e}"));
         }
 
         rx.next()
@@ -1054,7 +1054,7 @@ impl CargoOutlineTreeProviderHandler {
         let update = OutlineUiRequest { tx, node_type };
 
         if let Err(e) = self.tx.clone().send(update).await {
-            log(&format!("Failed to send UiConfigUpdate: {e}"));
+            log_error(&format!("Failed to send UiConfigUpdate: {e}"));
         }
 
         rx.next()

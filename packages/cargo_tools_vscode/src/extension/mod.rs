@@ -13,8 +13,8 @@ use wasm_bindgen::prelude::{Closure, wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
-    runtime::{CHANNEL_CAPACITY, log_vs_code},
-    vs_code_api::{log, register_command},
+    runtime::CHANNEL_CAPACITY,
+    vs_code_api::{log_error, log_info, register_command},
 };
 
 pub type VsCodeTask = Closure<dyn FnMut(Array)>;
@@ -25,11 +25,9 @@ pub type OnFileChanged = Closure<dyn FnMut()>;
 pub fn register_tasks(cmds: TaskMap) -> Vec<VsCodeTask> {
     cmds.into_iter()
         .map(|(command_id, cmd)| {
+            log_info(&format!("Register task '{command_id}'"));
             if let Err(e) = register_command(command_id, &cmd) {
-                log(&format!(
-                    "Failed to register task '{}': {:?}",
-                    command_id, e
-                ));
+                log_error(&format!("Failed to register task '{command_id}': {e:?}"));
             };
             cmd
         })
@@ -44,7 +42,7 @@ impl ExitToken {
     #[wasm_bindgen]
     pub async fn exit(&mut self) {
         if let Err(e) = self.0.send(()).await {
-            log(&format!(
+            log_error(&format!(
                 "Failed to signal exit to Cargo Tools extension: {e:?}"
             ));
         }
@@ -66,7 +64,7 @@ struct Extension {
 
 impl Extension {
     fn update(&mut self, msg: Message) -> Task<Message> {
-        log_vs_code(format!("Cargo tools extension received message:\n{msg:?}"));
+        log_info(&format!("Cargo tools extension received message:\n{msg:?}"));
         match msg {
             Message::Cargo(msg) => self.cargo.update(msg).map(Message::Cargo),
             Message::CargoMake(msg) => self.cargo_make.update(msg).map(Message::CargoMake),
@@ -79,11 +77,11 @@ impl Extension {
 
     fn exit(&self) -> Subscription<Exit> {
         if self.exit {
-            log("Signal to exit Cargo Tools extension");
+            log_info("Signal to exit Cargo Tools extension");
             Subscription::run(|| {
                 stream::channel(1, |mut tx: Sender<Exit>| async move {
                     if let Err(e) = tx.send(Exit).await {
-                        log(&format!("Signal to exit Cargo Tools extension: {e}"));
+                        log_error(&format!("Signal to exit Cargo Tools extension: {e}"));
                     };
                 })
             })
@@ -102,7 +100,7 @@ pub fn run(workspace_root: String) -> ExitToken {
             .run_with(|| init(workspace_root, exit_rx))
             .await
         {
-            log(&format!("Error in Cargo Tools extension: {e}"));
+            log_error(&format!("Error in Cargo Tools extension: {e}"));
         }
     });
 
@@ -110,7 +108,7 @@ pub fn run(workspace_root: String) -> ExitToken {
 }
 
 fn init(root_dir: String, exit_rx: Receiver<()>) -> (Extension, Task<Message>) {
-    log("Initializing Cargo tools");
+    log_info("Initializing Cargo tools");
 
     let (cargo, cargo_task) = cargo::Ui::new(root_dir.clone());
     let (cargo_make, cargo_make_task) = cargo_make::Ui::new(root_dir.clone());
@@ -127,46 +125,6 @@ fn init(root_dir: String, exit_rx: Receiver<()>) -> (Extension, Task<Message>) {
         Task::stream(exit_rx).map(|()| Message::Exit),
     ]);
 
-    log("Finished initializing Cargo tools");
+    log_info("Finished initializing Cargo tools");
     (ext, task)
 }
-
-// #[cfg(test)]
-// pub mod tests {
-//     use wasm_bindgen_test::wasm_bindgen_test;
-
-//     use crate::extension::{
-//         cargo::{self},
-//         cargo_make::{self},
-//     };
-
-//     fn all_commands() -> Vec<String> {
-//         let package_json = include_str!("../../../../package.json");
-//         let json: serde_json::Value =
-//             serde_json::from_str(package_json).expect("Failed to parse package.json");
-
-//         json["contributes"]["commands"]
-//             .as_array()
-//             .expect("commands should be an array")
-//             .iter()
-//             .filter_map(|cmd| cmd["command"].as_str().map(|s| s.to_string()))
-//             .collect()
-//     }
-
-//     #[wasm_bindgen_test]
-//     fn all_commands_are_registered() {
-//         let all_keys = {
-//             let mut cmds = cargo::command::all_keys().into_iter().collect::<Vec<_>>();
-//             cmds.extend(cargo_make::command::all_keys());
-//             cmds
-//         };
-//         let commands = all_commands();
-
-//         for cmd in commands {
-//             assert!(
-//                 all_keys.contains(&cmd.as_str()),
-//                 "Command '{cmd}' from all_commands() was not registered in COMMAND_CLOSURES."
-//             );
-//         }
-//     }
-// }

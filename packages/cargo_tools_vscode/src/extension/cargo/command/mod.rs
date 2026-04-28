@@ -16,7 +16,7 @@ use crate::{
         cargo::{TargetTypesFilter, ui::OutlineNodeType},
         register_tasks,
     },
-    vs_code_api::{log, try_get_node_type},
+    vs_code_api::{log_error, log_info, try_get_node_type},
 };
 
 pub mod process;
@@ -279,7 +279,7 @@ fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
     match serde_wasm_bindgen::from_value(array.get(0)) {
         Ok(v) => Some(v),
         Err(e) => {
-            log(&format!("Failed to deserialize update: {e}"));
+            log_error(&format!("Failed to deserialize update: {e}"));
             None
         }
     }
@@ -292,11 +292,11 @@ fn take_first_two<T: DeserializeOwned, U: DeserializeOwned>(array: Array) -> Opt
     ) {
         (Ok(v_0), Ok(v_1)) => Some((v_0, v_1)),
         (Err(e_0), Err(e_1)) => {
-            log(&format!("Failed to deserialize update: {e_0}, {e_1}"));
+            log_error(&format!("Failed to deserialize update: {e_0}, {e_1}"));
             None
         }
         (Err(e), _) | (_, Err(e)) => {
-            log(&format!("Failed to deserialize update: {e}"));
+            log_error(&format!("Failed to deserialize update: {e}"));
             None
         }
     }
@@ -317,12 +317,12 @@ fn create_vs_code_command(
         let tx = tx.clone();
         spawn_local(async move {
             let Some(cmd) = cargo_cmd_fn(args) else {
-                log("Failed to extract cargo command");
+                log_error("Failed to extract cargo command");
                 return;
             };
-            log(&format!("Sending VS Code cargo command '{cmd:?}'"));
+            log_info(&format!("Sending VS Code cargo command '{cmd:?}'"));
             if let Err(e) = tx.clone().send(cmd).await {
-                log(&format!("Failed to queue msg: {}", e));
+                log_error(&format!("Failed to queue msg: {}", e));
             }
         });
     });

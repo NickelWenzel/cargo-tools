@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { extension_context, log } from './extension';
 
 export class FileWatcher {
     private watcher?: vscode.Disposable;
@@ -30,9 +31,7 @@ export class FileWatcher {
         };
 
         this.watcher?.dispose();
-
-        this.watcher = compositeDisposable; const disposable = vscode.workspace.onDidChangeWorkspaceFolders(async () => {
-        });
+        this.watcher = compositeDisposable;
     }
 
     dispose(): void {
@@ -71,4 +70,32 @@ export async function debug(target_exe_path: string, target_name: string): Promi
 
 export function host_platform(): string {
     return process.platform;
+}
+
+export function log_debug(msg: string) {
+    return log.debug(msg);
+}
+
+export function log_info(msg: string) {
+    return log.info(msg);
+}
+
+export function log_warn(msg: string) {
+    return log.warn(msg);
+}
+
+export function log_error(msg: string) {
+    return log.error(msg);
+}
+
+export function register_command(command: string, callback: (args: any[]) => any) {
+    extension_context?.subscriptions.push(vscode.commands.registerCommand(command, (...args: any[]) => { return callback([...args]); }));
+}
+
+export function get_state(key: string): string | undefined {
+    return extension_context?.workspaceState.get(key);
+}
+
+export async function set_state(key: string, value: string): Promise<void> {
+    await extension_context?.workspaceState.update(key, value);
 }

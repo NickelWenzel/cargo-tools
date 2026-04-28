@@ -26,8 +26,8 @@ use crate::{
     quick_pick::{SelectInput, ToQuickPickItem},
     runtime::exec_task_vs_code,
     vs_code_api::{
-        JsValueExt, debug, execute_async, get_rust_analyzer_check_targets, host_platform, log,
-        show_quick_pick_type, update_rust_analyzer_check_targets,
+        JsValueExt, debug, execute_async, get_rust_analyzer_check_targets, host_platform,
+        log_error, log_info, show_quick_pick_type, update_rust_analyzer_check_targets,
     },
 };
 
@@ -227,7 +227,7 @@ impl Ui {
             exec_task_vs_code(build_debug_task).await;
 
             if let Err(e) = debug(&target_exe_path, &target.package).await {
-                log(&format!("Error while dbugging: {}", e.to_error_string()));
+                log_error(&format!("Error while debugging: {}", e.to_error_string()));
             }
         })
         .discard()
@@ -255,12 +255,12 @@ impl Ui {
             let filter_update = Closure::new(move |filter: String| {
                 let mut tx = cmd_tx.clone();
                 spawn_local(async move {
-                    log(&format!("Sending workspace member filter '{filter}'"));
+                    log_info(&format!("Sending workspace member filter '{filter}'"));
                     if let Err(e) = tx
                         .send(PO::EditWorkspaceMemberFilter(filter).to_cmd())
                         .await
                     {
-                        log(&format!("Failed to queue msg: {}", e));
+                        log_error(&format!("Failed to queue msg: {}", e));
                     }
                 });
             });
@@ -382,7 +382,7 @@ impl Ui {
 
         let cmd_tx = self.cmd_tx.clone();
         let filter_update = move |selected: Vec<String>| {
-            log(&format!(
+            log_info(&format!(
                 "Received category filter update from quickpick'{selected:?}'"
             ));
             let mut tx = cmd_tx.clone();
@@ -402,7 +402,7 @@ impl Ui {
                 }
 
                 if let Err(e) = tx.send(PO::EditTargetTypeFilter(filter).to_cmd()).await {
-                    log(&format!("Failed to queue msg: {}", e));
+                    log_error(&format!("Failed to queue msg: {}", e));
                 }
             });
         };
@@ -514,7 +514,7 @@ async fn platform_targets() -> Option<Vec<String>> {
             .as_string()
             .map(|s| s.lines().map(|l| l.trim().to_string()).collect()),
         Err(e) => {
-            log(&format!(
+            log_error(&format!(
                 "Failed to get platform targets from rustup: {}",
                 e.to_error_string()
             ));
