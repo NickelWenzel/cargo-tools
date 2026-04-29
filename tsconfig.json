@@ -15,8 +15,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
 		"types": [
-			"node",
-			"mocha"
+			"node"
 		]
 		/* enable all strict type-checking options */
 		/* Additional Checks */
