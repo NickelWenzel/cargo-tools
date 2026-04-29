@@ -276,16 +276,11 @@ impl Ui {
 
     fn toggle_feature(&self, feature_type: FeatureTarget, feature: String) -> Task<Message> {
         let selected_features = match &feature_type {
-            FeatureTarget::Package(package) => {
-                let Some(features) = self
-                    .data
-                    .config
-                    .get(package, |s| Some(s.selected_features.clone()))
-                else {
-                    return Task::none();
-                };
-                features
-            }
+            FeatureTarget::Package(package) => self
+                .data
+                .config
+                .get(package, |s| Some(s.selected_features.clone()))
+                .unwrap_or_default(), // get current feature or fall back to empty selection
             FeatureTarget::Workspace => self.data.config.selected_features.clone(),
         };
 

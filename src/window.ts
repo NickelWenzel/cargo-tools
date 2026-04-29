@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { QuickPickItem } from './wasm/cargo_tools_vscode';
-import { log } from 'console';
+import { log } from './extension';
 
 function to_items(items: QuickPickItem[]): vscode.QuickPickItem[] {
     return items.map(item => ({
@@ -12,7 +12,7 @@ function to_items(items: QuickPickItem[]): vscode.QuickPickItem[] {
 }
 
 export async function show_quick_pick(items: QuickPickItem[]): Promise<number | null> {
-    log(`Show quick pick for ${JSON.stringify(items)}`);
+    log.info(`Show quick pick for ${JSON.stringify(items)}`);
     const vsCodeItems = to_items(items);
 
     const selected = await vscode.window.showQuickPick(vsCodeItems, {
