@@ -167,9 +167,11 @@ impl CondensedTarget {
 
 #[cfg(test)]
 mod tests {
+    use wasm_bindgen_test::wasm_bindgen_test;
+
     use super::*;
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn extract_profiles_valid() {
         let toml = r#"
 [workspace]
@@ -198,7 +200,7 @@ opt-level = 2
         assert!(profiles.contains(&Profile::from("release")));
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn extract_profiles_empty() {
         let toml = r#"
 [package]
@@ -210,7 +212,7 @@ version = "0.1.0"
         assert_eq!(profiles.len(), 0);
     }
 
-    #[test]
+    #[wasm_bindgen_test(unsupported = test)]
     fn extract_profiles_invalid_toml() {
         let toml = "not valid toml {{{";
 

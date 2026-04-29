@@ -3,14 +3,53 @@
 //! These tests verify the metadata and makefile task discovery functionality
 //! using the test-rust-project as test data.
 
-use std::process::Command;
-
 use cargo_tools::{
     cargo::metadata::{MetadataUpdate, parse_metadata},
     cargo_make::{MakefileTasksUpdate, parse_tasks},
 };
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
-async fn exec(cmd: String, args: Vec<String>) -> Result<String, String> {
+wasm_bindgen_test_configure!(run_in_node_experimental);
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(module = child_process)]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    fn exec(
+        cmd: String,
+        cb: &Closure<dyn FnMut(JsValue, String, String)>,
+    ) -> Result<JsValue, JsValue>;
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn exec_cmd(cmd: String, args: Vec<String>) -> Result<String, String> {
+    use futures::{SinkExt, StreamExt, channel::mpsc};
+    use itertools::Itertools;
+
+    let cmd = std::iter::once(cmd).chain(args).join(" ");
+    let (tx, mut rx) = mpsc::channel(1);
+    let cb = Closure::new(move |error: JsValue, stdout: String, stderr: String| {
+        let mut tx = tx.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            if error.is_null() && stderr.is_empty() {
+                tx.send(Ok(stdout)).await.expect("Failed to send stdout");
+            } else {
+                tx.send(Err(stderr)).await.expect("Failed to send stderr");
+            }
+        })
+    });
+
+    match exec(cmd, &cb) {
+        Ok(_p) => rx.next().await.expect("Failed to receive stdout"),
+        Err(e) => Err(e.as_string().unwrap_or(format!("{e:?}"))),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn exec_cmd(cmd: String, args: Vec<String>) -> Result<String, String> {
+    use std::process::Command;
     match Command::new(cmd).args(args).output() {
         Ok(output) => match output.status.success() {
             true => Ok(String::from_utf8_lossy(&output.stdout).to_string()),
@@ -21,21 +60,23 @@ async fn exec(cmd: String, args: Vec<String>) -> Result<String, String> {
 }
 
 /// Test successful metadata discovery from test-rust-project.
-#[tokio::test]
+#[wasm_bindgen_test(unsupported = tokio::test)]
 #[tracing_test::traced_test]
 async fn test_update_metadata_success() {
     // Use canonicalized absolute path to avoid working directory issues with cmd_lib
     // Note: parse_metadata expects manifest directory, not the full Cargo.toml path
     let base_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let manifest = base_path
-        .join("../../test-rust-project/Cargo.toml")
-        .canonicalize()
-        .expect("Failed to canonicalize test project path")
+        .parent()
+        .expect("Cargo.toml should have 2 parents")
+        .parent()
+        .expect("Cargo.toml should have 2 parents")
+        .join("test-rust-project/Cargo.toml")
         .to_str()
         .unwrap()
         .to_string();
 
-    let result = parse_metadata(manifest, exec).await;
+    let result = parse_metadata(manifest, exec_cmd).await;
 
     // Verify success variant
     assert!(
@@ -79,7 +120,7 @@ async fn test_update_metadata_success() {
 }
 
 /// Test makefile task discovery - skips if cargo-make not installed.
-#[tokio::test]
+#[wasm_bindgen_test(unsupported = tokio::test)]
 #[tracing_test::traced_test]
 async fn test_update_makefile_tasks_success() {
     // Use compile-time relative path to test data (workspace root)
@@ -89,7 +130,7 @@ async fn test_update_makefile_tasks_success() {
     )
     .to_string();
 
-    let result = parse_tasks(test_project_path, exec).await;
+    let result = parse_tasks(test_project_path, exec_cmd).await;
 
     // The result depends on whether cargo-make is installed
     match result {
@@ -139,12 +180,12 @@ async fn test_update_makefile_tasks_success() {
 }
 
 /// Test metadata discovery with non-existent Cargo.toml.
-#[tokio::test]
+#[wasm_bindgen_test(unsupported = tokio::test)]
 #[tracing_test::traced_test]
 async fn test_update_metadata_no_cargo_toml() {
     let nonexistent_path = "/nonexistent/path/that/does/not/exist".to_string();
 
-    let result = parse_metadata(nonexistent_path, exec).await;
+    let result = parse_metadata(nonexistent_path, exec_cmd).await;
 
     // Verify error variant
     assert!(
@@ -155,14 +196,14 @@ async fn test_update_metadata_no_cargo_toml() {
 }
 
 /// Test makefile task discovery without cargo-make.
-#[tokio::test]
+#[wasm_bindgen_test(unsupported = tokio::test)]
 #[tracing_test::traced_test]
 async fn test_update_makefile_tasks_no_cargo_make() {
     // This test verifies behavior when cargo-make might not be available
     let test_project_path =
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project").to_string();
 
-    let result = parse_tasks(test_project_path, exec).await;
+    let result = parse_tasks(test_project_path, exec_cmd).await;
 
     // The result depends on whether cargo-make is installed
     // All outcomes are valid for this test
@@ -181,14 +222,14 @@ async fn test_update_makefile_tasks_no_cargo_make() {
 
 /// Test makefile task discovery with no Makefile.toml.
 /// Cargo-make provides built-in tasks even without a Makefile.toml.
-#[tokio::test]
+#[wasm_bindgen_test(unsupported = tokio::test)]
 #[tracing_test::traced_test]
 async fn test_update_makefile_tasks_no_makefile() {
     // Use a subdirectory that doesn't have a Makefile.toml
     let path_without_makefile =
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../test-rust-project/core").to_string();
 
-    let result = parse_tasks(path_without_makefile, exec).await;
+    let result = parse_tasks(path_without_makefile, exec_cmd).await;
 
     // When given an invalid makefile path, cargo-make command fails
     // The current implementation returns NoMakefile in this case

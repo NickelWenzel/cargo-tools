@@ -421,12 +421,16 @@ name = "cargo_tools"
 version = "0.2.0"
 dependencies = [
  "cargo_metadata",
+ "futures",
  "itertools",
  "serde",
  "tokio",
  "toml",
  "tracing",
  "tracing-test",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
 ]
 
 [[package]]

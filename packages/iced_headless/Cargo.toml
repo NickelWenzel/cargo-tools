@@ -34,7 +34,7 @@ tracing = { workspace = true }
 tracing-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-iced_headless = { workspace = true, features = ["tokio"] }
+iced_headless = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
 
 [features]
