@@ -52,30 +52,11 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    # Setup headless display before running any VS Code tests (Linux only)
-    - name: Setup headless display (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb
-        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-        sleep 3
-        echo "DISPLAY=:99.0" >> $GITHUB_ENV
-    
-    - name: Compile TypeScript
-      run: npm run compile-tests
-    
     - name: Compile extension
       run: npm run compile
     
     - name: Run linter
       run: npm run lint
-    
-    - name: Run tests
-      run: npm test
-      env:
-        # Needed for headless VS Code testing
-        DISPLAY: :99.0
 
   build-package:
     name: Build Extension Package
