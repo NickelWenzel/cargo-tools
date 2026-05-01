@@ -68,9 +68,15 @@ async fn test_update_metadata_success() {
     let base_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let manifest = base_path
         .parent()
-        .expect("Cargo.toml should have 2 parents")
+        .expect(&format!(
+            "Cargo.toml at {} should have 2 parents",
+            base_path.to_str().unwrap()
+        ))
         .parent()
-        .expect("Cargo.toml should have 2 parents")
+        .expect(&format!(
+            "Cargo.toml at {} should have 2 parents",
+            base_path.to_str().unwrap()
+        ))
         .join("test-rust-project/Cargo.toml")
         .to_str()
         .unwrap()
