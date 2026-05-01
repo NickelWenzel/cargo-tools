@@ -5,13 +5,13 @@ default_to_workspace = false
 
 [tasks.package]
 description = "Package the extension"
-command = "npm"
-args = ["run", "package"]
+command = "npx"
+args = ["npm", "run", "package"]
 
 [tasks.compile]
 description = """Compile the extension"""
-command = "npm"
-args = ["run", "compile"]
+command = "npx"
+args = ["npm", "run", "compile"]
 
 [tasks.lint]
 description = "Lint the codebase"
@@ -24,8 +24,8 @@ args = ["clippy"]
 
 [tasks.lint-npm]
 description = "Lint the codebase"
-command = "npm"
-args = ["run", "lint"]
+command = "npx"
+args = ["npm", "run", "lint"]
 
 [tasks.test]
 description = "Run Rust tests on host os and wasm32"

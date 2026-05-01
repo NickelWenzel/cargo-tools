@@ -60,7 +60,7 @@ jobs:
       run: npm ci
     
     - name: Compile extension
-      run: npm run compile
+      run: cargo make compile
     
     - name: Run linter
       run: cargo make lint
