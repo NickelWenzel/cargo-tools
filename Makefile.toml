@@ -15,10 +15,28 @@ args = ["run", "compile"]
 
 [tasks.lint]
 description = "Lint the codebase"
+dependencies = ["lint-clippy", "lint-npm"]
+
+[tasks.lint-clippy]
+description = "Lint Rust code with clippy"
+command = "cargo"
+args = ["clippy"]
+
+[tasks.lint-npm]
+description = "Lint the codebase"
 command = "npm"
 args = ["run", "lint"]
 
 [tasks.test]
-description = "Run the test suite"
-command = "npm"
-args = ["run", "test"]
+description = "Run Rust tests on host os and wasm32"
+dependencies = ["test-native", "test-wasm32"]
+
+[tasks.test-native]
+description = "Run Rust tests targeting host os"
+command = "cargo"
+args = ["test"]
+
+[tasks.test-wasm32]
+description = "Run Rust tests targeting wasm32"
+command = "cargo"
+args = ["test", "--target", "wasm32-unknown-unknown"]
