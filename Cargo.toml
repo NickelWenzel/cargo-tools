@@ -32,7 +32,10 @@ thiserror = { version = "2.0.17", default-features = false }
 syn = { version = "2.0.111", default-features = false }
 quote = { version = "1.0.42", default-features = false }
 proc-macro2 = { version = "1.0", default-features = false }
-iced = { version = "0.14.0", default-features = false, features = ["x11"] }
+iced = { version = "0.14.0", default-features = false, features = [
+    "x11",
+    "wgpu",
+] }
 iced_futures = { version = "0.14.0" }
 iced_runtime = { version = "0.14.0" }
 tokio = "1.49.0"
