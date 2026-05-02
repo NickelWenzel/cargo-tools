@@ -1,5 +1,6 @@
-use iced::{Subscription, Task, stream};
+use iced_futures::{Subscription, stream};
 use iced_headless::{application, event_loop::Exit, headless::async_application};
+use iced_runtime::Task;
 use log::info;
 use tracing_test::traced_test;
 use wasm_bindgen_test::*;

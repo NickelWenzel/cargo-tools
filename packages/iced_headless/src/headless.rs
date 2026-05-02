@@ -1,9 +1,11 @@
 //! Builder API for creating and running headless applications.
 
+pub use std::convert::Infallible as Never;
+
 use crate::{Result, default};
 use crate::{event_loop::Exit, program::HeadlessProgram};
-use iced::{Task, application::UpdateFn};
 use iced_futures::{Executor, MaybeSend, Subscription};
+use iced_runtime::Task;
 
 /// A builder for headless applications implementing iced's Program trait.
 ///
@@ -371,4 +373,31 @@ where
     Message: Send + std::fmt::Debug + 'static,
 {
     AsyncApplication(application(update)).executor::<default::async_context::Executor>()
+}
+
+/// The update logic of some [`Application`].
+///
+/// This trait allows the [`application`] builder to take any closure that
+/// returns any `Into<Task<Message>>`.
+///
+/// This trait is copied directly from [Iced](https://github.com/iced-rs/iced/blob/0.14/src/application.rs#L598).
+pub trait UpdateFn<State, Message> {
+    /// Processes the message and updates the state of the [`Application`].
+    fn update(&self, state: &mut State, message: Message) -> Task<Message>;
+}
+
+impl<State> UpdateFn<State, Never> for () {
+    fn update(&self, _state: &mut State, _message: Never) -> Task<Never> {
+        Task::none()
+    }
+}
+
+impl<T, State, Message, C> UpdateFn<State, Message> for T
+where
+    T: Fn(&mut State, Message) -> C,
+    C: Into<Task<Message>>,
+{
+    fn update(&self, state: &mut State, message: Message) -> Task<Message> {
+        self(state, message).into()
+    }
 }

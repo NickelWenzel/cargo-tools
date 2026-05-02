@@ -2,9 +2,8 @@
 
 use std::future::Future;
 
-use iced::Task;
 use iced_futures::{Executor, MaybeSend, Runtime, Subscription, subscription};
-use iced_runtime::Action;
+use iced_runtime::{Action, Task};
 
 use crate::{
     Error, Result,
