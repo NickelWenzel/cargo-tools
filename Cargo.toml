@@ -15,10 +15,8 @@ resolver = "2"
 [workspace.dependencies]
 cargo_tools = { path = "packages/cargo_tools" }
 cargo_tools_vscode = { path = "packages/cargo_tools_vscode" }
-iced_headless = { path = "packages/iced_headless", version = "*", default-features = false }
+iced_headless = { path = "packages/iced_headless", default-features = false }
 
-console_log = "1.0.0"
-async-broadcast = "0.7.2"
 futures = "0.3.31"
 cargo_metadata = "0.23.1"
 wasm-bindgen = "0.2.106"
@@ -27,11 +25,7 @@ wasm-bindgen-test = "0.3.56"
 serde = { version = "1.0", default-features = false }
 serde_json = "1.0"
 serde-wasm-bindgen = "0.6.0"
-async-trait = "0.1.89"
 thiserror = { version = "2.0.17", default-features = false }
-syn = { version = "2.0.111", default-features = false }
-quote = { version = "1.0.42", default-features = false }
-proc-macro2 = { version = "1.0", default-features = false }
 iced = { version = "0.14.0", default-features = false, features = [
     "x11",
     "wgpu",
@@ -39,14 +33,11 @@ iced = { version = "0.14.0", default-features = false, features = [
 iced_futures = { version = "0.14.0" }
 iced_runtime = { version = "0.14.0" }
 tokio = "1.49.0"
-tokio-stream = "0.1.17"
 log = "0.4.29"
 tracing = { version = "0.1.43", default-features = false }
 tracing-test = "0.2.5"
-trybuild = "1.0"
 toml = { version = "0.9.8", features = [
     "parse",
     "serde",
 ], default-features = false }
-once_cell = { version = "1.19", default-features = false }
 itertools = "0.14.0"
