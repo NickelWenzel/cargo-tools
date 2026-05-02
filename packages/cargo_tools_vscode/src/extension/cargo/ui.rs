@@ -1,8 +1,8 @@
 use std::{collections::HashMap, iter};
 
 use cargo_tools::cargo::{
+    Config, Features,
     command::{BenchTarget, BuildSubTarget, BuildTarget, RunSubTarget, RunTarget},
-    config::{self},
     metadata::{self, CondensedPackage, CondensedTarget, Target},
 };
 use futures::{
@@ -159,15 +159,11 @@ impl NodeData {
 }
 
 impl NodeType {
-    pub fn children(
-        &self,
-        selection: &config::Config,
-        available_features: &[String],
-    ) -> Vec<NodeData> {
+    pub fn children(&self, config: &Config, available_features: &[String]) -> Vec<NodeData> {
         let default = "Default".to_string();
         match &self.0 {
             NodeTypeInner::Platform => vec![NodeData::leaf(
-                selection.platform_target.clone().unwrap_or(default),
+                config.platform_target.clone().unwrap_or(default),
                 PLATFORM_CONFIG,
                 NodeType::selection(),
                 "Click to select target platform".to_string(),
@@ -175,7 +171,7 @@ impl NodeType {
                 None,
             )],
             NodeTypeInner::BuildConfig => vec![NodeData::leaf(
-                selection
+                config
                     .profile
                     .get_name()
                     .unwrap_or("Default (dev)")
@@ -187,7 +183,7 @@ impl NodeType {
                 None,
             )],
             NodeTypeInner::Package => vec![NodeData::leaf(
-                selection
+                config
                     .selected_package
                     .clone()
                     .unwrap_or("No selection".to_string()),
@@ -221,9 +217,9 @@ impl NodeType {
 
                 vec![build, run, bench]
             }
-            NodeTypeInner::Features => feature_leaves(selection, available_features),
+            NodeTypeInner::Features => feature_leaves(config, available_features),
             NodeTypeInner::BuildTarget => {
-                let build_target = selection
+                let build_target = config
                     .package_selection()
                     .and_then(|p| p.build_target.clone());
                 vec![NodeData::leaf(
@@ -240,7 +236,7 @@ impl NodeType {
                 )]
             }
             NodeTypeInner::RunTarget => {
-                let run_target = selection
+                let run_target = config
                     .package_selection()
                     .and_then(|p| p.run_target.clone());
                 vec![NodeData::leaf(
@@ -257,7 +253,7 @@ impl NodeType {
                 )]
             }
             NodeTypeInner::BenchTarget => vec![NodeData::leaf(
-                selection
+                config
                     .package_selection()
                     .and_then(|p| p.benchmark_target.clone())
                     .unwrap_or(default),
@@ -333,13 +329,13 @@ impl CargoConfigurationTreeProviderHandler {
     }
 }
 
-fn feature_leaves(selection: &config::Config, available_features: &[String]) -> Vec<NodeData> {
+fn feature_leaves(config: &Config, available_features: &[String]) -> Vec<NodeData> {
     available_features
         .iter()
         .map(|feat| {
-            let selected = match selection.selected_features() {
-                config::Features::All => feat == "All features",
-                config::Features::Some(selected) => selected.contains(feat),
+            let selected = match config.selected_features() {
+                Features::All => feat == "All features",
+                Features::Some(selected) => selected.contains(feat),
             };
             let icon = if selected {
                 SELECTED_STATE
@@ -387,24 +383,24 @@ impl OutlineNodeType {
 impl OutlineNodeType {
     pub fn children(
         &self,
-        selection: &config::Config,
+        config: &Config,
         packages: &[CondensedPackage],
         grouping: Grouping,
     ) -> Vec<OutlineNodeData> {
         use OutlineNodeTypeInner::*;
         match &self.0 {
-            Root => OutlineNodeData::root_children(selection, packages, grouping),
-            RootFeatures => OutlineNodeData::root_features_children(selection, packages),
+            Root => OutlineNodeData::root_children(config, packages, grouping),
+            RootFeatures => OutlineNodeData::root_features_children(config, packages),
             Package { name } => try_package(name, packages)
-                .map(|p| OutlineNodeData::package_children(selection, p))
+                .map(|p| OutlineNodeData::package_children(config, p))
                 .unwrap_or_default(),
             PackageFeatures { package } => try_package(package, packages)
-                .map(|p| OutlineNodeData::package_features_children(selection, p))
+                .map(|p| OutlineNodeData::package_features_children(config, p))
                 .unwrap_or_default(),
-            Libraries => OutlineNodeData::targets_children(Target::Lib, selection, packages),
-            Binaries => OutlineNodeData::targets_children(Target::Bin, selection, packages),
-            Examples => OutlineNodeData::targets_children(Target::Example, selection, packages),
-            Benchmarks => OutlineNodeData::targets_children(Target::Bench, selection, packages),
+            Libraries => OutlineNodeData::targets_children(Target::Lib, config, packages),
+            Binaries => OutlineNodeData::targets_children(Target::Bin, config, packages),
+            Examples => OutlineNodeData::targets_children(Target::Example, config, packages),
+            Benchmarks => OutlineNodeData::targets_children(Target::Bench, config, packages),
             // All others never have further child nodes
             RootFeature(_) => Vec::new(),
             Feature { .. } => Vec::new(),
@@ -555,12 +551,12 @@ impl OutlineNodeData {
     }
 
     fn root_children(
-        selection: &config::Config,
+        config: &Config,
         packages: &[CondensedPackage],
         grouping: Grouping,
     ) -> Vec<Self> {
         match grouping {
-            Grouping::Packages => OutlineNodeData::packages_root_children(selection, packages),
+            Grouping::Packages => OutlineNodeData::packages_root_children(config, packages),
             Grouping::TargetTypes => {
                 OutlineNodeData::target_types_root_children(metadata::Target::counts(packages))
             }
@@ -596,7 +592,7 @@ impl OutlineNodeData {
 
     fn targets_children(
         target: Target,
-        selection: &config::Config,
+        config: &Config,
         packages: &[CondensedPackage],
     ) -> Vec<Self> {
         packages
@@ -605,30 +601,26 @@ impl OutlineNodeData {
                 pkg.targets
                     .iter()
                     .filter(|t| t.target_type == target)
-                    .map(|t| Self::target_leaf(target, selection, pkg.name.to_string(), t))
+                    .map(|t| Self::target_leaf(target, config, pkg.name.to_string(), t))
             })
             .collect()
     }
 
     fn target_leaf(
         target_type: Target,
-        selection: &config::Config,
+        config: &Config,
         package: String,
         target: &CondensedTarget,
     ) -> Self {
         match target_type {
-            Target::Lib => Self::lib_target_leaf(selection, package, target),
-            Target::Bin => Self::bin_target_leaf(selection, package, target),
-            Target::Example => Self::example_target_leaf(selection, package, target),
-            Target::Bench => Self::bench_target_leaf(selection, package, target),
+            Target::Lib => Self::lib_target_leaf(config, package, target),
+            Target::Bin => Self::bin_target_leaf(config, package, target),
+            Target::Example => Self::example_target_leaf(config, package, target),
+            Target::Bench => Self::bench_target_leaf(config, package, target),
         }
     }
 
-    fn lib_target_leaf(
-        selection: &config::Config,
-        package: String,
-        target: &CondensedTarget,
-    ) -> Self {
+    fn lib_target_leaf(config: &Config, package: String, target: &CondensedTarget) -> Self {
         let description = target
             .original_types
             .iter()
@@ -638,8 +630,8 @@ impl OutlineNodeData {
         let mut label = target.name.to_string();
         let mut context = vec!["cargoTarget", "isLibrary", "supportsBuild"];
 
-        if selection.selected_package.as_ref() == Some(&package) {
-            if let Some(selected_package) = selection.package_selection() {
+        if config.selected_package.as_ref() == Some(&package) {
+            if let Some(selected_package) = config.package_selection() {
                 let target_name = target.name.as_str();
                 if selected_package.build_target_matches(Target::Lib, target_name) {
                     label.push_str(" 🔨");
@@ -667,11 +659,7 @@ impl OutlineNodeData {
         )
     }
 
-    fn bin_target_leaf(
-        selection: &config::Config,
-        package: String,
-        target: &CondensedTarget,
-    ) -> Self {
+    fn bin_target_leaf(config: &Config, package: String, target: &CondensedTarget) -> Self {
         let mut label = target.name.to_string();
         let mut context = vec![
             "cargoTarget",
@@ -681,8 +669,8 @@ impl OutlineNodeData {
             "supportsDebug",
         ];
 
-        if selection.selected_package.as_ref() == Some(&package) {
-            if let Some(selected_package) = selection.package_selection() {
+        if config.selected_package.as_ref() == Some(&package) {
+            if let Some(selected_package) = config.package_selection() {
                 let target_name = target.name.as_str();
                 if selected_package.build_target_matches(Target::Bin, target_name) {
                     label.push_str(" 🔨");
@@ -717,11 +705,7 @@ impl OutlineNodeData {
         )
     }
 
-    fn example_target_leaf(
-        selection: &config::Config,
-        package: String,
-        target: &CondensedTarget,
-    ) -> Self {
+    fn example_target_leaf(config: &Config, package: String, target: &CondensedTarget) -> Self {
         let mut label = target.name.to_string();
         let mut context = vec![
             "cargoTarget",
@@ -732,9 +716,9 @@ impl OutlineNodeData {
             "supportsDebug",
         ];
 
-        if selection.selected_package.as_ref() == Some(&package) {
+        if config.selected_package.as_ref() == Some(&package) {
             let target_name = target.name.as_str();
-            if let Some(selected_package) = selection.package_selection() {
+            if let Some(selected_package) = config.package_selection() {
                 if selected_package.build_target_matches(Target::Example, target_name) {
                     label.push_str(" 🔨");
                     context.push("isSelectedBuildTarget");
@@ -768,16 +752,12 @@ impl OutlineNodeData {
         )
     }
 
-    fn bench_target_leaf(
-        selection: &config::Config,
-        package: String,
-        target: &CondensedTarget,
-    ) -> Self {
+    fn bench_target_leaf(config: &Config, package: String, target: &CondensedTarget) -> Self {
         let mut label = target.name.to_string();
         let mut context = vec!["cargoTarget", "isBench", "supportsBuild", "supportsBench"];
 
-        if selection.selected_package.as_ref() == Some(&package) {
-            if let Some(selected_package) = selection.package_selection() {
+        if config.selected_package.as_ref() == Some(&package) {
+            if let Some(selected_package) = config.package_selection() {
                 let target_name = target.name.as_str();
                 if selected_package.build_target_matches(Target::Bench, target_name) {
                     label.push_str(" 🔨");
@@ -877,10 +857,7 @@ impl OutlineNodeData {
         }
     }
 
-    fn packages_root_children(
-        selection: &config::Config,
-        packages: &[CondensedPackage],
-    ) -> Vec<Self> {
+    fn packages_root_children(config: &Config, packages: &[CondensedPackage]) -> Vec<Self> {
         let root_features = Self {
             label: "Features".to_string(),
             icon: FEATURES_CONFIG,
@@ -895,7 +872,7 @@ impl OutlineNodeData {
 
         let packages = packages
             .iter()
-            .map(|p| Self::package(selection.selected_package.as_deref(), p));
+            .map(|p| Self::package(config.selected_package.as_deref(), p));
 
         iter::once(root_features).chain(packages).collect()
     }
@@ -928,13 +905,10 @@ impl OutlineNodeData {
         }
     }
 
-    fn root_features_children(
-        selection: &config::Config,
-        packages: &[CondensedPackage],
-    ) -> Vec<Self> {
-        let selected_features = match &selection.selected_features {
-            config::Features::All => vec!["All features"],
-            config::Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
+    fn root_features_children(config: &Config, packages: &[CondensedPackage]) -> Vec<Self> {
+        let selected_features = match &config.selected_features {
+            Features::All => vec!["All features"],
+            Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
         };
 
         packages
@@ -965,16 +939,13 @@ impl OutlineNodeData {
             .collect()
     }
 
-    fn package_features_children(
-        selection: &config::Config,
-        package: &CondensedPackage,
-    ) -> Vec<Self> {
-        let selected_features = selection
+    fn package_features_children(config: &Config, package: &CondensedPackage) -> Vec<Self> {
+        let selected_features = config
             .package_configs
             .get(&package.name)
             .map(|selected| match &selected.selected_features {
-                config::Features::All => vec!["All features"],
-                config::Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
+                Features::All => vec!["All features"],
+                Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
             })
             .unwrap_or_default();
 
@@ -1006,21 +977,19 @@ impl OutlineNodeData {
             .collect()
     }
 
-    fn package_children(selection: &config::Config, package: &CondensedPackage) -> Vec<Self> {
+    fn package_children(config: &Config, package: &CondensedPackage) -> Vec<Self> {
         let package_name = &package.name;
 
         let targets = package
             .targets
             .iter()
             .map(|target| match target.target_type {
-                Target::Lib => Self::lib_target_leaf(selection, package_name.to_string(), target),
-                Target::Bin => Self::bin_target_leaf(selection, package_name.to_string(), target),
+                Target::Lib => Self::lib_target_leaf(config, package_name.to_string(), target),
+                Target::Bin => Self::bin_target_leaf(config, package_name.to_string(), target),
                 Target::Example => {
-                    Self::example_target_leaf(selection, package_name.to_string(), target)
+                    Self::example_target_leaf(config, package_name.to_string(), target)
                 }
-                Target::Bench => {
-                    Self::bench_target_leaf(selection, package_name.to_string(), target)
-                }
+                Target::Bench => Self::bench_target_leaf(config, package_name.to_string(), target),
             });
 
         let features = Self {

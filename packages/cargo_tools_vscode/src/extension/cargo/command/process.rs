@@ -205,11 +205,11 @@ impl Ui {
             package: target.package.clone(),
             target: Some(build_sub_target),
         };
-        let mut selection = self.data.config.clone();
-        selection.profile = Profile::Dev; // For now always use standard dev profile
+        let mut config = self.data.config.clone();
+        config.profile = Profile::Dev; // For now always use standard dev profile
         // TODO: make it possible to run shell commands with env arguments
         let build_debug_task = CargoCommand::Build(Some(build_target))
-            .into_task(&selection, environment(TaskContext::General));
+            .into_task(&config, environment(TaskContext::General));
 
         let Some(target_dir) = self
             .data
@@ -535,10 +535,10 @@ async fn select_features(
     })
 }
 
-fn exec_path(target: &RunSubTarget, selection: &Config, target_dir: &str) -> String {
+fn exec_path(target: &RunSubTarget, config: &Config, target_dir: &str) -> String {
     let path_components = iter::once(target_dir.to_string())
         .chain(iter::once("debug".to_string())) // For now always assume debug profile
-        .chain(selection.platform_target.as_ref().map(|t| t.to_string()))
+        .chain(config.platform_target.as_ref().map(|t| t.to_string()))
         .chain(match target {
             RunSubTarget::Bin(bin) => vec![bin.clone()],
             RunSubTarget::Example(example) => {

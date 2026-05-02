@@ -20,7 +20,7 @@ pub enum Command {
 
 impl Command {
     /// Converts [self] into an executable [CargoTask]
-    pub fn into_task(self, selection: &Config, environment: Environment) -> CargoTask {
+    pub fn into_task(self, config: &Config, environment: Environment) -> CargoTask {
         let Environment {
             env,
             extra_args,
@@ -29,18 +29,17 @@ impl Command {
 
         let mut cmd = cargo_command.split_whitespace().map(String::from);
         let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
-        args.extend(self.into_args(selection));
+        args.extend(self.into_args(config));
         args.extend(extra_args);
 
         CargoTask::Cargo(Task { cmd, args, env })
     }
 
-    fn into_args(self, selection: &Config) -> Vec<String> {
+    fn into_args(self, config: &Config) -> Vec<String> {
         match self {
             Command::Build(build_target) => {
                 let mut args = vec!["build".to_string()];
-                let selection_args =
-                    selection.args(build_target.as_ref().map(|t| t.package.as_str()));
+                let selection_args = config.args(build_target.as_ref().map(|t| t.package.as_str()));
                 if let Some(BuildTarget { package, target }) = build_target {
                     args.extend(["--package".to_string(), package]);
 
@@ -64,8 +63,7 @@ impl Command {
             }
             Command::Run(run_target) => {
                 let mut args = vec!["run".to_string()];
-                let selection_args =
-                    selection.args(run_target.as_ref().map(|t| t.package.as_str()));
+                let selection_args = config.args(run_target.as_ref().map(|t| t.package.as_str()));
                 if let Some(RunTarget { package, target }) = run_target {
                     args.extend(["--package".to_string(), package]);
 
@@ -87,7 +85,7 @@ impl Command {
             Command::Debug(_) => Vec::new(),
             Command::Test { package } => {
                 let mut args: Vec<_> = vec!["test".to_string()];
-                let selection_args = selection.args(package.as_deref());
+                let selection_args = config.args(package.as_deref());
                 if let Some(package) = package {
                     args.extend(["--package".to_string(), package]);
                 }
@@ -96,8 +94,7 @@ impl Command {
             }
             Command::Bench(bench_target) => {
                 let mut args = vec!["bench".to_string()];
-                let selection_args =
-                    selection.args(bench_target.as_ref().map(|t| t.package.as_str()));
+                let selection_args = config.args(bench_target.as_ref().map(|t| t.package.as_str()));
                 if let Some(BenchTarget { package, target }) = bench_target {
                     args.extend(["--package".to_string(), package]);
 
@@ -117,10 +114,10 @@ impl Command {
                 if let Some(package) = package {
                     args.extend(["--package".to_string(), package]);
                 }
-                if let Some(platform) = selection.platform_target.clone() {
+                if let Some(platform) = config.platform_target.clone() {
                     args.extend(["--target".to_string(), platform]);
                 }
-                args.extend(selection.profile.cargo_args());
+                args.extend(config.profile.cargo_args());
                 args
             }
         }
