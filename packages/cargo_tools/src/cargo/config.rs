@@ -108,11 +108,7 @@ impl Config {
     }
 
     pub fn get<T>(&self, package: &str, get: impl Fn(&PackageConfig) -> Option<T>) -> Option<T> {
-        if let Some(package) = self.package_configs.get(package) {
-            get(package)
-        } else {
-            None
-        }
+        self.package_configs.get(package).and_then(get)
     }
 
     pub fn args(&self, package: Option<&str>) -> Vec<String> {
@@ -122,11 +118,10 @@ impl Config {
         }
         args.extend(self.profile.cargo_args());
 
-        let features = if let Some(config) = package.and_then(|p| self.package_configs.get(p)) {
-            &config.selected_features
-        } else {
-            &self.selected_features
-        };
+        let features = package
+            .and_then(|p| self.package_configs.get(p))
+            .map(|c| &c.selected_features)
+            .unwrap_or(&self.selected_features);
 
         match features {
             Features::All => args.push("--all-features".to_string()),

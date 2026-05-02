@@ -105,10 +105,14 @@ impl Command {
                 args.extend(selection_args);
                 args
             }
-            Command::Doc => ["doc", "--no-deps", "release"]
-                .into_iter()
-                .map(ToString::to_string)
-                .collect(),
+            Command::Doc => {
+                let package = config.selected_package.as_ref();
+                ["doc".to_string(), "--no-deps".to_string()]
+                    .into_iter()
+                    .chain(package.map_or(vec![], |p| vec!["--package".to_string(), p.clone()]))
+                    .chain(config.args(package.map(String::as_str)))
+                    .collect()
+            }
             Command::Clean { package } => {
                 let mut args = vec!["clean".to_string()];
                 if let Some(package) = package {
