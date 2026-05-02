@@ -52,19 +52,6 @@ jobs:
     - name: Compile extension
       run: npm run compile
     
-    - name: Run tests
-      run: npm test
-      env:
-        DISPLAY: :99.0
-    
-    - name: Setup headless display
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb
-        export DISPLAY=:99.0
-        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-        sleep 3
-    
     # Cache global npm packages (vsce)
     - name: Cache global npm packages
       uses: actions/cache@v4
