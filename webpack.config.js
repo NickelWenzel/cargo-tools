@@ -44,7 +44,6 @@ const extensionConfig = {
       outDir: path.resolve(__dirname, "./src/wasm"),
       outName: "cargo_tools_vscode",
       extraArgs: "--target nodejs",
-      forceMode: "production", // Assumes wasm-pack is already installed
     }),
     new CopyPlugin({
       patterns: [

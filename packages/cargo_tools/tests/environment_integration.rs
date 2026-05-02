@@ -65,22 +65,12 @@ async fn exec_cmd(cmd: String, args: Vec<String>) -> Result<String, String> {
 async fn test_update_metadata_success() {
     // Use canonicalized absolute path to avoid working directory issues with cmd_lib
     // Note: parse_metadata expects manifest directory, not the full Cargo.toml path
-    let base_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let manifest = base_path
-        .parent()
-        .expect(&format!(
-            "Cargo.toml at {} should have 2 parents",
-            base_path.to_str().unwrap()
-        ))
-        .parent()
-        .expect(&format!(
-            "Cargo.toml at {} should have 2 parents",
-            base_path.to_str().unwrap()
-        ))
-        .join("test-rust-project/Cargo.toml")
-        .to_str()
-        .unwrap()
-        .to_string();
+
+    let manifest = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../test-rust-project/Cargo.toml"
+    )
+    .to_string();
 
     let result = parse_metadata(manifest, exec_cmd).await;
 
