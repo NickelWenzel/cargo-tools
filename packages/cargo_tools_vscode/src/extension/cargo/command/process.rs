@@ -11,7 +11,7 @@ use cargo_tools::{
     task::{self, CargoTask},
 };
 use futures::SinkExt;
-use iced_headless::Task;
+use iced_viewless::Task;
 use serde_wasm_bindgen::to_value;
 use std::path::PathBuf;
 use wasm_bindgen::prelude::Closure;

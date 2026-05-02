@@ -1,12 +1,12 @@
 [package]
-name = "iced_headless"
+name = "iced_viewless"
 version = "0.1.0"
 edition = "2024"
 authors = ["Nicolas Wenzel"]
 description = "Headless application runtime for iced, enabling background services without UI"
 license = "MIT"
-repository = "https://github.com/NickelWenzel/cargo-tools/tree/master/packages/iced_headless"
-documentation = "https://docs.rs/iced_headless"
+repository = "https://github.com/NickelWenzel/cargo-tools/tree/master/packages/iced_viewless"
+documentation = "https://docs.rs/iced_viewless"
 exclude = ["tests/"]
 keywords = ["iced", "headless", "daemon", "runtime", "async"]
 categories = ["asynchronous"]
@@ -29,7 +29,7 @@ tracing = { workspace = true }
 tracing-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-iced_headless = { workspace = true }
+iced_viewless = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
 
 [features]

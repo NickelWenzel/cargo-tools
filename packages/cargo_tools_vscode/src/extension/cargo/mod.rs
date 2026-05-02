@@ -17,7 +17,7 @@ use futures::{
     SinkExt,
     channel::mpsc::{Sender, channel},
 };
-use iced_headless::Task;
+use iced_viewless::Task;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};

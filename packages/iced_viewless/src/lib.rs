@@ -1,38 +1,20 @@
-//! A headless runtime for iced applications.
+//! A viewless runtime for iced applications.
 //!
-//! `iced_headless` provides a headless runtime for iced applications that don't require
-//! windowing, rendering, or user interaction. It replicates iced's program functionality
-//! while excluding UI-specific code, making it ideal for:
+//! `iced_viewless` provides a viewless runtime for iced applications that don't require
+//! windowing and rendering:
 //!
+//! - Integration in other UI frameworks
 //! - Background services with subscription-based event handling
 //! - CLI tools with async operations
 //! - Testing application logic without UI overhead
 //! - Embedded systems without display capabilities
-//!
-//! # Architecture
-//!
-//! The crate follows iced's program pattern:
-//!
-//! - [`HeadlessProgram`] - Core trait defining application lifecycle (similar to `iced::Program`)
-//! - [`application()`] - Builder API for creating and running applications
-//!
-//! # Features
-//!
-//! Compatible with iced 0.13.1.
-//!
-//! The crate re-exports executor features from `iced_futures`:
-//!
-//! - `tokio` - Use Tokio runtime
-//! - `async-std` - Use async-std runtime
-//! - `smol` - Use smol runtime
-//! - `thread-pool` - Use thread pool executor
 //!
 //! # Examples
 //!
 //! ## Basic Usage
 //!
 //! ```ignore
-//! use iced_headless::{application, HeadlessProgram, Subscription};
+//! use iced_viewless::{application, ViewlessProgram, Subscription};
 //!
 //! #[derive(Default)]
 //! struct MyProgram;
@@ -42,7 +24,7 @@
 //!     Tick,
 //! }
 //!
-//! impl HeadlessProgram for MyProgram {
+//! impl ViewlessProgram for MyProgram {
 //!     type State = ();
 //!     type Message = Message;
 //!     type Executor = iced_futures::backend::default::Executor;
@@ -86,14 +68,14 @@
 pub mod default;
 pub mod error;
 pub mod event_loop;
-pub mod headless;
 pub mod program;
 #[cfg(feature = "tokio")]
 pub mod tokio_context;
+pub mod viewless;
 
 pub use error::{Error, Result};
-pub use headless::{Application, WithExecutor, WithSubscription, application, async_application};
-pub use program::HeadlessProgram;
+pub use program::ViewlessProgram;
+pub use viewless::{Application, WithExecutor, WithSubscription, application, async_application};
 
 pub use iced_futures::{Subscription, stream};
 pub use iced_runtime::Task;

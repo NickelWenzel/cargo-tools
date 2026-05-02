@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use cargo_tools::cargo_make::MakefileTask;
 use futures::SinkExt;
-use iced_headless::Task;
+use iced_viewless::Task;
 use itertools::Itertools;
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::Closure;

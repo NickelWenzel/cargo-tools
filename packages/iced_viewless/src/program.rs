@@ -1,4 +1,4 @@
-//! HeadlessProgram trait for headless applications.
+//! ViewlessProgram trait for viewless applications.
 
 use std::future::Future;
 
@@ -10,13 +10,11 @@ use crate::{
     event_loop::{EventLoop, Exit},
 };
 
-/// A headless application with no UI.
+/// A viewless application with no UI.
 ///
-/// This trait defines the lifecycle and behavior of a headless application,
+/// This trait defines the lifecycle and behavior of a viewless application,
 /// similar to iced's `Program` trait but without rendering, themes, or windows.
-///
-/// State is managed externally by the runtime, matching iced 0.13.1's approach.
-pub trait HeadlessProgram: Sized {
+pub trait ViewlessProgram: Sized {
     /// The state maintained by the program.
     type State;
 
@@ -41,9 +39,9 @@ pub trait HeadlessProgram: Sized {
         Subscription::none()
     }
 
-    /// Runs the [`HeadlessProgram`].
+    /// Runs the [`ViewlessProgram`].
     ///
-    /// The state of the [`HeadlessProgram`] must implement [`Default`].
+    /// The state of the [`ViewlessProgram`] must implement [`Default`].
     /// If your state does not implement [`Default`], use [`run_with`]
     /// instead.
     ///
@@ -57,7 +55,7 @@ pub trait HeadlessProgram: Sized {
         self.run_with(|| (Self::State::default(), Task::none()))
     }
 
-    /// Runs the [`HeadlessProgram`] with the given [`Settings`] and a closure that creates the initial state.
+    /// Runs the [`ViewlessProgram`] with the given closure that creates the initial state.
     fn run_with<I>(self, initialize: I) -> Result<impl Future<Output = ()>>
     where
         Self: 'static,

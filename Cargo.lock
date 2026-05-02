@@ -241,7 +241,7 @@ dependencies = [
  "cargo_metadata",
  "cargo_tools",
  "futures",
- "iced_headless",
+ "iced_viewless",
  "itertools",
  "serde",
  "serde-wasm-bindgen",
@@ -487,23 +487,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iced_headless"
-version = "0.1.0"
-dependencies = [
- "futures",
- "iced_futures",
- "iced_headless",
- "iced_runtime",
- "log",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-test",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "iced_runtime"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -514,6 +497,23 @@ dependencies = [
  "iced_futures",
  "raw-window-handle",
  "thiserror",
+]
+
+[[package]]
+name = "iced_viewless"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "iced_futures",
+ "iced_runtime",
+ "iced_viewless",
+ "log",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-test",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
 ]
 
 [[package]]

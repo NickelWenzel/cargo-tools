@@ -7,6 +7,7 @@ use futures::{
 use iced_runtime::Action;
 use log::info;
 
+/// The exit token signalling the runtime to stop
 pub struct Exit;
 
 pub struct EventLoop<T> {

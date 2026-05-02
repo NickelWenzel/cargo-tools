@@ -10,7 +10,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 cargo_tools = { workspace = true }
-iced_headless = { workspace = true }
+iced_viewless = { workspace = true }
 
 cargo_metadata = { workspace = true }
 wasm-bindgen = { workspace = true }

@@ -1,20 +1,17 @@
-//! Builder API for creating and running headless applications.
+//! Builder API for creating and running viewless applications.
 
 pub use std::convert::Infallible as Never;
 
 use crate::{Result, default};
-use crate::{event_loop::Exit, program::HeadlessProgram};
+use crate::{event_loop::Exit, program::ViewlessProgram};
 use iced_futures::{Executor, MaybeSend, Subscription};
 use iced_runtime::Task;
 
-/// A builder for headless applications implementing iced's Program trait.
-///
-/// This provides a fluent API similar to `iced::Application` but for headless execution.
-/// Follows iced's decorator pattern with `raw` field storing the program implementation.
+/// A builder for viewless applications implementing iced's Program trait.
 ///
 /// # Examples
 /// ```ignore
-/// use iced_headless::application;
+/// use iced_viewless::application;
 /// use iced_core::Program;
 ///
 /// let app = application(my_program)
@@ -27,7 +24,7 @@ pub struct Application<P> {
     raw: P,
 }
 
-impl<P: HeadlessProgram> Application<P>
+impl<P: ViewlessProgram> Application<P>
 where
     Self: 'static,
 {
@@ -108,14 +105,14 @@ where
     }
 }
 
-/// A builder for headless async applications which are run within an async context implementing iced's Program trait.
+/// A builder for viewless async applications which are run within an async context implementing iced's Program trait.
 ///
-/// This provides a fluent API similar to `iced::Application` but for headless execution.
+/// This provides a fluent API similar to `iced::Application` but for viewless execution.
 /// Follows iced's decorator pattern with `raw` field storing the program implementation.
 ///
 /// # Examples
 /// ```ignore
-/// use iced_headless::application;
+/// use iced_viewless::application;
 /// use iced_core::Program;
 ///
 /// let app = application(my_program)
@@ -126,7 +123,7 @@ where
 /// ```
 pub struct AsyncApplication<P>(Application<P>);
 
-impl<P: HeadlessProgram> AsyncApplication<P>
+impl<P: ViewlessProgram> AsyncApplication<P>
 where
     Self: 'static,
 {
@@ -200,9 +197,9 @@ pub struct WithSubscription<P, F> {
     subscription: F,
 }
 
-impl<P, F> HeadlessProgram for WithSubscription<P, F>
+impl<P, F> ViewlessProgram for WithSubscription<P, F>
 where
-    P: HeadlessProgram,
+    P: ViewlessProgram,
     F: Fn(&P::State) -> Subscription<P::Message>,
 {
     type State = P::State;
@@ -230,9 +227,9 @@ pub struct WithExitOn<P, F> {
     exit_on: F,
 }
 
-impl<P, F> HeadlessProgram for WithExitOn<P, F>
+impl<P, F> ViewlessProgram for WithExitOn<P, F>
 where
-    P: HeadlessProgram,
+    P: ViewlessProgram,
     F: Fn(&P::State) -> Subscription<Exit>,
 {
     type State = P::State;
@@ -260,9 +257,9 @@ pub struct WithExecutor<P, E> {
     _executor: std::marker::PhantomData<E>,
 }
 
-impl<P, E> HeadlessProgram for WithExecutor<P, E>
+impl<P, E> ViewlessProgram for WithExecutor<P, E>
 where
-    P: HeadlessProgram,
+    P: ViewlessProgram,
     E: Executor + MaybeSend,
 {
     type State = P::State;
@@ -282,22 +279,22 @@ where
     }
 }
 
-/// Creates a new headless application.
+/// Creates a new viewless application.
 ///
-/// This is the primary entry point for creating headless applications,
+/// This is the primary entry point for creating viewless applications,
 /// matching iced's `application()` function pattern.
 ///
 /// # Arguments
-/// * `program` - A type implementing `HeadlessProgram`
+/// * `program` - A type implementing `ViewlessProgram`
 ///
 /// # Examples
 /// ```ignore
-/// use iced_headless::{application, HeadlessProgram};
+/// use iced_viewless::{application, ViewlessProgram};
 ///
 /// #[derive(Default)]
 /// struct MyProgram;
 ///
-/// impl HeadlessProgram for MyProgram {
+/// impl ViewlessProgram for MyProgram {
 ///     // ... implementation ...
 /// }
 ///
@@ -306,7 +303,7 @@ where
 /// ```
 pub fn application<State, Message>(
     update: impl UpdateFn<State, Message>,
-) -> Application<impl HeadlessProgram<State = State, Message = Message>>
+) -> Application<impl ViewlessProgram<State = State, Message = Message>>
 where
     State: 'static,
     Message: Send + std::fmt::Debug + 'static,
@@ -319,7 +316,7 @@ where
         _message: PhantomData<Message>,
     }
 
-    impl<State, Message, Update> HeadlessProgram for Instance<State, Message, Update>
+    impl<State, Message, Update> ViewlessProgram for Instance<State, Message, Update>
     where
         Message: Send + std::fmt::Debug + 'static,
         Update: self::UpdateFn<State, Message>,
@@ -342,22 +339,22 @@ where
     }
 }
 
-/// Creates a new headless async application.
+/// Creates a new viewless async application.
 ///
-/// This is the primary entry point for creating headless applications,
+/// This is the primary entry point for creating viewless applications,
 /// matching iced's `application()` function pattern.
 ///
 /// # Arguments
-/// * `program` - A type implementing `HeadlessProgram`
+/// * `program` - A type implementing `ViewlessProgram`
 ///
 /// # Examples
 /// ```ignore
-/// use iced_headless::{application, HeadlessProgram};
+/// use iced_viewless::{application, ViewlessProgram};
 ///
 /// #[derive(Default)]
 /// struct MyProgram;
 ///
-/// impl HeadlessProgram for MyProgram {
+/// impl ViewlessProgram for MyProgram {
 ///     // ... implementation ...
 /// }
 ///
@@ -367,7 +364,7 @@ where
 /// ```
 pub fn async_application<State, Message>(
     update: impl UpdateFn<State, Message> + 'static + MaybeSend,
-) -> AsyncApplication<impl HeadlessProgram<State = State, Message = Message>>
+) -> AsyncApplication<impl ViewlessProgram<State = State, Message = Message>>
 where
     State: 'static + MaybeSend,
     Message: Send + std::fmt::Debug + 'static,

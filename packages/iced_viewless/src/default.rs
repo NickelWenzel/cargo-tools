@@ -1,7 +1,7 @@
 //! A default, cross-platform backend.
 //!
 //! - On native platforms, it will use:
-//!   - `iced_headless::tokio_context::TokioContext` when the `tokio` feature is enabled.
+//!   - `iced_viewless::tokio_context::TokioContext` when the `tokio` feature is enabled.
 //!   - `iced_futures::backend::default::Executor` otherwise`
 #[cfg(not(target_arch = "wasm32"))]
 mod platform {

@@ -8,7 +8,7 @@ use futures::{
     SinkExt,
     channel::mpsc::{Receiver, Sender, channel},
 };
-use iced_headless::{Subscription, Task, async_application, event_loop::Exit, stream};
+use iced_viewless::{Subscription, Task, async_application, event_loop::Exit, stream};
 use wasm_bindgen::prelude::{Closure, wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Array;
 

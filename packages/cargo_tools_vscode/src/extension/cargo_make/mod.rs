@@ -5,7 +5,7 @@ use std::iter;
 
 use cargo_tools::cargo_make::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks};
 use futures::channel::mpsc::{Sender, channel};
-use iced_headless::Task;
+use iced_viewless::Task;
 
 use serde::{Deserialize, Serialize};
 
