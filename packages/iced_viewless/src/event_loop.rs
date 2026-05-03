@@ -10,7 +10,7 @@ use log::info;
 /// The exit token signalling the runtime to stop
 pub struct Exit;
 
-pub struct EventLoop<T> {
+pub(crate) struct EventLoop<T> {
     rx: mpsc::UnboundedReceiver<Action<T>>,
 }
 

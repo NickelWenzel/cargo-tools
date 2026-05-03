@@ -29,12 +29,17 @@ pub trait ViewlessProgram: Sized {
 
     /// Returns the subscriptions for the program.
     ///
-    /// Subscriptions are streams of events that produce messages.
-    /// The program runs until all subscriptions complete.
+    /// Subscriptions are streams of events that produce messages for the update loop.
+    /// Defaults to [`Subscription::none`].
     fn subscription(&self, _state: &Self::State) -> Subscription<Self::Message> {
         Subscription::none()
     }
 
+    /// Returns a subscription that signals when the runtime should exit.
+    ///
+    /// When this subscription produces any value the runtime receives [`Action::Exit`]
+    /// and shuts down cleanly. Defaults to [`Subscription::none`], meaning the
+    /// runtime runs until the process is terminated.
     fn exit_on(&self, _state: &Self::State) -> Subscription<Exit> {
         Subscription::none()
     }

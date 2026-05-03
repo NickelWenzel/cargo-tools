@@ -2,24 +2,14 @@
 
 pub use std::convert::Infallible as Never;
 
-use crate::{Result, default};
-use crate::{event_loop::Exit, program::ViewlessProgram};
-use iced_futures::{Executor, MaybeSend, Subscription};
-use iced_runtime::Task;
+use crate::{Result, Subscription, Task, default, event_loop::Exit, program::ViewlessProgram};
+use iced_futures::{Executor, MaybeSend};
 
-/// A builder for viewless applications implementing iced's Program trait.
+/// A builder for viewless applications.
 ///
-/// # Examples
-/// ```ignore
-/// use iced_viewless::application;
-/// use iced_core::Program;
-///
-/// let app = application(my_program)
-///     .subscription(|state| my_subscription(state))
-///     .executor::<MyExecutor>();
-///
-/// app.run(|| MyState::default()).await?;
-/// ```
+/// Created by [`application`]. Decorate with [`.subscription()`](Self::subscription),
+/// [`.exit_on()`](Self::exit_on), and [`.executor()`](Self::executor) before calling
+/// [`.run()`](Self::run) or [`.run_with()`](Self::run_with).
 pub struct Application<P> {
     raw: P,
 }
@@ -105,22 +95,11 @@ where
     }
 }
 
-/// A builder for viewless async applications which are run within an async context implementing iced's Program trait.
+/// A builder for viewless applications intended to run within an existing async context.
 ///
-/// This provides a fluent API similar to `iced::Application` but for viewless execution.
-/// Follows iced's decorator pattern with `raw` field storing the program implementation.
-///
-/// # Examples
-/// ```ignore
-/// use iced_viewless::application;
-/// use iced_core::Program;
-///
-/// let app = application(my_program)
-///     .subscription(|state| my_subscription(state))
-///     .executor::<MyExecutor>();
-///
-/// app.run(|| MyState::default()).await?;
-/// ```
+/// Created by [`async_application`]. Identical builder API to [`Application`] but
+/// [`.run()`](Self::run) and [`.run_with()`](Self::run_with) are `async` and can be
+/// awaited directly inside an existing runtime.
 pub struct AsyncApplication<P>(Application<P>);
 
 impl<P: ViewlessProgram> AsyncApplication<P>
@@ -219,9 +198,9 @@ where
     }
 }
 
-/// Decorator that adds a custom subscription function to a program.
+/// Decorator that adds a custom exit subscription to a program.
 ///
-/// Follows iced's `program::with_subscription` pattern.
+/// Follows iced's decorator pattern.
 pub struct WithExitOn<P, F> {
     program: P,
     exit_on: F,
@@ -279,27 +258,30 @@ where
     }
 }
 
-/// Creates a new viewless application.
+/// Creates a new viewless [`Application`] from an update function.
 ///
-/// This is the primary entry point for creating viewless applications,
-/// matching iced's `application()` function pattern.
-///
-/// # Arguments
-/// * `program` - A type implementing `ViewlessProgram`
+/// `update` accepts any function or closure with the signature
+/// `fn(&mut State, Message) -> impl Into<Task<Message>>`.
 ///
 /// # Examples
-/// ```ignore
-/// use iced_viewless::{application, ViewlessProgram};
+/// ```no_run
+/// use iced_viewless::{application, event_loop::Exit, Subscription, Task};
 ///
 /// #[derive(Default)]
-/// struct MyProgram;
+/// struct MyState { done: bool }
 ///
-/// impl ViewlessProgram for MyProgram {
-///     // ... implementation ...
+/// #[derive(Debug, Clone)]
+/// enum Message { Tick }
+///
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     application(|state: &mut MyState, msg| {
+///         if let Message::Tick = msg { state.done = true; }
+///         Task::none()
+///     })
+///     .exit_on(|state: &MyState| Subscription::none())
+///     .run()?;
+///     Ok(())
 /// }
-///
-/// application(MyProgram::default())
-///     .run(|| ())?;
 /// ```
 pub fn application<State, Message>(
     update: impl UpdateFn<State, Message>,
@@ -339,28 +321,35 @@ where
     }
 }
 
-/// Creates a new viewless async application.
+/// Creates a new viewless [`AsyncApplication`] from an update function.
 ///
-/// This is the primary entry point for creating viewless applications,
-/// matching iced's `application()` function pattern.
-///
-/// # Arguments
-/// * `program` - A type implementing `ViewlessProgram`
+/// Equivalent to [`application`] but the returned builder's `.run()` and `.run_with()`
+/// methods are `async`, allowing them to be awaited inside an existing runtime.
+/// Uses the `tokio` executor when the `tokio` feature is enabled, otherwise falls back
+/// to the default executor.
 ///
 /// # Examples
-/// ```ignore
-/// use iced_viewless::{application, ViewlessProgram};
+/// ```no_run
+/// use iced_viewless::{event_loop::Exit, viewless::async_application, Subscription, Task};
 ///
 /// #[derive(Default)]
-/// struct MyProgram;
+/// struct MyState { done: bool }
 ///
-/// impl ViewlessProgram for MyProgram {
-///     // ... implementation ...
+/// #[derive(Debug, Clone)]
+/// enum Message { Tick }
+///
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     futures::executor::block_on(async {
+///         async_application(|state: &mut MyState, msg| {
+///             if let Message::Tick = msg { state.done = true; }
+///             Task::none()
+///         })
+///         .exit_on(|state: &MyState| Subscription::none())
+///         .run()
+///         .await
+///     })?;
+///     Ok(())
 /// }
-///
-/// async_application(MyProgram::default())
-///     .run(|| ())
-///     .await?;
 /// ```
 pub fn async_application<State, Message>(
     update: impl UpdateFn<State, Message> + 'static + MaybeSend,
