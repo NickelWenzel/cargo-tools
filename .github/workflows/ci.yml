@@ -58,6 +58,9 @@ jobs:
     - name: Run linter
       run: cargo make lint-clippy
     
+    - name: Run linter
+      run: npm run lint
+    
     - name: Run tests
       run: cargo make test
 
