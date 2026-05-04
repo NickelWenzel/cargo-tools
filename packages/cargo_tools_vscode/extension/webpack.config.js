@@ -10,6 +10,7 @@ const extensionConfig = {
   target: 'node20', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
   mode: 'development', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
 
+  context: path.resolve(__dirname),
   entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
   output: {
     // the bundle is stored in the 'dist' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/
@@ -40,7 +41,7 @@ const extensionConfig = {
   },
   plugins: [
     new WasmPackPlugin({
-      crateDirectory: path.resolve(__dirname, "./packages/cargo_tools_vscode"),
+      crateDirectory: path.resolve(__dirname, "../"),
       outDir: path.resolve(__dirname, "./src/wasm"),
       outName: "cargo_tools_vscode",
       extraArgs: "--target nodejs",

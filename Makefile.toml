@@ -9,7 +9,7 @@ command = "npx"
 args = ["npm", "run", "package"]
 
 [tasks.compile]
-description = """Compile the extension"""
+description = "Compile the extension"
 command = "npx"
 args = ["npm", "run", "compile"]
 

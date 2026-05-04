@@ -1,21 +1,37 @@
-.vscode/**
-.github/**
-.vscode-test/**
-.cargo/**
-.serena/**
-out/**
-node_modules/**
-src/**
-packages/**
+# Rust workspace sources and manifests
+packages/cargo_tools/**
+packages/iced_viewless/**
+packages/cargo_tools_vscode/src/**
+packages/cargo_tools_vscode/Cargo.toml
+packages/cargo_tools_vscode/tests/**
+Cargo.toml
+Cargo.lock
+**/target/
+
+# Extension source — only dist/ is needed in the package
+packages/cargo_tools_vscode/extension/src/**
+packages/cargo_tools_vscode/extension/out/**
+packages/cargo_tools_vscode/extension/node_modules/**
+packages/cargo_tools_vscode/extension/webpack.config.js
+packages/cargo_tools_vscode/extension/eslint.config.mjs
+packages/cargo_tools_vscode/extension/tsconfig.json
+
+# Generic build artifacts and TypeScript source
+**/*.ts
+**/*.map
+
+# Test fixtures
 test-rust-project/**
 test-rust-project-single-crate/**
-.gitignore
-.yarnrc
-webpack.config.js
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/eslint.config.mjs
-**/*.map
-**/*.ts
+
+# Repo tooling and config
+Makefile.toml
+.cargo/**
+.github/**
+.vscode/**
+.vscode-test/**
 **/.vscode-test.*
-**/target/
+.gitignore
+node_modules/**
+docs/**
+TODO.md

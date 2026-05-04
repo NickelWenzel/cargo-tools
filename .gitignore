@@ -11,7 +11,8 @@ test-rust-project/target/
 # Additional Rust build artifacts
 **/target/
 **/*.rs.bk
-src/wasm/**/*
+packages/cargo_tools_vscode/extension/src/wasm/**/*
+packages/cargo_tools_vscode/extension/src/types/**/*
 
 # IDE and editor files
 **/.vscode/settings.json
