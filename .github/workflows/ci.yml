@@ -41,8 +41,6 @@ jobs:
 
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2
-      with:
-        workspaces: test-rust-project
 
     - name: Install cargo tools
       uses: taiki-e/install-action@v2
@@ -102,6 +100,9 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
     
     - name: Package extension
       run: npx @vscode/vsce package
