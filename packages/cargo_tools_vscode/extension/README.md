@@ -13,7 +13,7 @@ Cargo Tools is a Visual Studio Code extension that provides IDE-like features fo
 
 ## Documentation
 
-- [Online documentation](https://github.com/NickelWenzel/cargo-tools/packages/cargo_tools_vscode/extension/README.md)
+- [Online documentation](https://github.com/NickelWenzel/cargo-tools/packages/cargo_tools_vscode/extension/docs/README.md)
 
 ## Requirements
 
