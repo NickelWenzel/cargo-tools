@@ -5,9 +5,11 @@
 
 Cargo Tools is a Visual Studio Code extension that provides IDE-like features for Rust/Cargo development. It complements [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) by adding project configuration controls, a workspace target browser, and cargo-make task management.
 
+![Project Outline pane](./vscode_extension/media/cargo_tools_project_outline.gif)
+
 ## Usage
 
-See the [docs](./packages/cargo_tools_vscode/extension/docs/README.md) for the full reference.
+See the [docs](./vscode_extension/docs/README.md) for the full reference.
 
 ## Development
 

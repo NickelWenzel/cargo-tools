@@ -91,9 +91,9 @@ jobs:
       uses: actions/cache@v4
       with:
         path: |
-          packages/cargo_tools_vscode/extension/dist/
+          dist/
           .webpack-cache/
-        key: ${{ runner.os }}-webpack-${{ hashFiles('packages/cargo_tools_vscode/extension/webpack.config.js', 'packages/cargo_tools_vscode/extension/tsconfig.json', 'packages/cargo_tools_vscode/extension/src/**/*.ts') }}
+        key: ${{ runner.os }}-webpack-${{ hashFiles('vscode_extension/webpack.config.js', 'vscode_extension/tsconfig.json', 'vscode_extension/src/**/*.ts') }}
         restore-keys: |
           ${{ runner.os }}-webpack-
 
