@@ -6,7 +6,7 @@
   "publisher": "NickelWenzel",
   "license": "MIT",
   "icon": "Ferris-big-tools.png",
-  "readme": "./vscode_extension/README.md",
+  "readme": "README.md",
   "repository": {
     "type": "git",
     "url": "https://github.com/NickelWenzel/cargo-tools.git"

@@ -5,11 +5,38 @@
 
 Cargo Tools is a Visual Studio Code extension that provides IDE-like features for Rust/Cargo development. It complements [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) by adding project configuration controls, a workspace target browser, and cargo-make task management.
 
-![Project Outline pane](./vscode_extension/media/cargo_tools_project_outline.gif)
+## Features
+
+### Project Configuration
+
+![Project configuration](./vscode_extension/media/cargo_tools_configuration.gif)
+
+### Project Outline
+
+![Project outline](./vscode_extension/media/cargo_tools_project_outline.gif)
+
+### cargo-make Integration
+
+![cargo make](./vscode_extension/media/cargo_tools_makefile_support.gif)
 
 ## Usage
 
-See the [docs](./vscode_extension/docs/README.md) for the full reference.
+### Requirements
+
+- Visual Studio Code 1.102.0 or higher
+- Rust toolchain with Cargo installed via [rustup](https://rustup.rs)
+
+### Installation
+
+Launch VS Code Quick Open (Ctrl+P), paste the following command, and press enter.
+```bash
+ext install NickelWenzel.cargo-tools
+```
+
+### Resources
+
+* [Docs](./vscode_extension/docs/README.md) for comprehensive documentation.
+* [Github](https://github.com/NickelWenzel/cargo-tools) for source code, issues, and contributing.
 
 ## Development
 
@@ -29,6 +56,9 @@ Development workflows are driven by `cargo make`.
 | `cargo make test`    | Run Rust tests on native and `wasm32-unknown-unknown` |
 | `cargo make package` | Produce `cargo-tools.vsix`                            |
 
+## Contributing
+
+Contributions welcome via PRs or issues on [Github](https://github.com/NickelWenzel/cargo-tools).
 
 ## Inspiration
 

@@ -5,14 +5,7 @@ Cargo.lock
 **/target/
 
 # Extension source (dist/ at the repo root is the packaged bundle)
-vscode_extension/src/**
-vscode_extension/out/**
-vscode_extension/docs/**
-vscode_extension/media/**
-vscode_extension/node_modules/**
-vscode_extension/webpack.config.js
-vscode_extension/eslint.config.mjs
-vscode_extension/tsconfig.json
+vscode_extension/**
 
 # Generic build artifacts and TypeScript source
 **/*.ts
