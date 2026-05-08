@@ -5,8 +5,8 @@
   "version": "0.3.0",
   "publisher": "NickelWenzel",
   "license": "MIT",
-  "icon": "packages/cargo_tools_vscode/extension/Ferris-big-tools.png",
-  "readme": "packages/cargo_tools_vscode/extension/README.md",
+  "icon": "Ferris-big-tools.png",
+  "readme": "./vscode_extension/README.md",
   "repository": {
     "type": "git",
     "url": "https://github.com/NickelWenzel/cargo-tools.git"
@@ -27,7 +27,7 @@
   "activationEvents": [
     "workspaceContains:Cargo.toml"
   ],
-  "main": "./packages/cargo_tools_vscode/extension/dist/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
@@ -928,11 +928,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "webpack --mode=production --config packages/cargo_tools_vscode/extension/webpack.config.js",
+    "vscode:prepublish": "webpack --mode=production --config vscode_extension/webpack.config.js",
     "package": "vsce package -o cargo-tools.vsix",
-    "compile": "webpack --config packages/cargo_tools_vscode/extension/webpack.config.js",
-    "watch": "webpack --watch --config packages/cargo_tools_vscode/extension/webpack.config.js",
-    "lint": "eslint --config packages/cargo_tools_vscode/extension/eslint.config.mjs packages/cargo_tools_vscode/extension/src"
+    "compile": "webpack --config vscode_extension/webpack.config.js",
+    "watch": "webpack --watch --config vscode_extension/webpack.config.js",
+    "lint": "eslint --config vscode_extension/eslint.config.mjs vscode_extension/src"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",

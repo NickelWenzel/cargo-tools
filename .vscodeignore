@@ -1,20 +1,18 @@
 # Rust workspace sources and manifests
-packages/cargo_tools/**
-packages/iced_viewless/**
-packages/cargo_tools_vscode/src/**
-packages/cargo_tools_vscode/Cargo.toml
-packages/cargo_tools_vscode/tests/**
+packages/**
 Cargo.toml
 Cargo.lock
 **/target/
 
-# Extension source — only dist/ is needed in the package
-packages/cargo_tools_vscode/extension/src/**
-packages/cargo_tools_vscode/extension/out/**
-packages/cargo_tools_vscode/extension/node_modules/**
-packages/cargo_tools_vscode/extension/webpack.config.js
-packages/cargo_tools_vscode/extension/eslint.config.mjs
-packages/cargo_tools_vscode/extension/tsconfig.json
+# Extension source (dist/ at the repo root is the packaged bundle)
+vscode_extension/src/**
+vscode_extension/out/**
+vscode_extension/docs/**
+vscode_extension/media/**
+vscode_extension/node_modules/**
+vscode_extension/webpack.config.js
+vscode_extension/eslint.config.mjs
+vscode_extension/tsconfig.json
 
 # Generic build artifacts and TypeScript source
 **/*.ts
@@ -34,4 +32,6 @@ Makefile.toml
 .gitignore
 node_modules/**
 docs/**
+README.md
 TODO.md
+**/settings.local.json
