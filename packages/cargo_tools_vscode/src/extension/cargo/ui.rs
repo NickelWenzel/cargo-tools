@@ -386,13 +386,14 @@ impl OutlineNodeType {
         config: &Config,
         packages: &[CondensedPackage],
         grouping: Grouping,
+        show_features: bool,
     ) -> Vec<OutlineNodeData> {
         use OutlineNodeTypeInner::*;
         match &self.0 {
-            Root => OutlineNodeData::root_children(config, packages, grouping),
+            Root => OutlineNodeData::root_children(config, packages, grouping, show_features),
             RootFeatures => OutlineNodeData::root_features_children(config, packages),
             Package { name } => try_package(name, packages)
-                .map(|p| OutlineNodeData::package_children(config, p))
+                .map(|p| OutlineNodeData::package_children(config, p, show_features))
                 .unwrap_or_default(),
             PackageFeatures { package } => try_package(package, packages)
                 .map(|p| OutlineNodeData::package_features_children(config, p))
@@ -554,9 +555,12 @@ impl OutlineNodeData {
         config: &Config,
         packages: &[CondensedPackage],
         grouping: Grouping,
+        show_features: bool,
     ) -> Vec<Self> {
         match grouping {
-            Grouping::Packages => OutlineNodeData::packages_root_children(config, packages),
+            Grouping::Packages => {
+                OutlineNodeData::packages_root_children(config, packages, show_features)
+            }
             Grouping::TargetTypes => {
                 OutlineNodeData::target_types_root_children(metadata::Target::counts(packages))
             }
@@ -857,7 +861,11 @@ impl OutlineNodeData {
         }
     }
 
-    fn packages_root_children(config: &Config, packages: &[CondensedPackage]) -> Vec<Self> {
+    fn packages_root_children(
+        config: &Config,
+        packages: &[CondensedPackage],
+        show_features: bool,
+    ) -> Vec<Self> {
         let root_features = Self {
             label: "Features".to_string(),
             icon: FEATURES_CONFIG,
@@ -874,7 +882,11 @@ impl OutlineNodeData {
             .iter()
             .map(|p| Self::package(config.selected_package.as_deref(), p));
 
-        iter::once(root_features).chain(packages).collect()
+        if show_features {
+            iter::once(root_features).chain(packages).collect()
+        } else {
+            packages.collect()
+        }
     }
 
     fn package(selected_package: Option<&str>, package: &CondensedPackage) -> Self {
@@ -977,7 +989,11 @@ impl OutlineNodeData {
             .collect()
     }
 
-    fn package_children(config: &Config, package: &CondensedPackage) -> Vec<Self> {
+    fn package_children(
+        config: &Config,
+        package: &CondensedPackage,
+        show_features: bool,
+    ) -> Vec<Self> {
         let package_name = &package.name;
 
         let targets = package
@@ -1006,7 +1022,11 @@ impl OutlineNodeData {
             command_arg: None,
         };
 
-        targets.chain(iter::once(features)).collect()
+        if show_features {
+            targets.chain(iter::once(features)).collect()
+        } else {
+            targets.collect()
+        }
     }
 }
 

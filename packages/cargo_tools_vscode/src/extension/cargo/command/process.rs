@@ -346,19 +346,25 @@ impl Ui {
     }
 
     fn select_target_type_filter(&self) -> Task<Message> {
-        let categories: Vec<_> = ["Libraries", "Binaries", "Examples", "Benchmarks"]
-            .map(str::to_string)
-            .into_iter()
-            .collect();
+        let categories: Vec<_> = [
+            "Libraries",
+            "Binaries",
+            "Examples",
+            "Benchmarks",
+            "Features",
+        ]
+        .map(str::to_string)
+        .into_iter()
+        .collect();
 
         let mut selected = Vec::new();
         let current = self.settings.target_types_filter.clone();
 
-        if self.settings.target_types_filter.bin {
+        if self.settings.target_types_filter.lib {
             selected.push("Libraries".to_string());
         }
 
-        if self.settings.target_types_filter.lib {
+        if self.settings.target_types_filter.bin {
             selected.push("Binaries".to_string());
         }
 
@@ -368,6 +374,10 @@ impl Ui {
 
         if self.settings.target_types_filter.benchmarks {
             selected.push("Benchmarks".to_string());
+        }
+
+        if self.settings.target_types_filter.features {
+            selected.push("Features".to_string());
         }
 
         let input = SelectInput {
@@ -395,6 +405,9 @@ impl Ui {
                 if selected.contains(&"Benchmarks".to_string()) {
                     filter.benchmarks = true;
                 }
+                if selected.contains(&"Features".to_string()) {
+                    filter.features = true;
+                }
 
                 if let Err(e) = tx.send(PO::EditTargetTypeFilter(filter).to_cmd()).await {
                     log_error(&format!("Failed to queue msg: {}", e));
@@ -419,6 +432,9 @@ impl Ui {
                     }
                     if selected.contains(&"Benchmarks".to_string()) {
                         filter.benchmarks = true;
+                    }
+                    if selected.contains(&"Features".to_string()) {
+                        filter.features = true;
                     }
                     filter
                 })
