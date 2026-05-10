@@ -257,6 +257,7 @@ impl Ui {
             &self.data.config,
             &self.filtered_packages,
             self.settings.grouping,
+            self.settings.target_types_filter.features,
         );
         Task::future(async move { tx.send(nodes).await }).discard()
     }
@@ -314,6 +315,7 @@ pub struct TargetTypesFilter {
     lib: bool,
     example: bool,
     benchmarks: bool,
+    features: bool,
 }
 
 impl Default for TargetTypesFilter {
@@ -323,6 +325,7 @@ impl Default for TargetTypesFilter {
             lib: true,
             example: true,
             benchmarks: true,
+            features: true,
         }
     }
 }
@@ -344,6 +347,7 @@ impl TargetTypesFilter {
             lib: false,
             example: false,
             benchmarks: false,
+            features: false,
         }
     }
 }
