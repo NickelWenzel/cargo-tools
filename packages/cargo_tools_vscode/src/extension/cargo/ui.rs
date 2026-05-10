@@ -3,7 +3,7 @@ use std::{collections::HashMap, iter};
 use cargo_tools::cargo::{
     Config, Features,
     command::{BenchTarget, BuildSubTarget, BuildTarget, RunSubTarget, RunTarget},
-    metadata::{self, CondensedPackage, CondensedTarget, Target},
+    metadata::{self, CondensedPackage, CondensedTarget, TargetType},
 };
 use futures::{
     SinkExt, StreamExt,
@@ -398,10 +398,10 @@ impl OutlineNodeType {
             PackageFeatures { package } => try_package(package, packages)
                 .map(|p| OutlineNodeData::package_features_children(config, p))
                 .unwrap_or_default(),
-            Libraries => OutlineNodeData::targets_children(Target::Lib, config, packages),
-            Binaries => OutlineNodeData::targets_children(Target::Bin, config, packages),
-            Examples => OutlineNodeData::targets_children(Target::Example, config, packages),
-            Benchmarks => OutlineNodeData::targets_children(Target::Bench, config, packages),
+            Libraries => OutlineNodeData::targets_children(TargetType::Lib, config, packages),
+            Binaries => OutlineNodeData::targets_children(TargetType::Bin, config, packages),
+            Examples => OutlineNodeData::targets_children(TargetType::Example, config, packages),
+            Benchmarks => OutlineNodeData::targets_children(TargetType::Bench, config, packages),
             // All others never have further child nodes
             RootFeature(_) => Vec::new(),
             Feature { .. } => Vec::new(),
@@ -494,31 +494,31 @@ trait TargetExt {
     fn targets_node_type(&self) -> OutlineNodeType;
 }
 
-impl TargetExt for Target {
+impl TargetExt for TargetType {
     fn icon(&self) -> Icon {
         match self {
-            Target::Lib => LIB_TARGET,
-            Target::Bin => BIN_TARGET,
-            Target::Example => EXAMPLE_TARGET,
-            Target::Bench => BENCH_TARGET,
+            TargetType::Lib => LIB_TARGET,
+            TargetType::Bin => BIN_TARGET,
+            TargetType::Example => EXAMPLE_TARGET,
+            TargetType::Bench => BENCH_TARGET,
         }
     }
 
     fn label(&self) -> String {
         match self {
-            Target::Lib => "Libraries".to_string(),
-            Target::Bin => "Binaries".to_string(),
-            Target::Example => "Examples".to_string(),
-            Target::Bench => "Benchmarks".to_string(),
+            TargetType::Lib => "Libraries".to_string(),
+            TargetType::Bin => "Binaries".to_string(),
+            TargetType::Example => "Examples".to_string(),
+            TargetType::Bench => "Benchmarks".to_string(),
         }
     }
 
     fn targets_node_type(&self) -> OutlineNodeType {
         match self {
-            Target::Lib => OutlineNodeType(OutlineNodeTypeInner::Libraries),
-            Target::Bin => OutlineNodeType(OutlineNodeTypeInner::Binaries),
-            Target::Example => OutlineNodeType(OutlineNodeTypeInner::Examples),
-            Target::Bench => OutlineNodeType(OutlineNodeTypeInner::Benchmarks),
+            TargetType::Lib => OutlineNodeType(OutlineNodeTypeInner::Libraries),
+            TargetType::Bin => OutlineNodeType(OutlineNodeTypeInner::Binaries),
+            TargetType::Example => OutlineNodeType(OutlineNodeTypeInner::Examples),
+            TargetType::Bench => OutlineNodeType(OutlineNodeTypeInner::Benchmarks),
         }
     }
 }
@@ -562,13 +562,13 @@ impl OutlineNodeData {
                 OutlineNodeData::packages_root_children(config, packages, show_features)
             }
             Grouping::TargetTypes => {
-                OutlineNodeData::target_types_root_children(metadata::Target::counts(packages))
+                OutlineNodeData::target_types_root_children(metadata::TargetType::counts(packages))
             }
         }
     }
 
-    fn target_types_root_children(target_counts: HashMap<Target, usize>) -> Vec<Self> {
-        use metadata::Target::*;
+    fn target_types_root_children(target_counts: HashMap<TargetType, usize>) -> Vec<Self> {
+        use metadata::TargetType::*;
         [Lib, Bin, Example, Bench]
             .into_iter()
             .filter_map(|target| {
@@ -580,7 +580,7 @@ impl OutlineNodeData {
             .collect()
     }
 
-    fn target(target: Target, num_targets: usize) -> Self {
+    fn target(target: TargetType, num_targets: usize) -> Self {
         Self {
             label: target.label(),
             icon: target.icon(),
@@ -595,7 +595,7 @@ impl OutlineNodeData {
     }
 
     fn targets_children(
-        target: Target,
+        target: TargetType,
         config: &Config,
         packages: &[CondensedPackage],
     ) -> Vec<Self> {
@@ -611,17 +611,17 @@ impl OutlineNodeData {
     }
 
     fn target_leaf(
-        target_type: Target,
+        target_type: TargetType,
         config: &Config,
         package: String,
         target: &CondensedTarget,
         show_package: bool,
     ) -> Self {
         match target_type {
-            Target::Lib => Self::lib_target_leaf(config, package, target, show_package),
-            Target::Bin => Self::bin_target_leaf(config, package, target, show_package),
-            Target::Example => Self::example_target_leaf(config, package, target, show_package),
-            Target::Bench => Self::bench_target_leaf(config, package, target, show_package),
+            TargetType::Lib => Self::lib_target_leaf(config, package, target, show_package),
+            TargetType::Bin => Self::bin_target_leaf(config, package, target, show_package),
+            TargetType::Example => Self::example_target_leaf(config, package, target, show_package),
+            TargetType::Bench => Self::bench_target_leaf(config, package, target, show_package),
         }
     }
 
@@ -644,7 +644,7 @@ impl OutlineNodeData {
         if config.selected_package.as_ref() == Some(&package) {
             if let Some(selected_package) = config.package_selection() {
                 let target_name = target.name.as_str();
-                if selected_package.build_target_matches(Target::Lib, target_name) {
+                if selected_package.build_target_matches(TargetType::Lib, target_name) {
                     label.push_str(" 🔨");
                     context.push("isSelectedBuildTarget");
                 } else {
@@ -663,7 +663,7 @@ impl OutlineNodeData {
         Self::leaf(
             label,
             node_type,
-            Target::Lib.icon(),
+            TargetType::Lib.icon(),
             context.join(","),
             Some(description),
             target.source.to_string(),
@@ -683,13 +683,13 @@ impl OutlineNodeData {
         if config.selected_package.as_ref() == Some(&package) {
             if let Some(selected_package) = config.package_selection() {
                 let target_name = target.name.as_str();
-                if selected_package.build_target_matches(Target::Bin, target_name) {
+                if selected_package.build_target_matches(TargetType::Bin, target_name) {
                     label.push_str(" 🔨");
                     context.push("isSelectedBuildTarget");
                 } else {
                     context.push("canBeSelectedBuildTarget");
                 }
-                if selected_package.run_target_matches(Target::Bin, target_name) {
+                if selected_package.run_target_matches(TargetType::Bin, target_name) {
                     label.push_str(" 🚀");
                     context.push("isSelectedRunTarget");
                 } else {
@@ -715,7 +715,7 @@ impl OutlineNodeData {
         Self::leaf(
             label,
             node_type,
-            Target::Bin.icon(),
+            TargetType::Bin.icon(),
             context.join(","),
             description,
             target.source.to_string(),
@@ -736,13 +736,13 @@ impl OutlineNodeData {
         if config.selected_package.as_ref() == Some(&package) {
             let target_name = target.name.as_str();
             if let Some(selected_package) = config.package_selection() {
-                if selected_package.build_target_matches(Target::Example, target_name) {
+                if selected_package.build_target_matches(TargetType::Example, target_name) {
                     label.push_str(" 🔨");
                     context.push("isSelectedBuildTarget");
                 } else {
                     context.push("canBeSelectedBuildTarget");
                 }
-                if selected_package.run_target_matches(Target::Example, target_name) {
+                if selected_package.run_target_matches(TargetType::Example, target_name) {
                     label.push_str(" 🚀");
                     context.push("isSelectedRunTarget");
                 } else {
@@ -768,7 +768,7 @@ impl OutlineNodeData {
         Self::leaf(
             label,
             node_type,
-            Target::Example.icon(),
+            TargetType::Example.icon(),
             context.join(","),
             description,
             target.source.to_string(),
@@ -782,7 +782,7 @@ impl OutlineNodeData {
         if config.selected_package.as_ref() == Some(&package) {
             if let Some(selected_package) = config.package_selection() {
                 let target_name = target.name.as_str();
-                if selected_package.build_target_matches(Target::Bench, target_name) {
+                if selected_package.build_target_matches(TargetType::Bench, target_name) {
                     label.push_str(" 🔨");
                     context.push("isSelectedBuildTarget");
                 } else {
@@ -814,7 +814,7 @@ impl OutlineNodeData {
         Self::leaf(
             label,
             node_type,
-            Target::Bench.icon(),
+            TargetType::Bench.icon(),
             context.join(","),
             description,
             target.source.to_string(),
@@ -1021,12 +1021,12 @@ impl OutlineNodeData {
             .targets
             .iter()
             .map(|target| match target.target_type {
-                Target::Lib => Self::lib_target_leaf(config, package_name.to_string(), target, false),
-                Target::Bin => Self::bin_target_leaf(config, package_name.to_string(), target, false),
-                Target::Example => {
+                TargetType::Lib => Self::lib_target_leaf(config, package_name.to_string(), target, false),
+                TargetType::Bin => Self::bin_target_leaf(config, package_name.to_string(), target, false),
+                TargetType::Example => {
                     Self::example_target_leaf(config, package_name.to_string(), target, false)
                 }
-                Target::Bench => Self::bench_target_leaf(config, package_name.to_string(), target, false),
+                TargetType::Bench => Self::bench_target_leaf(config, package_name.to_string(), target, false),
             });
 
         let features = Self {
