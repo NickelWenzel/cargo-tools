@@ -9,14 +9,14 @@ use crate::cargo::Profile;
 
 /// Represents the kinds of targets which a `cargo` command can target
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Target {
+pub enum TargetType {
     Lib,
     Bin,
     Example,
     Bench,
 }
 
-impl Target {
+impl TargetType {
     /// Converts a [`cargo_metadata::Target`] into a [`Target`].
     pub fn from_target(target: &cargo_metadata::Target) -> Option<Self> {
         target.kind.iter().find_map(|kind| match kind {
@@ -150,7 +150,7 @@ pub struct CondensedPackage {
 pub struct CondensedTarget {
     pub name: String,
     pub source: String,
-    pub target_type: Target,
+    pub target_type: TargetType,
     pub original_types: Vec<TargetKind>,
 }
 
@@ -159,7 +159,7 @@ impl CondensedTarget {
         Some(Self {
             name: target.name.to_string(),
             source: target.src_path.to_string(),
-            target_type: Target::from_target(target)?,
+            target_type: TargetType::from_target(target)?,
             original_types: target.kind.clone(),
         })
     }

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::cargo::{
     Profile,
     command::{BuildSubTarget, RunSubTarget},
-    metadata::Target,
+    metadata::TargetType,
 };
 
 /// A feature either targets the [Self::Workspace] or a named [Self::Package]
@@ -253,14 +253,14 @@ pub struct PackageConfig {
 }
 
 impl PackageConfig {
-    pub fn build_target_matches(&self, target: Target, name: &str) -> bool {
+    pub fn build_target_matches(&self, target: TargetType, name: &str) -> bool {
         self.build_target
             .as_ref()
             .filter(|t| t.matches(target, name))
             .is_some()
     }
 
-    pub fn run_target_matches(&self, target: Target, name: &str) -> bool {
+    pub fn run_target_matches(&self, target: TargetType, name: &str) -> bool {
         self.run_target
             .as_ref()
             .filter(|t| t.matches(target, name))

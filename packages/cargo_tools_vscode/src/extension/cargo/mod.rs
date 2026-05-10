@@ -9,8 +9,8 @@ use cargo_tools::cargo::{
     command::{BuildSubTarget, RunSubTarget},
     config::Features,
     metadata::{
-        CondensedPackage, CondensedTarget, MetadataUpdate, Target, parse_metadata, parse_profiles,
-        workspace_manifests,
+        CondensedPackage, CondensedTarget, MetadataUpdate, TargetType, parse_metadata,
+        parse_profiles, workspace_manifests,
     },
 };
 use futures::{
@@ -332,11 +332,11 @@ impl Default for TargetTypesFilter {
 
 impl TargetTypesFilter {
     fn keep(&self, target: &cargo_metadata::Target) -> bool {
-        match Target::from_target(target) {
-            Some(Target::Bin) => self.bin,
-            Some(Target::Lib) => self.lib,
-            Some(Target::Example) => self.example,
-            Some(Target::Bench) => self.benchmarks,
+        match TargetType::from_target(target) {
+            Some(TargetType::Bin) => self.bin,
+            Some(TargetType::Lib) => self.lib,
+            Some(TargetType::Example) => self.example,
+            Some(TargetType::Bench) => self.benchmarks,
             None => false,
         }
     }

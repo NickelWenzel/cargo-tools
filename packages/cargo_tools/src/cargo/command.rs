@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cargo::{Config, metadata::Target},
+    cargo::{Config, metadata::TargetType},
     environment::Environment,
     task::{CargoTask, Task},
 };
@@ -177,12 +177,12 @@ impl BuildSubTarget {
         }
     }
 
-    pub fn matches(&self, target: Target, name: &str) -> bool {
+    pub fn matches(&self, target: TargetType, name: &str) -> bool {
         match self {
-            BuildSubTarget::Bin(t) => target == Target::Bin && t == name,
-            BuildSubTarget::Example(t) => target == Target::Example && t == name,
-            BuildSubTarget::Lib(t) => target == Target::Lib && t == name,
-            BuildSubTarget::Bench(t) => target == Target::Bench && t == name,
+            BuildSubTarget::Bin(t) => target == TargetType::Bin && t == name,
+            BuildSubTarget::Example(t) => target == TargetType::Example && t == name,
+            BuildSubTarget::Lib(t) => target == TargetType::Lib && t == name,
+            BuildSubTarget::Bench(t) => target == TargetType::Bench && t == name,
         }
     }
 }
@@ -202,10 +202,10 @@ impl RunSubTarget {
         }
     }
 
-    pub fn matches(&self, target: Target, name: &str) -> bool {
+    pub fn matches(&self, target: TargetType, name: &str) -> bool {
         match self {
-            RunSubTarget::Bin(t) => target == Target::Bin && t == name,
-            RunSubTarget::Example(t) => target == Target::Example && t == name,
+            RunSubTarget::Bin(t) => target == TargetType::Bin && t == name,
+            RunSubTarget::Example(t) => target == TargetType::Example && t == name,
         }
     }
 }
