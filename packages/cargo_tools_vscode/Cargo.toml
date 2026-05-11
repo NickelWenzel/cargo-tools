@@ -12,7 +12,6 @@ crate-type = ["cdylib", "lib"]
 cargo_tools = { workspace = true }
 iced_viewless = { workspace = true }
 
-cargo_metadata = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 serde = { workspace = true }

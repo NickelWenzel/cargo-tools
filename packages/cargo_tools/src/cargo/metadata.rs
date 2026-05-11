@@ -1,11 +1,42 @@
 use std::collections::HashMap;
 
+use futures::future;
 use itertools::Itertools;
 use toml::Table;
 
-use cargo_metadata::{Metadata, MetadataCommand, TargetKind};
+use cargo_metadata::MetadataCommand;
+pub use cargo_metadata::TargetKind;
 
 use crate::cargo::Profile;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct Metadata {
+    packages: Vec<Package>,
+    profiles: Vec<Profile>,
+    target_dir: String,
+}
+
+impl Metadata {
+    /// Returns the filenames of the manifests of the metadata's packages
+    pub fn manifests(&self) -> Vec<String> {
+        self.packages
+            .iter()
+            .map(|p| p.manifest.to_string())
+            .collect()
+    }
+
+    pub fn packages(&self) -> &[Package] {
+        &self.packages
+    }
+
+    pub fn profiles(&self) -> &[Profile] {
+        &self.profiles
+    }
+
+    pub fn target_dir(&self) -> &str {
+        &self.target_dir
+    }
+}
 
 /// Represents the kinds of targets which a `cargo` command can target
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -18,7 +49,7 @@ pub enum TargetType {
 
 impl TargetType {
     /// Converts a [`cargo_metadata::Target`] into a [`Target`].
-    pub fn from_target(target: &cargo_metadata::Target) -> Option<Self> {
+    pub fn from_target(target: cargo_metadata::Target) -> Option<Self> {
         target.kind.iter().find_map(|kind| match kind {
             TargetKind::Lib
             | TargetKind::RLib
@@ -36,8 +67,8 @@ impl TargetType {
         })
     }
 
-    /// Counts the number of each [`Target`] kind in the given [`cargo_metadata::Metadata`].
-    pub fn counts(packages: &[CondensedPackage]) -> HashMap<Self, usize> {
+    /// Counts the number of each [`Target`] kind in the given [`Package`]s.
+    pub fn counts(packages: &[Package]) -> HashMap<Self, usize> {
         packages
             .iter()
             .flat_map(|p| p.targets.iter().map(|t| t.target_type))
@@ -45,28 +76,41 @@ impl TargetType {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum MetadataUpdate {
-    Metadata(Metadata),
-    Profiles(Vec<Profile>),
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ParseError {
+    #[error("No Cargo toml found: {0}")]
     NoCargoToml(String),
-    FailedToRetrieve,
-}
-
-/// Returns the filenames of the manifests of the metadata's workspace packages
-pub fn workspace_manifests(metadata: &Metadata) -> Vec<String> {
-    metadata
-        .workspace_packages()
-        .into_iter()
-        .map(|p| p.manifest_path.to_string())
-        .collect()
+    #[error("Failed to generate metadata")]
+    FailedToGenerate,
 }
 
 /// Parses the metadata and returns a metadata update
 pub async fn parse_metadata(
+    root_dir: String,
+    exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
+    read_file: impl AsyncFn(String) -> Result<String, String>,
+) -> Result<Metadata, ParseError> {
+    let (packages, profiles) = future::join(
+        parse_packages(format!("{root_dir}/Cargo.toml"), exec),
+        parse_profiles(root_dir, read_file),
+    )
+    .await;
+
+    match packages {
+        Ok((packages, target_dir)) => Ok(Metadata {
+            packages,
+            profiles,
+            target_dir,
+        }),
+        Err(e) => Err(e),
+    }
+}
+
+/// Parses the given [`manifest_file`]'s metadata and returns a metadata update
+pub async fn parse_packages(
     manifest_file: String,
     exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
-) -> MetadataUpdate {
+) -> Result<(Vec<Package>, String), ParseError> {
     // Construct cargo metadata command with manifest path
     let cargo_args = vec![
         "metadata".to_string(),
@@ -78,17 +122,28 @@ pub async fn parse_metadata(
     ];
 
     // Execute command via runtime
-    match exec("cargo".to_string(), cargo_args).await {
-        Ok(metadata) => extract_raw_metadata(&metadata).await,
-        Err(e) => MetadataUpdate::NoCargoToml(e),
-    }
+    let metadata = exec("cargo".to_string(), cargo_args)
+        .await
+        .map_err(ParseError::NoCargoToml)?;
+
+    let metadata = extract_raw_metadata(&metadata).await?;
+
+    let packages = metadata
+        .packages
+        .into_iter()
+        .filter(|p| metadata.workspace_members.contains(&p.id))
+        .map(Package::from_cargo)
+        .sorted_by_key(|pkg| pkg.name.clone())
+        .collect();
+
+    Ok((packages, metadata.target_directory.to_string()))
 }
 
 /// Parses the metadata for profiles and returns a metadata update
 pub async fn parse_profiles(
     root_dir: String,
     read_file: impl AsyncFn(String) -> Result<String, String>,
-) -> MetadataUpdate {
+) -> Vec<Profile> {
     let mut profiles = Profile::standards_profiles();
 
     let manifest_file = format!("{root_dir}/Cargo.toml");
@@ -105,18 +160,18 @@ pub async fn parse_profiles(
         }
     }
 
-    MetadataUpdate::Profiles(profiles)
+    profiles
 }
 
-async fn extract_raw_metadata(raw_metadata: &str) -> MetadataUpdate {
+async fn extract_raw_metadata(raw_metadata: &str) -> Result<cargo_metadata::Metadata, ParseError> {
     let Some(metadata) = raw_metadata.lines().find(|line| line.starts_with('{')) else {
-        return MetadataUpdate::FailedToRetrieve;
+        return Err(ParseError::FailedToGenerate);
     };
 
     // Parse JSON output into Metadata
     match MetadataCommand::parse(metadata) {
-        Ok(metadata) => MetadataUpdate::Metadata(metadata),
-        Err(e) => MetadataUpdate::NoCargoToml(e.to_string()),
+        Ok(metadata) => Ok(metadata),
+        Err(e) => Err(ParseError::NoCargoToml(e.to_string())),
     }
 }
 
@@ -136,31 +191,48 @@ fn extract_profiles(toml: String) -> Vec<Profile> {
     profiles.keys().cloned().map(Profile::from).collect()
 }
 
-/// The condensed package information holding only information needed to build `cargo` commands
-#[derive(Debug)]
-pub struct CondensedPackage {
+/// The package information holding only information needed to build `cargo` commands
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Package {
     pub name: String,
     pub manifest: String,
-    pub targets: Vec<CondensedTarget>,
+    pub targets: Vec<Target>,
     pub features: Vec<String>,
 }
 
+impl Package {
+    fn from_cargo(package: cargo_metadata::Package) -> Self {
+        Self {
+            name: package.name.to_string(),
+            manifest: package.manifest_path.to_string(),
+            targets: package
+                .targets
+                .into_iter()
+                .filter_map(Target::try_from_cargo)
+                .sorted_by_key(|t| t.target_type)
+                .collect(),
+            features: package.features.keys().cloned().collect(),
+        }
+    }
+}
+
 /// The condensed target information holding only information needed to build `cargo` commands
-#[derive(Debug)]
-pub struct CondensedTarget {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Target {
     pub name: String,
     pub source: String,
     pub target_type: TargetType,
-    pub original_types: Vec<TargetKind>,
+    pub target_kind: Vec<TargetKind>,
 }
 
-impl CondensedTarget {
-    pub fn try_from_cargo(target: &cargo_metadata::Target) -> Option<Self> {
+impl Target {
+    pub fn try_from_cargo(target: cargo_metadata::Target) -> Option<Self> {
+        let target_kind = target.kind.clone();
         Some(Self {
             name: target.name.to_string(),
             source: target.src_path.to_string(),
             target_type: TargetType::from_target(target)?,
-            original_types: target.kind.clone(),
+            target_kind,
         })
     }
 }

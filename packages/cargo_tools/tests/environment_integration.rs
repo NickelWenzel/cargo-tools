@@ -4,7 +4,7 @@
 //! using the test-rust-project as test data.
 
 use cargo_tools::{
-    cargo::metadata::{MetadataUpdate, parse_metadata},
+    cargo::metadata::{MetadataUpdate, parse_packages},
     cargo_make::{MakefileTasksUpdate, parse_tasks},
 };
 #[cfg(target_arch = "wasm32")]
@@ -72,7 +72,7 @@ async fn test_update_metadata_success() {
     )
     .to_string();
 
-    let result = parse_metadata(manifest, exec_cmd).await;
+    let result = parse_packages(manifest, exec_cmd).await;
 
     // Verify success variant
     assert!(
@@ -181,7 +181,7 @@ async fn test_update_makefile_tasks_success() {
 async fn test_update_metadata_no_cargo_toml() {
     let nonexistent_path = "/nonexistent/path/that/does/not/exist".to_string();
 
-    let result = parse_metadata(nonexistent_path, exec_cmd).await;
+    let result = parse_packages(nonexistent_path, exec_cmd).await;
 
     // Verify error variant
     assert!(
