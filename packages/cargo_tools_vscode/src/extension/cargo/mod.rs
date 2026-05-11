@@ -3,15 +3,11 @@ pub mod ui;
 
 use std::{iter, path::Path};
 
-use cargo_metadata::Metadata;
 use cargo_tools::cargo::{
     Config, ConfigUpdate, Profile,
     command::{BuildSubTarget, RunSubTarget},
     config::Features,
-    metadata::{
-        CondensedPackage, CondensedTarget, MetadataUpdate, TargetType, parse_metadata,
-        parse_profiles, workspace_manifests,
-    },
+    metadata::{Metadata, Package, ParseError, Target, TargetType, parse_metadata},
 };
 use futures::{
     SinkExt,
@@ -19,7 +15,6 @@ use futures::{
 };
 use iced_viewless::Task;
 
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -41,6 +36,25 @@ use crate::{
         CargoConfigurationTreeProvider, CargoOutlineTreeProvider, TsFileWatcher, set_cargo_context,
     },
 };
+
+#[derive(Debug, Clone)]
+pub enum MetadataUpdate {
+    Metadata(Metadata),
+    NoCargoToml(String),
+    FailedToGenerate,
+}
+
+impl MetadataUpdate {
+    fn from_parse_result(res: Result<Metadata, ParseError>) -> Self {
+        match res {
+            Ok(metadata) => Self::Metadata(metadata),
+            Err(e) => match e {
+                ParseError::NoCargoToml(e) => Self::NoCargoToml(e),
+                ParseError::FailedToGenerate => Self::FailedToGenerate,
+            },
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -66,7 +80,7 @@ pub struct Ui {
     settings: OutlineSettings,
     ui: CargoConfigurationTreeProvider,
     outline_ui: CargoOutlineTreeProvider,
-    filtered_packages: Vec<CondensedPackage>,
+    filtered_packages: Vec<Package>,
     base: Base,
     cmd_tx: Sender<Command>,
 }
@@ -96,7 +110,7 @@ impl Ui {
         let outline_handler = CargoOutlineTreeProviderHandler::new(outline_tx);
 
         let data = CommandData {
-            metadata: UiMetadata::default(),
+            metadata: Metadata::default(),
             config,
         };
 
@@ -143,18 +157,14 @@ impl Ui {
             Message::MetadataChanged(update) => match update {
                 MetadataUpdate::Metadata(metadata) => {
                     // Update file watcher
-                    let mut manifests = workspace_manifests(&metadata);
+                    let mut manifests = metadata.manifests();
                     manifests.push(self.root_manifest());
                     self.base.file_watcher.watch_files(manifests);
 
-                    self.data.metadata.metadata = Some(metadata);
+                    self.data.metadata = metadata;
                     self.update_ui();
 
                     Task::future(set_cargo_context(true)).discard()
-                }
-                MetadataUpdate::Profiles(profiles) => {
-                    self.data.metadata.profiles = profiles;
-                    Task::none()
                 }
                 MetadataUpdate::NoCargoToml(_error) => {
                     // TODO: log error
@@ -163,13 +173,13 @@ impl Ui {
                         .file_watcher
                         .watch_files(vec![self.root_manifest()]);
 
-                    self.data.metadata = UiMetadata::default();
+                    self.data.metadata = Metadata::default();
                     self.update_ui();
 
                     Task::future(set_cargo_context(false)).discard()
                 }
                 // For invalid makefiles leave everything as is
-                MetadataUpdate::FailedToRetrieve => Task::none(),
+                MetadataUpdate::FailedToGenerate => Task::none(),
             },
             Message::ManifestChanged => self.parse_manifest(),
             Message::SettingsChanged(update) => self.update_settings(update),
@@ -202,16 +212,13 @@ impl Ui {
     }
 
     fn parse_manifest(&self) -> Task<Message> {
-        let metadata = Task::future(parse_metadata(self.root_manifest(), exec_vs_code));
-        let profiles = Task::future(parse_profiles(
+        Task::future(parse_metadata(
             self.base.root_dir.clone(),
+            exec_vs_code,
             read_file_vs_code,
-        ));
-        Task::batch([metadata, profiles]).map(Message::MetadataChanged)
-    }
-
-    fn root_manifest(&self) -> String {
-        format!("{}/Cargo.toml", self.base.root_dir)
+        ))
+        .map(MetadataUpdate::from_parse_result)
+        .map(Message::MetadataChanged)
     }
 
     fn send_config_nodes(&self, request: ConfigUiRequest) -> Task<Message> {
@@ -227,18 +234,32 @@ impl Ui {
     }
 
     fn update_condensed_packages(&mut self) {
-        if let Some(metadata) = &self.data.metadata.metadata {
-            self.filtered_packages = self.settings.filter(metadata);
-        }
+        let packages = self.data.metadata.packages();
+        let filtered_packages = self.settings.filter_packages(packages);
+        self.filtered_packages = filtered_packages
+            .map(
+                |Package {
+                     name,
+                     manifest,
+                     targets,
+                     features,
+                 }| {
+                    Package {
+                        name: name.clone(),
+                        manifest: manifest.clone(),
+                        targets: self.settings.filter_targets(targets).cloned().collect(),
+                        features: features.clone(),
+                    }
+                },
+            )
+            .collect();
     }
 
     fn send_outline_nodes(&self, request: OutlineUiRequest) -> Task<Message> {
         let OutlineUiRequest { mut tx, node_type } = request;
 
         // No metadata - nothing to show
-        let Some(metadata) = &self.data.metadata.metadata else {
-            return Task::none();
-        };
+        let metadata = &self.data.metadata;
 
         let Some(node_type) = node_type else {
             // Root node
@@ -248,7 +269,7 @@ impl Ui {
             else {
                 return Task::none();
             };
-            let num_packages = metadata.workspace_packages().len();
+            let num_packages = metadata.packages().len();
             let root = vec![OutlineNodeData::root(name, num_packages)];
             return Task::future(async move { tx.send(root).await }).discard();
         };
@@ -260,6 +281,10 @@ impl Ui {
             self.settings.target_types_filter.features,
         );
         Task::future(async move { tx.send(nodes).await }).discard()
+    }
+
+    fn root_manifest(&self) -> String {
+        format!("{}/Cargo.toml", self.base.root_dir)
     }
 }
 
@@ -274,38 +299,25 @@ pub fn state_key(root_dir: &str) -> String {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct OutlineSettings {
-    pub package_filter: String,
-    pub target_types_filter: TargetTypesFilter,
-    pub grouping: Grouping,
+    package_filter: String,
+    target_types_filter: TargetTypesFilter,
+    grouping: Grouping,
 }
 
 impl OutlineSettings {
-    fn filter(&self, metadata: &Metadata) -> Vec<CondensedPackage> {
-        let package_filter = &self.package_filter;
-        let target_types_filter = &self.target_types_filter;
-
-        metadata
-            .workspace_packages()
+    fn filter_packages<'a>(&'a self, packages: &'a [Package]) -> impl Iterator<Item = &'a Package> {
+        let allow_all = self.package_filter.is_empty();
+        packages
             .iter()
             // Filter by package name
-            .filter(|pkg| package_filter.is_empty() || pkg.name.contains(package_filter))
-            .sorted_by_key(|pkg| pkg.name.clone())
-            .map(|pkg| CondensedPackage {
-                name: pkg.name.to_string(),
-                manifest: pkg.manifest_path.to_string(),
-                targets: pkg
-                    .targets
-                    .iter()
-                    // Filter by target type
-                    .filter(|target| target_types_filter.keep(target))
-                    .filter_map(CondensedTarget::try_from_cargo)
-                    .sorted_by_key(|t| t.target_type)
-                    .collect(),
-                features: iter::once("All features".to_string())
-                    .chain(pkg.features.keys().cloned())
-                    .collect(),
-            })
-            .collect()
+            .filter(move |pkg| allow_all || pkg.name.contains(&self.package_filter))
+    }
+
+    fn filter_targets<'a>(&'a self, targets: &'a [Target]) -> impl Iterator<Item = &'a Target> {
+        targets
+            .iter()
+            // Filter by target type
+            .filter(|target| self.target_types_filter.keep(target))
     }
 }
 
@@ -331,13 +343,12 @@ impl Default for TargetTypesFilter {
 }
 
 impl TargetTypesFilter {
-    fn keep(&self, target: &cargo_metadata::Target) -> bool {
-        match TargetType::from_target(target) {
-            Some(TargetType::Bin) => self.bin,
-            Some(TargetType::Lib) => self.lib,
-            Some(TargetType::Example) => self.example,
-            Some(TargetType::Bench) => self.benchmarks,
-            None => false,
+    fn keep(&self, target: &Target) -> bool {
+        match target.target_type {
+            TargetType::Bin => self.bin,
+            TargetType::Lib => self.lib,
+            TargetType::Example => self.example,
+            TargetType::Bench => self.benchmarks,
         }
     }
 
@@ -370,7 +381,7 @@ impl Grouping {
 
 #[derive(Debug, Clone, Default)]
 struct CommandData {
-    metadata: UiMetadata,
+    metadata: Metadata,
     config: Config,
 }
 
@@ -383,14 +394,21 @@ impl CommandData {
     }
 
     fn packages(&self) -> SelectInput<Option<String>> {
-        let options = self.metadata.package_options();
+        let options = iter::once(None)
+            .chain(
+                self.metadata
+                    .packages()
+                    .iter()
+                    .map(|p| Some(p.name.clone())),
+            )
+            .collect();
         let current = vec![self.config.selected_package.clone()];
 
         SelectInput { options, current }
     }
 
     fn build_target_options(&self) -> Option<SelectInput<Option<BuildSubTarget>>> {
-        let metadata = self.metadata.metadata.as_ref()?;
+        let metadata = &self.metadata;
         let config = &self.config;
 
         let options = config.build_target_options(metadata);
@@ -404,8 +422,7 @@ impl CommandData {
     }
 
     fn run_target_options(&self) -> Option<SelectInput<Option<RunSubTarget>>> {
-        let metadata = self.metadata.metadata.as_ref()?;
-
+        let metadata = &self.metadata;
         let config = &self.config;
 
         let options = config.run_target_options(metadata);
@@ -419,7 +436,7 @@ impl CommandData {
     }
 
     fn bench_target_options(&self) -> Option<SelectInput<Option<String>>> {
-        let metadata = self.metadata.metadata.as_ref()?;
+        let metadata = &self.metadata;
         let config = &self.config;
 
         let options = config.bench_target_options(metadata);
@@ -433,7 +450,7 @@ impl CommandData {
     }
 
     fn available_features(&self) -> Option<Vec<String>> {
-        let metadata = self.metadata.metadata.as_ref()?;
+        let metadata = &self.metadata;
 
         Some(self.config.feature_options(metadata))
     }
@@ -446,31 +463,5 @@ impl CommandData {
         };
 
         Some(SelectInput { options, current })
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct UiMetadata {
-    pub metadata: Option<Metadata>,
-    pub profiles: Vec<Profile>,
-}
-
-impl UiMetadata {
-    pub fn profiles(&self) -> &[Profile] {
-        &self.profiles
-    }
-
-    pub fn package_options(&self) -> Vec<Option<String>> {
-        let Some(metadata) = &self.metadata else {
-            return Vec::new();
-        };
-        iter::once(None)
-            .chain(
-                metadata
-                    .workspace_packages()
-                    .iter()
-                    .map(|p| Some(p.name.to_string())),
-            )
-            .collect()
     }
 }

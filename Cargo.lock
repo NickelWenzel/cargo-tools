@@ -225,6 +225,7 @@ dependencies = [
  "futures",
  "itertools",
  "serde",
+ "thiserror",
  "tokio",
  "toml",
  "tracing",
@@ -238,7 +239,6 @@ dependencies = [
 name = "cargo_tools_vscode"
 version = "0.3.0"
 dependencies = [
- "cargo_metadata",
  "cargo_tools",
  "futures",
  "iced_viewless",

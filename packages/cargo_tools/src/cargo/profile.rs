@@ -7,7 +7,7 @@ const BENCH: &str = "bench";
 const DOC: &str = "doc";
 
 /// Represents a Cargo profile, which can be either standard, custom, or none.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub enum Profile {
     /// No profile selection
     #[default]

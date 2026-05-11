@@ -211,17 +211,11 @@ impl Ui {
         let build_debug_task = CargoCommand::Build(Some(build_target))
             .into_task(&config, environment(TaskContext::General));
 
-        let Some(target_dir) = self
-            .data
-            .metadata
-            .metadata
-            .as_ref()
-            .map(|metadata| metadata.target_directory.to_string())
-        else {
-            return Task::none();
-        };
-
-        let target_exe_path = exec_path(run_target, &self.data.config, &target_dir);
+        let target_exe_path = exec_path(
+            run_target,
+            &self.data.config,
+            &self.data.metadata.target_dir(),
+        );
 
         Task::future(async move {
             exec_task_vs_code(build_debug_task).await;
@@ -235,12 +229,14 @@ impl Ui {
 
     fn select_workspace_member_filter(&self) -> Task<Message> {
         let current = self.settings.package_filter.clone();
-        let Some(Ok(options)) = self.data.metadata.metadata.as_ref().map(|m| {
-            m.workspace_packages()
-                .into_iter()
-                .map(|p| to_value(&p.name.to_string().to_item(false)))
-                .collect::<Result<Array, _>>()
-        }) else {
+        let Ok(options) = self
+            .data
+            .metadata
+            .packages()
+            .into_iter()
+            .map(|p| to_value(&p.name.to_string().to_item(false)))
+            .collect::<Result<Array, _>>()
+        else {
             return Task::none();
         };
 
@@ -328,15 +324,9 @@ impl Ui {
                 let is_in_metadata = self
                     .data
                     .metadata
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| {
-                        m.workspace_packages()
-                            .iter()
-                            .find(|p| p.name == package)
-                            .map(|_| ())
-                    })
-                    .is_some();
+                    .packages()
+                    .iter()
+                    .any(|p| &p.name.as_str() == package);
                 is_selected || is_in_metadata
             })
             .map(|(k, v)| (k.clone(), v.clone()))

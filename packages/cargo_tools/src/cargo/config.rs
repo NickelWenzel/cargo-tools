@@ -1,13 +1,12 @@
 use std::{collections::HashMap, iter};
 
-use cargo_metadata::{Metadata, Package, TargetKind};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::cargo::{
     Profile,
     command::{BuildSubTarget, RunSubTarget},
-    metadata::TargetType,
+    metadata::{Metadata, Package, TargetType},
 };
 
 /// A feature either targets the [Self::Workspace] or a named [Self::Package]
@@ -145,9 +144,9 @@ impl Config {
         let selected = self.selected_package.as_ref()?;
 
         metadata
-            .workspace_packages()
-            .into_iter()
-            .find(|p| p.name == selected)
+            .packages()
+            .iter()
+            .find(|p| &p.name == selected)
             .cloned()
     }
 
@@ -156,32 +155,15 @@ impl Config {
             return Vec::new();
         };
 
-        let targets = package.targets.iter().filter_map(|target| {
-            let mut kind = target.kind.iter();
-            if kind.clone().any(|k| matches!(k, TargetKind::Bin)) {
-                return Some(BuildSubTarget::Bin(target.name.clone()));
-            } else if kind.clone().any(|k| {
-                matches!(
-                    k,
-                    TargetKind::Lib
-                        | TargetKind::RLib
-                        | TargetKind::DyLib
-                        | TargetKind::CDyLib
-                        | TargetKind::StaticLib
-                        | TargetKind::ProcMacro
-                )
-            }) {
-                return Some(BuildSubTarget::Lib(package.name.to_string()));
-            } else if kind
-                .clone()
-                .any(|k: &TargetKind| matches!(k, TargetKind::Example))
-            {
-                return Some(BuildSubTarget::Example(target.name.clone()));
-            } else if kind.any(|k| matches!(k, TargetKind::Bench)) {
-                return Some(BuildSubTarget::Bench(target.name.clone()));
-            }
-            None
-        });
+        let targets = package
+            .targets
+            .iter()
+            .map(|target| match target.target_type {
+                TargetType::Lib => BuildSubTarget::Lib(package.name.to_string()),
+                TargetType::Bin => BuildSubTarget::Bin(target.name.clone()),
+                TargetType::Example => BuildSubTarget::Example(target.name.clone()),
+                TargetType::Bench => BuildSubTarget::Bench(target.name.clone()),
+            });
 
         iter::once(None).chain(targets.map(Option::Some)).collect()
     }
@@ -191,15 +173,14 @@ impl Config {
             return Vec::new();
         };
 
-        let targets = package.targets.iter().filter_map(|target| {
-            let mut kind = target.kind.iter();
-            if kind.clone().any(|k| matches!(k, TargetKind::Bin)) {
-                return Some(RunSubTarget::Bin(target.name.clone()));
-            } else if kind.any(|k| matches!(k, TargetKind::Example)) {
-                return Some(RunSubTarget::Example(target.name.clone()));
-            }
-            None
-        });
+        let targets = package
+            .targets
+            .iter()
+            .filter_map(|target| match target.target_type {
+                TargetType::Bin => Some(RunSubTarget::Bin(target.name.clone())),
+                TargetType::Example => Some(RunSubTarget::Example(target.name.clone())),
+                TargetType::Lib | TargetType::Bench => None,
+            });
 
         iter::once(None).chain(targets.map(Option::Some)).collect()
     }
@@ -210,10 +191,7 @@ impl Config {
         };
 
         let targets = package.targets.iter().filter_map(|target| {
-            if target.kind.iter().any(|k| matches!(k, TargetKind::Bench)) {
-                return Some(target.name.clone());
-            }
-            None
+            (target.target_type == TargetType::Bench).then_some(target.name.clone())
         });
 
         iter::once(None).chain(targets.map(Option::Some)).collect()
@@ -222,12 +200,12 @@ impl Config {
     pub fn feature_options(&self, metadata: &Metadata) -> Vec<String> {
         let features = iter::once("All features".to_string());
         match self.selected_package(metadata) {
-            Some(package) => features.chain(package.features.keys().cloned()).collect(),
+            Some(package) => features.chain(package.features.clone()).collect(),
             None => {
                 let package_features = metadata
-                    .workspace_packages()
-                    .into_iter()
-                    .flat_map(|package| package.features.keys().cloned())
+                    .packages()
+                    .iter()
+                    .flat_map(|package| package.features.clone())
                     .sorted()
                     .unique();
                 features.chain(package_features).collect()
