@@ -33,7 +33,8 @@ use crate::{
         CHANNEL_CAPACITY, exec_vs_code, get_state_vs_code, persist_state_vs_code, read_file_vs_code,
     },
     vs_code_api::{
-        CargoConfigurationTreeProvider, CargoOutlineTreeProvider, TsFileWatcher, set_cargo_context,
+        CargoConfigurationTreeProvider, CargoOutlineTreeProvider, TsFileWatcher, log_error,
+        set_cargo_context,
     },
 };
 
@@ -41,7 +42,7 @@ use crate::{
 pub enum MetadataUpdate {
     Metadata(Metadata),
     NoCargoToml(String),
-    FailedToGenerate,
+    FailedToParse(String),
 }
 
 impl MetadataUpdate {
@@ -50,7 +51,7 @@ impl MetadataUpdate {
             Ok(metadata) => Self::Metadata(metadata),
             Err(e) => match e {
                 ParseError::NoCargoToml(e) => Self::NoCargoToml(e),
-                ParseError::FailedToGenerate => Self::FailedToGenerate,
+                ParseError::Parse(e) => Self::FailedToParse(e.to_string()),
             },
         }
     }
@@ -166,8 +167,8 @@ impl Ui {
 
                     Task::future(set_cargo_context(true)).discard()
                 }
-                MetadataUpdate::NoCargoToml(_error) => {
-                    // TODO: log error
+                MetadataUpdate::NoCargoToml(e) => {
+                    log_error(&e);
                     // Always check for mainfest in root dir
                     self.base
                         .file_watcher
@@ -179,7 +180,10 @@ impl Ui {
                     Task::future(set_cargo_context(false)).discard()
                 }
                 // For invalid makefiles leave everything as is
-                MetadataUpdate::FailedToGenerate => Task::none(),
+                MetadataUpdate::FailedToParse(e) => {
+                    log_error(&e);
+                    Task::none()
+                }
             },
             Message::ManifestChanged => self.parse_manifest(),
             Message::SettingsChanged(update) => self.update_settings(update),

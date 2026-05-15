@@ -76,28 +76,37 @@ impl TargetType {
     }
 }
 
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("No Cargo toml found: {0}")]
     NoCargoToml(String),
-    #[error("Failed to generate metadata")]
-    FailedToGenerate,
+    #[error(transparent)]
+    Parse(cargo_metadata::Error),
 }
 
-/// Parses the metadata and returns a metadata update
+struct CargoMetadata {
+    packages: Vec<Package>,
+    target_dir: String,
+}
+
+/// Tries to parse the metadata of a cargo project located at `root_dir`.
+/// Executing necessary commands with `exec` and reading files with `read_file`.
 pub async fn parse_metadata(
     root_dir: String,
     exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
     read_file: impl AsyncFn(String) -> Result<String, String>,
 ) -> Result<Metadata, ParseError> {
-    let (packages, profiles) = future::join(
-        parse_packages(format!("{root_dir}/Cargo.toml"), exec),
+    let (cargo_metadata, profiles) = future::join(
+        parse_cargo_metadata(format!("{root_dir}/Cargo.toml"), exec),
         parse_profiles(root_dir, read_file),
     )
     .await;
 
-    match packages {
-        Ok((packages, target_dir)) => Ok(Metadata {
+    match cargo_metadata {
+        Ok(CargoMetadata {
+            packages,
+            target_dir,
+        }) => Ok(Metadata {
             packages,
             profiles,
             target_dir,
@@ -106,11 +115,10 @@ pub async fn parse_metadata(
     }
 }
 
-/// Parses the given [`manifest_file`]'s metadata and returns a metadata update
-pub async fn parse_packages(
+async fn parse_cargo_metadata(
     manifest_file: String,
     exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
-) -> Result<(Vec<Package>, String), ParseError> {
+) -> Result<CargoMetadata, ParseError> {
     // Construct cargo metadata command with manifest path
     let cargo_args = vec![
         "metadata".to_string(),
@@ -126,21 +134,18 @@ pub async fn parse_packages(
         .await
         .map_err(ParseError::NoCargoToml)?;
 
-    let metadata = extract_raw_metadata(&metadata).await?;
+    let metadata = extract_raw_metadata(&metadata)?;
 
-    let packages = metadata
-        .packages
-        .into_iter()
-        .filter(|p| metadata.workspace_members.contains(&p.id))
-        .map(Package::from_cargo)
-        .sorted_by_key(|pkg| pkg.name.clone())
-        .collect();
+    let target_dir = metadata.target_directory.to_string();
+    let packages = Package::from_metadata(metadata);
 
-    Ok((packages, metadata.target_directory.to_string()))
+    Ok(CargoMetadata {
+        packages,
+        target_dir,
+    })
 }
 
-/// Parses the metadata for profiles and returns a metadata update
-pub async fn parse_profiles(
+async fn parse_profiles(
     root_dir: String,
     read_file: impl AsyncFn(String) -> Result<String, String>,
 ) -> Vec<Profile> {
@@ -163,16 +168,13 @@ pub async fn parse_profiles(
     profiles
 }
 
-async fn extract_raw_metadata(raw_metadata: &str) -> Result<cargo_metadata::Metadata, ParseError> {
-    let Some(metadata) = raw_metadata.lines().find(|line| line.starts_with('{')) else {
-        return Err(ParseError::FailedToGenerate);
-    };
-
-    // Parse JSON output into Metadata
-    match MetadataCommand::parse(metadata) {
-        Ok(metadata) => Ok(metadata),
-        Err(e) => Err(ParseError::NoCargoToml(e.to_string())),
-    }
+fn extract_raw_metadata(raw_metadata: &str) -> Result<cargo_metadata::Metadata, ParseError> {
+    raw_metadata
+        .lines()
+        .find(|line| line.starts_with('{'))
+        .ok_or(cargo_metadata::Error::NoJson)
+        .and_then(MetadataCommand::parse)
+        .map_err(ParseError::Parse)
 }
 
 fn extract_profiles(toml: String) -> Vec<Profile> {
@@ -201,6 +203,16 @@ pub struct Package {
 }
 
 impl Package {
+    fn from_metadata(metadata: cargo_metadata::Metadata) -> Vec<Package> {
+        metadata
+            .packages
+            .into_iter()
+            .filter(|p| metadata.workspace_members.contains(&p.id))
+            .map(Package::from_cargo)
+            .sorted_by_key(|pkg| pkg.name.clone())
+            .collect()
+    }
+
     fn from_cargo(package: cargo_metadata::Package) -> Self {
         Self {
             name: package.name.to_string(),
@@ -239,6 +251,7 @@ impl Target {
 
 #[cfg(test)]
 mod tests {
+    use assert2::check;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use super::*;
@@ -290,5 +303,37 @@ version = "0.1.0"
 
         let profiles = extract_profiles(toml.to_string());
         assert_eq!(profiles.len(), 0);
+    }
+
+    /// Test successful metadata discovery from test-rust-project.
+    #[wasm_bindgen_test(unsupported = test)]
+    fn parse_valid_metadata() -> anyhow::Result<()> {
+        let metadata = include_str!("../../res/test-rust-project-metadata.json").to_string();
+        let metadata = extract_raw_metadata(&metadata)?;
+
+        let packages = Package::from_metadata(metadata);
+
+        // Expected packages from test-rust-project
+        let expected_packages = vec![
+            "core",
+            "cli",
+            "web-server",
+            "utils",
+            "test-cdylib",
+            "test-staticlib",
+            "test-proc-macro",
+            "test-proc-macro-alt",
+        ];
+
+        check!(expected_packages.len() == packages.len());
+        for expected in &expected_packages {
+            check!(
+                packages.iter().any(|pkg| &pkg.name == expected),
+                "Expected package '{expected}' not found in: {:?}",
+                packages
+            );
+        }
+
+        Ok(())
     }
 }

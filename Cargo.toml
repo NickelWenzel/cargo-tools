@@ -37,3 +37,5 @@ toml = { version = "0.9.8", features = [
     "serde",
 ], default-features = false }
 itertools = "0.14.0"
+anyhow = "1.0.102"
+assert2 = "0.4.0"

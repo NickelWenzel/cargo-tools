@@ -3,7 +3,7 @@ pub mod ui;
 
 use std::iter;
 
-use cargo_tools::cargo_make::{MakefileTask, MakefileTasks, MakefileTasksUpdate, parse_tasks};
+use cargo_tools::cargo_make::{MakefileTask, MakefileTasks, ParseError, parse_tasks};
 use futures::channel::mpsc::{Sender, channel};
 use iced_viewless::Task;
 
@@ -19,10 +19,31 @@ use crate::{
     },
     runtime::{CHANNEL_CAPACITY, exec_vs_code, get_state_vs_code, persist_state_vs_code},
     vs_code_api::{
-        CargoMakePinnedTreeProvider, CargoMakeTreeProvider, TsFileWatcher, set_makefile_context,
-        showInformationMessage,
+        CargoMakePinnedTreeProvider, CargoMakeTreeProvider, TsFileWatcher, log_error,
+        set_makefile_context, showInformationMessage,
     },
 };
+
+#[derive(Debug, Clone)]
+pub enum MakefileTasksUpdate {
+    New(MakefileTasks),
+    CargoMakeNotInstalled(String),
+    NoMakefile(String),
+    FailedToRetrieve(String),
+}
+
+impl MakefileTasksUpdate {
+    fn from_parse_result(res: Result<MakefileTasks, ParseError>) -> Self {
+        match res {
+            Ok(metadata) => Self::New(metadata),
+            Err(e) => match e {
+                ParseError::CargoMakeNotInstalled(e) => Self::CargoMakeNotInstalled(e),
+                ParseError::NoMakefile(e) => Self::NoMakefile(e),
+                ParseError::FailedToRetrieve(e) => Self::FailedToRetrieve(e),
+            },
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -87,6 +108,7 @@ impl Ui {
         let cmd = Task::stream(cmd_rx).map(Message::Cmd);
         // makefile_tasks is to initially parse the available makefile tasks
         let makefile_tasks = Task::future(parse_tasks(makefile(&this.base.root_dir), exec_vs_code))
+            .map(MakefileTasksUpdate::from_parse_result)
             .map(Message::MakefileTasksChanged);
         let tasks = Task::batch([manifest_update, cmd, makefile_tasks]);
 
@@ -101,17 +123,22 @@ impl Ui {
                     self.update_ui();
                     Task::future(set_makefile_context(true)).discard()
                 }
-                MakefileTasksUpdate::NoMakefile(_e) => {
-                    // TODO: log error
+                MakefileTasksUpdate::CargoMakeNotInstalled(e)
+                | MakefileTasksUpdate::NoMakefile(e) => {
+                    log_error(&e);
                     self.makefile_tasks = MakefileTasks::default();
                     self.update_ui();
                     Task::future(set_makefile_context(false)).discard()
                 }
                 // For invalid makefiles leave everything as is
-                MakefileTasksUpdate::FailedToRetrieve(_e) => Task::none(), // TODO: log error
+                MakefileTasksUpdate::FailedToRetrieve(e) => {
+                    log_error(&e);
+                    Task::none()
+                }
             },
             Message::MakefileChanged => {
                 Task::future(parse_tasks(makefile(&self.base.root_dir), exec_vs_code))
+                    .map(MakefileTasksUpdate::from_parse_result)
                     .map(Message::MakefileTasksChanged)
             }
             Message::SettingsChanged(update) => self.update_state(update),
