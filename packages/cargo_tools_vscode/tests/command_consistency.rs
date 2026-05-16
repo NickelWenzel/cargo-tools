@@ -1,4 +1,4 @@
-use cargo_tools_vscode::commands::{cargo, cargo_make};
+use cargo_tools_vscode::commands::{cargo, cargo_make, pinned};
 
 fn all_cargo_commands() -> [&'static str; cargo::NUMBER_CMDS] {
     use cargo_tools_vscode::commands::cargo::*;
@@ -49,7 +49,7 @@ fn all_cargo_commands() -> [&'static str; cargo::NUMBER_CMDS] {
     ]
 }
 
-pub const fn all_cargo_make_commands() -> [&'static str; cargo_make::NUMBER_CMDS] {
+const fn all_cargo_make_commands() -> [&'static str; cargo_make::NUMBER_CMDS] {
     use cargo_tools_vscode::commands::cargo_make::*;
     [
         CARGO_TOOLS_MAKEFILE_RUNTASK,
@@ -58,20 +58,27 @@ pub const fn all_cargo_make_commands() -> [&'static str; cargo_make::NUMBER_CMDS
         CARGO_TOOLS_MAKEFILE_SELECTCATEGORYFILTER,
         CARGO_TOOLS_MAKEFILE_CLEARALLFILTERS,
         CARGO_TOOLS_MAKEFILE_PINTASK,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_ADD,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_REMOVE,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE1,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE2,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE3,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE4,
-        CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE5,
+    ]
+}
+
+const fn all_pinned_commands() -> [&'static str; pinned::NUMBER_CMDS] {
+    use cargo_tools_vscode::commands::pinned::*;
+    [
+        CARGO_TOOLS_PINNED_ADD,
+        CARGO_TOOLS_PINNED_REMOVE,
+        CARGO_TOOLS_PINNED_EXECUTE,
+        CARGO_TOOLS_PINNED_EXECUTE1,
+        CARGO_TOOLS_PINNED_EXECUTE2,
+        CARGO_TOOLS_PINNED_EXECUTE3,
+        CARGO_TOOLS_PINNED_EXECUTE4,
+        CARGO_TOOLS_PINNED_EXECUTE5,
     ]
 }
 
 fn all_cargo_commands_from_cargo_tools() -> Vec<&'static str> {
     let mut cmds = all_cargo_commands().into_iter().collect::<Vec<_>>();
     cmds.extend(all_cargo_make_commands());
+    cmds.extend(all_pinned_commands());
     cmds
 }
 

@@ -12,7 +12,7 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 use crate::{
     commands::cargo::*,
     extension::{
-        TaskMap, VsCodeTask,
+        CommandBinding, CommandMap,
         cargo::{TargetTypesFilter, ui::OutlineNodeType},
         register_tasks,
     },
@@ -302,11 +302,11 @@ fn take_first_two<T: DeserializeOwned, U: DeserializeOwned>(array: Array) -> Opt
     }
 }
 
-pub fn register_cargo_commands(tx: Sender<Command>) -> Vec<VsCodeTask> {
+pub fn register_cargo_commands(tx: Sender<Command>) -> Vec<CommandBinding> {
     register_tasks(task_map(tx))
 }
 
-type CmdKeyValuePair = (&'static str, VsCodeTask);
+type CmdKeyValuePair = (&'static str, CommandBinding);
 
 fn create_vs_code_command(
     tx: Sender<Command>,
@@ -330,7 +330,7 @@ fn create_vs_code_command(
     (key, cmd)
 }
 
-pub fn task_map(tx: Sender<Command>) -> TaskMap {
+pub fn task_map(tx: Sender<Command>) -> CommandMap {
     HashMap::from(
         Command::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
     )

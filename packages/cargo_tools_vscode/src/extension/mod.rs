@@ -1,6 +1,9 @@
-pub mod base;
 pub mod cargo;
-pub mod cargo_make;
+
+pub mod tasks;
+use tasks::Tasks;
+
+mod workspace;
 
 use std::collections::HashMap;
 
@@ -10,19 +13,30 @@ use futures::{
 };
 use iced_viewless::{Subscription, Task, async_application, event_loop::Exit, stream};
 use wasm_bindgen::prelude::{Closure, wasm_bindgen};
-use wasm_bindgen_futures::js_sys::Array;
+use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     runtime::CHANNEL_CAPACITY,
     vs_code_api::{log_error, log_info, register_command},
 };
 
-pub type VsCodeTask = Closure<dyn FnMut(Array)>;
-type TaskMap = HashMap<&'static str, Closure<dyn FnMut(Array)>>;
+pub type CommandBinding = Closure<dyn FnMut(Array)>;
+type CommandMap = HashMap<&'static str, CommandBinding>;
 
 pub type OnFileChanged = Closure<dyn FnMut()>;
 
-pub fn register_tasks(cmds: TaskMap) -> Vec<VsCodeTask> {
+pub fn send_file_changed(tx: Sender<()>) -> OnFileChanged {
+    Closure::new(move || {
+        let tx = tx.clone();
+        spawn_local(async move {
+            if let Err(e) = tx.clone().send(()).await {
+                log_error(&format!("Failed to notify about file change: {e}",))
+            }
+        })
+    })
+}
+
+pub fn register_tasks(cmds: CommandMap) -> Vec<CommandBinding> {
     cmds.into_iter()
         .map(|(command_id, cmd)| {
             log_info(&format!("Register task '{command_id}'"));
@@ -43,7 +57,8 @@ impl ExitToken {
     pub async fn exit(&mut self) {
         if let Err(e) = self.0.send(()).await {
             log_error(&format!(
-                "Failed to signal exit to Cargo Tools extension: {e:?}"
+                "Failed to signal exit to Cargo Tools extension: {}",
+                e.to_string()
             ));
         }
     }
@@ -52,13 +67,13 @@ impl ExitToken {
 #[derive(Debug)]
 enum Message {
     Cargo(cargo::Message),
-    CargoMake(cargo_make::Message),
+    Tasks(tasks::Message),
     Exit,
 }
 
 struct Extension {
     cargo: cargo::Ui,
-    cargo_make: cargo_make::Ui,
+    tasks: tasks::Tasks,
     exit: bool,
 }
 
@@ -67,7 +82,7 @@ impl Extension {
         log_info(&format!("Cargo tools extension received message:\n{msg:?}"));
         match msg {
             Message::Cargo(msg) => self.cargo.update(msg).map(Message::Cargo),
-            Message::CargoMake(msg) => self.cargo_make.update(msg).map(Message::CargoMake),
+            Message::Tasks(msg) => self.tasks.update(msg).map(Message::Tasks),
             Message::Exit => {
                 self.exit = true;
                 Task::none()
@@ -110,18 +125,18 @@ pub fn run(workspace_root: String) -> ExitToken {
 fn init(root_dir: String, exit_rx: Receiver<()>) -> (Extension, Task<Message>) {
     log_info("Initializing Cargo tools");
 
-    let (cargo, cargo_task) = cargo::Ui::new(root_dir.clone());
-    let (cargo_make, cargo_make_task) = cargo_make::Ui::new(root_dir.clone());
+    let (cargo, cargo_task) = cargo::Ui::init(root_dir.clone());
+    let (tasks, tasks_task) = Tasks::init(root_dir.clone());
 
     let ext = Extension {
         cargo,
-        cargo_make,
+        tasks,
         exit: false,
     };
 
     let task = Task::batch([
         cargo_task.map(Message::Cargo),
-        cargo_make_task.map(Message::CargoMake),
+        tasks_task.map(Message::Tasks),
         Task::stream(exit_rx).map(|()| Message::Exit),
     ]);
 
