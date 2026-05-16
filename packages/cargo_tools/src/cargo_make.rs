@@ -2,10 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    environment::Environment,
-    task::{CargoTask, Task},
-};
+use crate::process::{CargoCommandEmpty, CargoTaskContext, Process};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MakefileTask {
@@ -15,15 +12,12 @@ pub struct MakefileTask {
 }
 
 impl MakefileTask {
-    pub fn into_task(task: String, environment: Environment) -> CargoTask {
-        let Environment {
-            env, cargo_command, ..
-        } = environment;
-        let mut cmd = cargo_command.split_whitespace().map(String::from);
-        let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
-        args.extend(["make".to_string(), task]);
-
-        CargoTask::CargoMake(Task { cmd, args, env })
+    pub fn try_into_process(
+        task: String,
+        ctx: CargoTaskContext,
+    ) -> Result<Process, CargoCommandEmpty> {
+        let args = vec!["make".to_string(), task];
+        ctx.try_into_process(args)
     }
 
     fn keep(&self, task_filter: &str, category_filters: &[String]) -> bool {
@@ -80,6 +74,8 @@ impl From<Vec<MakefileTask>> for MakefileTasks {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
+    #[error(transparent)]
+    CargoCommandEmpty(CargoCommandEmpty),
     #[error("Cargo make is not installed: {0}")]
     CargoMakeNotInstalled(String),
     #[error("No Makefile.toml present: {0}")]
@@ -90,12 +86,17 @@ pub enum ParseError {
 
 pub async fn parse_tasks(
     makefile: String,
-    exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
+    ctx: CargoTaskContext,
+    exec: impl AsyncFn(Process) -> Result<String, String>,
 ) -> Result<MakefileTasks, ParseError> {
     // Check if cargo-make is available
-    let cargo = "cargo".to_string();
     let args = vec!["make".to_string(), "--version".to_string()];
-    exec(cargo.clone(), args)
+    let proc = ctx
+        .clone()
+        .try_into_process(args)
+        .map_err(ParseError::CargoCommandEmpty)?;
+
+    exec(proc)
         .await
         .map_err(ParseError::CargoMakeNotInstalled)?;
 
@@ -109,7 +110,11 @@ pub async fn parse_tasks(
         "markdown-single-page".to_string(),
     ];
 
-    exec(cargo, args)
+    let proc = ctx
+        .try_into_process(args)
+        .map_err(ParseError::CargoCommandEmpty)?;
+
+    exec(proc)
         .await
         .map_err(ParseError::NoMakefile)
         .map(|output| parse_makefile_output(&output))

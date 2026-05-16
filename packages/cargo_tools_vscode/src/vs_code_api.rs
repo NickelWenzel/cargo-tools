@@ -15,13 +15,13 @@ use crate::{
         },
     },
     icon::Icon,
-    runtime::VsCodeTask,
+    runtime::{VsCodeProcess, VsCodeTask},
 };
 
 #[wasm_bindgen(raw_module = "../execute.ts")]
 extern "C" {
     #[wasm_bindgen(catch)]
-    pub async fn execute_async(command: &str, args: Vec<String>) -> Result<JsString, JsValue>;
+    pub async fn execute_async(process: VsCodeProcess) -> Result<JsString, JsValue>;
 
     #[wasm_bindgen(catch)]
     pub async fn executeCommand(command: &str, rest: Array) -> Result<JsValue, JsValue>;

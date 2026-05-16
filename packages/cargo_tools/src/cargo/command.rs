@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cargo::{Config, metadata::TargetType},
-    environment::Environment,
-    task::{CargoTask, Task},
+    process::{CargoCommandEmpty, CargoTaskContext, Process},
 };
 
 /// Represents a cargo command which can be executed as a [CargoTask]
@@ -20,19 +19,12 @@ pub enum Command {
 
 impl Command {
     /// Converts [self] into an executable [CargoTask]
-    pub fn into_task(self, config: &Config, environment: Environment) -> CargoTask {
-        let Environment {
-            env,
-            extra_args,
-            cargo_command,
-        } = environment;
-
-        let mut cmd = cargo_command.split_whitespace().map(String::from);
-        let (cmd, mut args) = (cmd.next().unwrap(), cmd.collect::<Vec<_>>());
-        args.extend(self.into_args(config));
-        args.extend(extra_args);
-
-        CargoTask::Cargo(Task { cmd, args, env })
+    pub fn try_into_process(
+        self,
+        config: &Config,
+        ctx: CargoTaskContext,
+    ) -> Result<Process, CargoCommandEmpty> {
+        ctx.try_into_process(self.into_args(config))
     }
 
     fn into_args(self, config: &Config) -> Vec<String> {

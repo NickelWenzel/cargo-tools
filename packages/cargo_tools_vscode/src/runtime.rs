@@ -1,4 +1,4 @@
-use cargo_tools::task::{CargoTask, Task};
+use cargo_tools::process::Process;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_wasm_bindgen::to_value;
 use std::fmt::Debug;
@@ -48,20 +48,77 @@ pub fn get_state_vs_code<T: DeserializeOwned + Debug>(key: String) -> Option<T> 
     Some(state)
 }
 
-pub async fn exec_vs_code(command: String, args: Vec<String>) -> Result<String, String> {
-    execute_async(&command, args)
+pub async fn exec_vs_code(process: Process) -> Result<String, String> {
+    execute_async(VsCodeProcess(process))
         .await
         .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
         .map_err(|e| e.to_error_string())
 }
 
-pub async fn exec_task_vs_code(task: CargoTask) {
-    execute_task(VsCodeTask(task)).await;
+trait ProcessExt {
+    fn js_env(&self) -> Map;
+}
+
+impl ProcessExt for Process {
+    fn js_env(&self) -> Map {
+        to_value(&self.env()).map(Map::from).unwrap_or_default()
+    }
+}
+
+/// Task type which is exported in typescript code
+#[wasm_bindgen]
+pub struct VsCodeProcess(Process);
+
+#[wasm_bindgen]
+impl VsCodeProcess {
+    #[wasm_bindgen]
+    pub fn cmd(&self) -> String {
+        self.0.cmd().to_string()
+    }
+
+    #[wasm_bindgen]
+    pub fn args(&self) -> Vec<String> {
+        self.0.args().to_vec()
+    }
+
+    #[wasm_bindgen]
+    pub fn env(&self) -> Map {
+        self.0.js_env()
+    }
+}
+
+/// Gives the context in which a [Task] is run
+enum CargoTask {
+    Cargo(Process),
+    CargoMake(Process),
+    RustUp(Process),
 }
 
 /// Task type which is exported in typescript code
 #[wasm_bindgen]
 pub struct VsCodeTask(CargoTask);
+
+impl VsCodeTask {
+    pub fn cargo(process: Process) -> Self {
+        Self(CargoTask::Cargo(process))
+    }
+
+    pub fn cargo_make(process: Process) -> Self {
+        Self(CargoTask::CargoMake(process))
+    }
+
+    pub fn rustup(process: Process) -> Self {
+        Self(CargoTask::RustUp(process))
+    }
+
+    fn process(&self) -> &Process {
+        match &self.0 {
+            CargoTask::Cargo(process) => process,
+            CargoTask::CargoMake(process) => process,
+            CargoTask::RustUp(process) => process,
+        }
+    }
+}
 
 #[wasm_bindgen]
 impl VsCodeTask {
@@ -76,26 +133,16 @@ impl VsCodeTask {
 
     #[wasm_bindgen]
     pub fn cmd(&self) -> String {
-        self.task().cmd.clone()
+        self.process().cmd().to_string()
     }
 
     #[wasm_bindgen]
     pub fn args(&self) -> Vec<String> {
-        self.task().args.clone()
+        self.process().args().to_vec()
     }
 
     #[wasm_bindgen]
     pub fn env(&self) -> Map {
-        to_value(&self.task().env)
-            .map(Map::from)
-            .unwrap_or_default()
-    }
-
-    fn task(&self) -> &Task {
-        match &self.0 {
-            CargoTask::Cargo(task) => task,
-            CargoTask::CargoMake(task) => task,
-            CargoTask::RustUp(task) => task,
-        }
+        self.process().js_env()
     }
 }
