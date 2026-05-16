@@ -73,19 +73,19 @@ export function host_platform(): string {
 }
 
 export function log_debug(msg: string) {
-    return log.debug(msg);
+    try { return log.debug(msg); } catch (error) { }
 }
 
 export function log_info(msg: string) {
-    return log.info(msg);
+    try { return log.info(msg); } catch (error) { }
 }
 
 export function log_warn(msg: string) {
-    return log.warn(msg);
+    try { return log.warn(msg); } catch (error) { }
 }
 
 export function log_error(msg: string) {
-    return log.error(msg);
+    try { return log.error(msg); } catch (error) { }
 }
 
 export function register_command(command: string, callback: (args: any[]) => any) {

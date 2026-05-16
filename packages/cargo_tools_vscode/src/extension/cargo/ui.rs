@@ -957,24 +957,28 @@ impl OutlineNodeData {
             Features::Some(items) => items.iter().map(|i| i.as_str()).collect(),
         };
 
-        packages
+        let package_features = packages
             .iter()
             .flat_map(|p| &p.features)
-            .sorted()
+            .map(|f| f.as_str())
             .unique()
+            .sorted();
+
+        iter::once("All features")
+            .chain(package_features)
             .map(|feature| {
-                let name = feature.to_string();
-                let icon = if selected_features.contains(&feature.as_str()) {
+                let name = feature;
+                let icon = if selected_features.contains(&feature) {
                     SELECTED_STATE
                 } else {
                     UNSELECTED_STATE
                 };
 
                 Self {
-                    label: name.clone(),
+                    label: name.to_string(),
                     icon,
                     collapsible_state: CollapsibleState::None,
-                    node_type: OutlineNodeType(OutlineNodeTypeInner::RootFeature(name)),
+                    node_type: OutlineNodeType(OutlineNodeTypeInner::RootFeature(name.to_string())),
                     context_value: None,
                     tooltip: None,
                     description: None,
@@ -995,10 +999,10 @@ impl OutlineNodeData {
             })
             .unwrap_or_default();
 
-        package
-            .features
-            .iter()
-            .sorted()
+        let package_features = package.features.iter().sorted();
+
+        iter::once(&"All features".to_string())
+            .chain(package_features)
             .map(|feature| {
                 let name = feature.clone();
                 let package = package.name.clone();
