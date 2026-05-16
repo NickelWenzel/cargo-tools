@@ -6,11 +6,9 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
     commands::cargo_make::*,
-    extension::{TaskMap, VsCodeTask, register_tasks},
+    extension::{CommandBinding, CommandMap, register_tasks},
     vs_code_api::{log_error, log_info, try_get_task_label},
 };
-
-pub mod process;
 
 #[derive(Debug, Clone)]
 pub enum Command {
@@ -22,7 +20,6 @@ pub enum Command {
     EditCategoryFilter(Vec<String>),
     ClearAllFilters,
     PinTask(String),
-    Pinned(Pinned),
 }
 
 impl Command {
@@ -46,57 +43,17 @@ impl Command {
             (CARGO_TOOLS_MAKEFILE_PINTASK, |arg| {
                 try_get_task_label(arg).map(Self::PinTask)
             }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_ADD, |_| {
-                Some(Self::Pinned(Pinned::Add))
-            }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_REMOVE, |arg| {
-                try_get_task_label(arg)
-                    .map(Pinned::Remove)
-                    .map(Self::Pinned)
-            }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE, |arg| {
-                try_get_task_label(arg)
-                    .map(Pinned::Execute)
-                    .map(Self::Pinned)
-            }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE1, |_| {
-                Some(Self::Pinned(Pinned::Execute1))
-            }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE2, |_| {
-                Some(Self::Pinned(Pinned::Execute2))
-            }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE3, |_| {
-                Some(Self::Pinned(Pinned::Execute3))
-            }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE4, |_| {
-                Some(Self::Pinned(Pinned::Execute4))
-            }),
-            (CARGO_TOOLS_PINNEDMAKEFILETASKS_EXECUTE5, |_| {
-                Some(Self::Pinned(Pinned::Execute5))
-            }),
         ]
     }
 }
 
 pub type CargoMakeCmdFn = fn(Array) -> Option<Command>;
 
-#[derive(Debug, Clone)]
-pub enum Pinned {
-    Add,
-    Remove(String),
-    Execute(String),
-    Execute1,
-    Execute2,
-    Execute3,
-    Execute4,
-    Execute5,
-}
-
-pub fn register_cargo_make_commands(tx: Sender<Command>) -> Vec<VsCodeTask> {
+pub fn register_cargo_make_commands(tx: Sender<Command>) -> Vec<CommandBinding> {
     register_tasks(task_map(tx))
 }
 
-type CmdKeyValuePair = (&'static str, VsCodeTask);
+type CmdKeyValuePair = (&'static str, CommandBinding);
 
 fn create_vs_code_command(
     tx: Sender<Command>,
@@ -120,7 +77,7 @@ fn create_vs_code_command(
     (key, cmd)
 }
 
-pub fn task_map(tx: Sender<Command>) -> TaskMap {
+pub fn task_map(tx: Sender<Command>) -> CommandMap {
     HashMap::from(
         Command::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
     )

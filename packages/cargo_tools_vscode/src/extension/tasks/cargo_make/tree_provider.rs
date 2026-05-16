@@ -7,11 +7,10 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     icon::{MAKEFILE_CATEGORY, MAKEFILE_TASK},
-    vs_code_api::{CargoMakeNode, CargoMakePinnedNode},
+    vs_code_api::CargoMakeNode,
 };
 
 const TASK_CONTEXT: &str = "makefileTask";
-const PINNED_CONTEXT: &str = "pinned-task";
 const CATEGORY_CONTEXT: &str = "category";
 
 /// The data  for the vs code tree item bodies
@@ -77,7 +76,7 @@ impl CargoMakeNodeHandler {
         Self(CargoMakeNodeInner::Category { category, tasks })
     }
 
-    fn task(task: MakefileTask) -> Self {
+    pub fn task(task: MakefileTask) -> Self {
         Self(CargoMakeNodeInner::Task { task })
     }
 
@@ -153,56 +152,4 @@ impl CargoMakeTreeProviderHandler {
 enum CollapsibleState {
     None = 0,
     Expanded = 2,
-}
-
-/// The handler implementing for the vs code tree item bodies
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[wasm_bindgen]
-pub struct CargoMakePinnedTreeProviderHandler {
-    pinned_tasks: MakefileTasks,
-}
-
-/// Methods exported to typescript
-#[wasm_bindgen]
-impl CargoMakePinnedTreeProviderHandler {
-    #[wasm_bindgen]
-    pub fn pinned_tasks(&self) -> Vec<CargoMakePinnedNode> {
-        self.pinned_tasks
-            .iter()
-            .cloned()
-            .map(cargo_make_pinned_node_from_task)
-            .collect()
-    }
-}
-
-/// Methods not exported to typescript
-impl CargoMakePinnedTreeProviderHandler {
-    pub fn new(pinned_tasks: MakefileTasks) -> Self {
-        Self { pinned_tasks }
-    }
-}
-
-fn cargo_make_pinned_node_from_task(task: MakefileTask) -> CargoMakePinnedNode {
-    let label = task.name.clone();
-    let collapsible_state = CollapsibleState::None as u32;
-    let description = task.description.clone();
-    let tooltip = format!(
-        "Task: {label}{}",
-        if description.is_empty() {
-            String::new()
-        } else {
-            format!("\n{description}")
-        }
-    );
-    let handler = CargoMakeNodeHandler::task(task);
-
-    CargoMakePinnedNode::new(
-        label,
-        MAKEFILE_TASK,
-        collapsible_state,
-        PINNED_CONTEXT.to_string(),
-        description,
-        tooltip,
-        handler,
-    )
 }

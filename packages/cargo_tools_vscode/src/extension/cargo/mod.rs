@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     environment::metadata_task_context,
     extension::{
-        base::{Base, send_file_changed},
+        CommandBinding,
         cargo::{
             command::{Command, register_cargo_commands},
             ui::{
@@ -28,6 +28,7 @@ use crate::{
                 ConfigUiRequest, NodeData, OutlineNodeData, OutlineUiRequest,
             },
         },
+        send_file_changed,
     },
     quick_pick::SelectInput,
     runtime::{
@@ -85,28 +86,24 @@ pub struct Ui {
     ui: CargoConfigurationTreeProvider,
     outline_ui: CargoOutlineTreeProvider,
     filtered_packages: Vec<Package>,
-    base: Base,
+    _cmds: Vec<CommandBinding>,
+    file_watcher: TsFileWatcher,
+    root_dir: String,
     cmd_tx: Sender<Command>,
 }
 
 impl Ui {
     /// Inits all data and update channels
-    pub fn new(root_dir: String) -> (Self, Task<Message>) {
+    pub fn init(root_dir: String) -> (Self, Task<Message>) {
         // Init manifest file updates
         let (manifest_changed_tx, manifest_changed_rx) = channel(CHANNEL_CAPACITY);
         let file_watcher = TsFileWatcher::new(send_file_changed(manifest_changed_tx));
 
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
-        let cmds = register_cargo_commands(cmd_tx.clone());
+        let _cmds = register_cargo_commands(cmd_tx.clone());
 
         let settings = get_state_vs_code(settings_key(&root_dir)).unwrap_or_default();
         let config: Config = get_state_vs_code(state_key(&root_dir)).unwrap_or_default();
-
-        let base = Base {
-            cmds,
-            file_watcher,
-            root_dir,
-        };
 
         let (ui_tx, ui_rx) = channel(CHANNEL_CAPACITY);
         let (outline_tx, outline_rx) = channel(CHANNEL_CAPACITY);
@@ -124,7 +121,9 @@ impl Ui {
             ui: CargoConfigurationTreeProvider::new(handler),
             outline_ui: CargoOutlineTreeProvider::new(outline_handler),
             filtered_packages: Vec::new(),
-            base,
+            _cmds,
+            file_watcher,
+            root_dir,
             cmd_tx,
         };
 
@@ -153,7 +152,7 @@ impl Ui {
                 self.update_ui();
 
                 Task::future(persist_state_vs_code(
-                    state_key(&self.base.root_dir),
+                    state_key(&self.root_dir),
                     self.data.config.clone(),
                 ))
                 .discard()
@@ -163,7 +162,7 @@ impl Ui {
                     // Update file watcher
                     let mut manifests = metadata.manifests();
                     manifests.push(self.root_manifest());
-                    self.base.file_watcher.watch_files(manifests);
+                    self.file_watcher.watch_files(manifests);
 
                     self.data.metadata = metadata;
                     self.update_ui();
@@ -173,9 +172,7 @@ impl Ui {
                 MetadataUpdate::NoCargoToml(e) => {
                     log_error(&e);
                     // Always check for mainfest in root dir
-                    self.base
-                        .file_watcher
-                        .watch_files(vec![self.root_manifest()]);
+                    self.file_watcher.watch_files(vec![self.root_manifest()]);
 
                     self.data.metadata = Metadata::default();
                     self.update_ui();
@@ -206,7 +203,7 @@ impl Ui {
         self.update_ui();
 
         Task::future(persist_state_vs_code(
-            settings_key(&self.base.root_dir),
+            settings_key(&self.root_dir),
             self.settings.clone(),
         ))
         .discard()
@@ -220,7 +217,7 @@ impl Ui {
 
     fn parse_manifest(&self) -> Task<Message> {
         Task::future(parse_metadata(
-            self.base.root_dir.clone(),
+            self.root_dir.clone(),
             metadata_task_context(),
             exec_vs_code,
             read_file_vs_code,
@@ -271,7 +268,7 @@ impl Ui {
 
         let Some(node_type) = node_type else {
             // Root node
-            let Some(name) = Path::new(&self.base.root_dir)
+            let Some(name) = Path::new(&self.root_dir)
                 .file_name()
                 .and_then(|n| n.to_str().map(|n| n.to_string()))
             else {
@@ -292,7 +289,7 @@ impl Ui {
     }
 
     fn root_manifest(&self) -> String {
-        format!("{}/Cargo.toml", self.base.root_dir)
+        format!("{}/Cargo.toml", self.root_dir)
     }
 }
 

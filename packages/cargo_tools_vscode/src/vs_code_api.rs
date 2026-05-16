@@ -10,8 +10,9 @@ use crate::{
             CargoConfigurationTreeProviderHandler, CargoOutlineTreeProviderHandler, NodeType,
             OutlineNodeType,
         },
-        cargo_make::ui::{
-            CargoMakeNodeHandler, CargoMakePinnedTreeProviderHandler, CargoMakeTreeProviderHandler,
+        tasks::{
+            cargo_make::tree_provider::{CargoMakeNodeHandler, CargoMakeTreeProviderHandler},
+            pinned::tree_provider::CargoMakePinnedTreeProviderHandler,
         },
     },
     icon::Icon,
