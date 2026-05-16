@@ -18,6 +18,7 @@ use iced_viewless::Task;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    environment::metadata_task_context,
     extension::{
         base::{Base, send_file_changed},
         cargo::{
@@ -43,6 +44,7 @@ pub enum MetadataUpdate {
     Metadata(Metadata),
     NoCargoToml(String),
     FailedToParse(String),
+    CargoCommandEmpty(String),
 }
 
 impl MetadataUpdate {
@@ -52,6 +54,7 @@ impl MetadataUpdate {
             Err(e) => match e {
                 ParseError::NoCargoToml(e) => Self::NoCargoToml(e),
                 ParseError::Parse(e) => Self::FailedToParse(e.to_string()),
+                ParseError::CargoCommandEmpty(e) => Self::CargoCommandEmpty(e.to_string()),
             },
         }
     }
@@ -179,8 +182,8 @@ impl Ui {
 
                     Task::future(set_cargo_context(false)).discard()
                 }
-                // For invalid makefiles leave everything as is
-                MetadataUpdate::FailedToParse(e) => {
+                // For invalid metadata or cargo command leave everything as is
+                MetadataUpdate::CargoCommandEmpty(e) | MetadataUpdate::FailedToParse(e) => {
                     log_error(&e);
                     Task::none()
                 }
@@ -218,6 +221,7 @@ impl Ui {
     fn parse_manifest(&self) -> Task<Message> {
         Task::future(parse_metadata(
             self.base.root_dir.clone(),
+            metadata_task_context(),
             exec_vs_code,
             read_file_vs_code,
         ))

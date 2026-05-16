@@ -1,18 +1,19 @@
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
-import { VsCodeTask } from './wasm/cargo_tools_vscode';
+import { VsCodeTask, VsCodeProcess } from './wasm/cargo_tools_vscode';
 
-function spawnWithOutput(
-    cmd: string,
-    args: string[]
-): Promise<{ stdout: string; stderr: string }> {
+function spawnWithOutput(cargo_tools_process: VsCodeProcess): Promise<{ stdout: string; stderr: string }> {
+    const cmd = cargo_tools_process.cmd();
+    const args = cargo_tools_process.args();
+    const env: { [key: string]: string } = Object.fromEntries(cargo_tools_process.env());
+
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
         throw new Error('No workspace folder found');
     }
 
     return new Promise((resolve, reject) => {
-        const child = spawn(cmd, args, { cwd: workspaceFolder.uri.fsPath });
+        const child = spawn(cmd, args, { cwd: workspaceFolder.uri.fsPath, env: { ...process.env, ...env } });
 
         let stdout = "";
         let stderr = "";
@@ -32,8 +33,8 @@ function spawnWithOutput(
     });
 }
 
-export async function execute_async(command: string, rest: string[]): Promise<String> {
-    const { stdout } = await spawnWithOutput(command, rest);
+export async function execute_async(cargo_tools_process: VsCodeProcess): Promise<String> {
+    const { stdout } = await spawnWithOutput(cargo_tools_process);
     return stdout;
 }
 
@@ -52,13 +53,14 @@ export async function showErrorMessage(message: string, items: string[]): Promis
 export async function execute_task(cargo_tools_task: VsCodeTask): Promise<void> {
     const cmd = cargo_tools_task.cmd();
     const args = cargo_tools_task.args();
+    const env: { [key: string]: string } = Object.fromEntries(cargo_tools_task.env());
 
     const definition: vscode.TaskDefinition = {
         type: cargo_tools_task.task_type(),
         args: args,
     };
 
-    const execution = new vscode.ShellExecution(cmd, args);
+    const execution = new vscode.ShellExecution(cmd, args, { env });
 
     const task = new vscode.Task(
         definition,

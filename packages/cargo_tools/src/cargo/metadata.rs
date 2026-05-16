@@ -7,7 +7,10 @@ use toml::Table;
 use cargo_metadata::MetadataCommand;
 pub use cargo_metadata::TargetKind;
 
-use crate::cargo::Profile;
+use crate::{
+    cargo::Profile,
+    process::{CargoCommandEmpty, CargoTaskContext, Process},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Metadata {
@@ -82,6 +85,8 @@ pub enum ParseError {
     NoCargoToml(String),
     #[error(transparent)]
     Parse(cargo_metadata::Error),
+    #[error(transparent)]
+    CargoCommandEmpty(CargoCommandEmpty),
 }
 
 struct CargoMetadata {
@@ -93,11 +98,12 @@ struct CargoMetadata {
 /// Executing necessary commands with `exec` and reading files with `read_file`.
 pub async fn parse_metadata(
     root_dir: String,
-    exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
+    ctx: CargoTaskContext,
+    exec: impl AsyncFn(Process) -> Result<String, String>,
     read_file: impl AsyncFn(String) -> Result<String, String>,
 ) -> Result<Metadata, ParseError> {
     let (cargo_metadata, profiles) = future::join(
-        parse_cargo_metadata(format!("{root_dir}/Cargo.toml"), exec),
+        parse_cargo_metadata(format!("{root_dir}/Cargo.toml"), ctx, exec),
         parse_profiles(root_dir, read_file),
     )
     .await;
@@ -117,10 +123,11 @@ pub async fn parse_metadata(
 
 async fn parse_cargo_metadata(
     manifest_file: String,
-    exec: impl AsyncFn(String, Vec<String>) -> Result<String, String>,
+    ctx: CargoTaskContext,
+    exec: impl AsyncFn(Process) -> Result<String, String>,
 ) -> Result<CargoMetadata, ParseError> {
     // Construct cargo metadata command with manifest path
-    let cargo_args = vec![
+    let args = vec![
         "metadata".to_string(),
         "--format-version".to_string(),
         "1".to_string(),
@@ -129,10 +136,12 @@ async fn parse_cargo_metadata(
         "--no-deps".to_string(),
     ];
 
+    let process = ctx
+        .try_into_process(args)
+        .map_err(ParseError::CargoCommandEmpty)?;
+
     // Execute command via runtime
-    let metadata = exec("cargo".to_string(), cargo_args)
-        .await
-        .map_err(ParseError::NoCargoToml)?;
+    let metadata = exec(process).await.map_err(ParseError::NoCargoToml)?;
 
     let metadata = extract_raw_metadata(&metadata)?;
 

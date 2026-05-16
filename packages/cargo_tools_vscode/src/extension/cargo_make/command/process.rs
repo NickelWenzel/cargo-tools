@@ -9,14 +9,16 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
-    environment::{TaskContext, environment},
+    environment::makefile_task_context,
     extension::cargo_make::{
         Message, SettingsUpdate, Ui,
         command::{Command, Pinned},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
-    runtime::exec_task_vs_code,
-    vs_code_api::{log_error, log_info, show_quick_pick_type, showInformationMessage},
+    runtime::VsCodeTask,
+    vs_code_api::{
+        execute_task, log_error, log_info, show_quick_pick_type, showInformationMessage,
+    },
 };
 
 trait IntoCargoMakeMessage {
@@ -107,8 +109,13 @@ impl Ui {
     }
 
     fn make_task_exec(&self, make_task: String) -> Task<Message> {
-        let task = MakefileTask::into_task(make_task, environment(TaskContext::General));
-        Task::future(exec_task_vs_code(task)).discard()
+        match MakefileTask::try_into_process(make_task, makefile_task_context()) {
+            Ok(process) => Task::future(execute_task(VsCodeTask::cargo_make(process))).discard(),
+            Err(e) => {
+                log_error(&e.to_string());
+                Task::none()
+            }
+        }
     }
 
     fn select_task_filter(&self) -> Task<Message> {

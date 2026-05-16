@@ -8,7 +8,7 @@ use cargo_tools::{
         Config, ConfigUpdate, Features, Profile,
         command::{BenchTarget, BuildSubTarget, BuildTarget, RunSubTarget, RunTarget},
     },
-    task::{self, CargoTask},
+    process::Process,
 };
 use futures::SinkExt;
 use iced_viewless::Task;
@@ -18,16 +18,16 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
-    environment::{TaskContext, environment},
+    environment::CommandExt,
     extension::cargo::{
         Grouping, Message, SettingsUpdate, TargetTypesFilter, Ui,
         command::{Command, FeatureTarget, ProjectOutline as PO},
     },
     quick_pick::{SelectInput, ToQuickPickItem},
-    runtime::exec_task_vs_code,
+    runtime::{VsCodeTask, exec_vs_code},
     vs_code_api::{
-        JsValueExt, debug, execute_async, get_rust_analyzer_check_targets, host_platform,
-        log_error, log_info, show_quick_pick_type, update_rust_analyzer_check_targets,
+        JsValueExt, debug, execute_task, get_rust_analyzer_check_targets, host_platform, log_error,
+        log_info, show_quick_pick_type, update_rust_analyzer_check_targets,
     },
 };
 
@@ -178,19 +178,15 @@ impl Ui {
     }
 
     fn cmd_exec(&self, cmd: CargoCommand) -> Task<Message> {
-        let ctx = match &cmd {
-            CargoCommand::Run(_) | CargoCommand::Debug(_) => TaskContext::Run,
-            CargoCommand::Test { package: _ } => TaskContext::Test,
-            CargoCommand::Build(_)
-            | CargoCommand::Bench(_)
-            | CargoCommand::Doc
-            | CargoCommand::Clean { package: _ } => TaskContext::General,
-        };
+        let ctx = cmd.ctx();
 
-        Task::future(exec_task_vs_code(
-            cmd.into_task(&self.data.config, environment(ctx)),
-        ))
-        .discard()
+        match cmd.try_into_process(&self.data.config, ctx) {
+            Ok(process) => Task::future(execute_task(VsCodeTask::cargo(process))).discard(),
+            Err(e) => {
+                log_error(&e.to_string());
+                Task::none()
+            }
+        }
     }
 
     fn debug(&self, target: RunTarget) -> Task<Message> {
@@ -207,18 +203,26 @@ impl Ui {
         };
         let mut config = self.data.config.clone();
         config.profile = Profile::Dev; // For now always use standard dev profile
-        // TODO: make it possible to run shell commands with env arguments
-        let build_debug_task = CargoCommand::Build(Some(build_target))
-            .into_task(&config, environment(TaskContext::General));
+
+        let build_debug_cmd = CargoCommand::Build(Some(build_target));
+        let ctx = build_debug_cmd.ctx();
+
+        let build_debug_process = match build_debug_cmd.try_into_process(&config, ctx) {
+            Ok(process) => process,
+            Err(e) => {
+                log_error(&e.to_string());
+                return Task::none();
+            }
+        };
 
         let target_exe_path = exec_path(
             run_target,
             &self.data.config,
-            &self.data.metadata.target_dir(),
+            self.data.metadata.target_dir(),
         );
 
         Task::future(async move {
-            exec_task_vs_code(build_debug_task).await;
+            execute_task(VsCodeTask::cargo(build_debug_process)).await;
 
             if let Err(e) = debug(&target_exe_path, &target.package).await {
                 log_error(&format!("Error while debugging: {}", e.to_error_string()));
@@ -233,7 +237,7 @@ impl Ui {
             .data
             .metadata
             .packages()
-            .into_iter()
+            .iter()
             .map(|p| to_value(&p.name.to_string().to_item(false)))
             .collect::<Result<Array, _>>()
         else {
@@ -482,11 +486,11 @@ async fn install_platform_target() {
         return;
     };
 
-    exec_task_vs_code(CargoTask::Cargo(task::Task {
-        cmd: "rustup".to_string(),
-        args: vec!["target".to_string(), "add".to_string(), target],
-        env: HashMap::new(),
-    }))
+    execute_task(VsCodeTask::rustup(Process::new(
+        "rustup".to_string(),
+        vec!["target".to_string(), "add".to_string(), target],
+        HashMap::new(),
+    )))
     .await
 }
 
@@ -509,16 +513,15 @@ async fn set_rust_analyzer_check_targets() {
 }
 
 async fn platform_targets() -> Option<Vec<String>> {
-    let rustup_args = Vec::from_iter(["target", "list"].map(ToString::to_string));
-    match execute_async("rustup", rustup_args).await {
-        Ok(output) => output
-            .as_string()
-            .map(|s| s.lines().map(|l| l.trim().to_string()).collect()),
+    let process = Process::new(
+        "rustup".to_string(),
+        vec!["target".to_string(), "list".to_string()],
+        HashMap::new(),
+    );
+    match exec_vs_code(process).await {
+        Ok(output) => Some(output.lines().map(|l| l.trim().to_string()).collect()),
         Err(e) => {
-            log_error(&format!(
-                "Failed to get platform targets from rustup: {}",
-                e.to_error_string()
-            ));
+            log_error(&format!("Failed to get platform targets from rustup: {e}"));
             None
         }
     }
