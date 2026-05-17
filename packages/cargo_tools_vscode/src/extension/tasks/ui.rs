@@ -14,14 +14,14 @@ pub enum Message {
 }
 
 pub struct Tasks {
-    cargo_make: cargo_make::Ui,
-    pinned: pinned::Ui,
+    cargo_make: cargo_make::CargoMake,
+    pinned: pinned::Pinned,
 }
 
 impl Tasks {
     pub fn init(root_dir: String) -> (Self, Task<Message>) {
-        let (cargo_make, cargo_make_task) = cargo_make::Ui::init(root_dir.clone());
-        let (pinned, pinned_task) = pinned::Ui::init(root_dir.clone());
+        let (cargo_make, cargo_make_task) = cargo_make::CargoMake::init(root_dir.clone());
+        let (pinned, pinned_task) = pinned::Pinned::init(root_dir);
 
         let this = Self { cargo_make, pinned };
         let task = Task::batch([

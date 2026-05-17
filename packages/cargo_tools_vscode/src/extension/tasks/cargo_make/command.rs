@@ -23,7 +23,7 @@ pub enum Command {
 }
 
 impl Command {
-    pub const fn all() -> [(&'static str, CargoMakeCmdFn); NUMBER_CMDS] {
+    const fn all() -> [(&'static str, CargoMakeCmdFn); NUMBER_CMDS] {
         [
             (CARGO_TOOLS_MAKEFILE_RUNTASK, |arg| {
                 try_get_task_label(arg).map(Self::RunTask)
@@ -47,7 +47,7 @@ impl Command {
     }
 }
 
-pub type CargoMakeCmdFn = fn(Array) -> Option<Command>;
+type CargoMakeCmdFn = fn(Array) -> Option<Command>;
 
 pub fn register_cargo_make_commands(tx: Sender<Command>) -> Vec<CommandBinding> {
     register_tasks(task_map(tx))
@@ -77,7 +77,7 @@ fn create_vs_code_command(
     (key, cmd)
 }
 
-pub fn task_map(tx: Sender<Command>) -> CommandMap {
+fn task_map(tx: Sender<Command>) -> CommandMap {
     HashMap::from(
         Command::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
     )

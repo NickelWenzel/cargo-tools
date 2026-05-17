@@ -6,13 +6,13 @@ use wasm_bindgen_futures::js_sys::{Array, JsString};
 use crate::{
     extension::{
         OnFileChanged,
-        cargo::ui::{
-            CargoConfigurationTreeProviderHandler, CargoOutlineTreeProviderHandler, NodeType,
-            OutlineNodeType,
-        },
         tasks::{
             cargo_make::tree_provider::{CargoMakeNodeHandler, CargoMakeTreeProviderHandler},
             pinned::tree_provider::CargoMakePinnedTreeProviderHandler,
+        },
+        workspace::{
+            configuration::treeprovider::{CargoConfigurationTreeProviderHandler, NodeType},
+            outline::treeprovider::{CargoOutlineTreeProviderHandler, OutlineNodeType},
         },
     },
     icon::Icon,

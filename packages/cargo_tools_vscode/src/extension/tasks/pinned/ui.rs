@@ -33,14 +33,14 @@ pub enum SettingsUpdate {
 }
 
 #[derive(Debug)]
-pub struct Ui {
+pub struct Pinned {
     settings: Settings,
     ui: CargoMakePinnedTreeProvider,
     _cmds: Vec<CommandBinding>,
     root_dir: String,
 }
 
-impl Ui {
+impl Pinned {
     /// Inits all data and update channels
     pub fn init(root_dir: String) -> (Self, Task<Message>) {
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);

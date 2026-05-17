@@ -1,9 +1,8 @@
-pub mod cargo;
+pub mod workspace;
+use workspace::Workspace;
 
 pub mod tasks;
 use tasks::Tasks;
-
-mod workspace;
 
 use std::collections::HashMap;
 
@@ -57,8 +56,7 @@ impl ExitToken {
     pub async fn exit(&mut self) {
         if let Err(e) = self.0.send(()).await {
             log_error(&format!(
-                "Failed to signal exit to Cargo Tools extension: {}",
-                e.to_string()
+                "Failed to signal exit to Cargo Tools extension: {e}",
             ));
         }
     }
@@ -66,14 +64,14 @@ impl ExitToken {
 
 #[derive(Debug)]
 enum Message {
-    Cargo(cargo::Message),
+    Workspace(workspace::Message),
     Tasks(tasks::Message),
     Exit,
 }
 
 struct Extension {
-    cargo: cargo::Ui,
-    tasks: tasks::Tasks,
+    workspace: Workspace,
+    tasks: Tasks,
     exit: bool,
 }
 
@@ -81,7 +79,7 @@ impl Extension {
     fn update(&mut self, msg: Message) -> Task<Message> {
         log_info(&format!("Cargo tools extension received message:\n{msg:?}"));
         match msg {
-            Message::Cargo(msg) => self.cargo.update(msg).map(Message::Cargo),
+            Message::Workspace(msg) => self.workspace.update(msg).map(Message::Workspace),
             Message::Tasks(msg) => self.tasks.update(msg).map(Message::Tasks),
             Message::Exit => {
                 self.exit = true;
@@ -125,17 +123,17 @@ pub fn run(workspace_root: String) -> ExitToken {
 fn init(root_dir: String, exit_rx: Receiver<()>) -> (Extension, Task<Message>) {
     log_info("Initializing Cargo tools");
 
-    let (cargo, cargo_task) = cargo::Ui::init(root_dir.clone());
+    let (workspace, workspace_task) = Workspace::init(root_dir.clone());
     let (tasks, tasks_task) = Tasks::init(root_dir.clone());
 
     let ext = Extension {
-        cargo,
+        workspace,
         tasks,
         exit: false,
     };
 
     let task = Task::batch([
-        cargo_task.map(Message::Cargo),
+        workspace_task.map(Message::Workspace),
         tasks_task.map(Message::Tasks),
         Task::stream(exit_rx).map(|()| Message::Exit),
     ]);

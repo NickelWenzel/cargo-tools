@@ -75,7 +75,7 @@ pub enum SettingsUpdate {
 }
 
 #[derive(Debug)]
-pub struct Ui {
+pub struct CargoMake {
     makefile_tasks: MakefileTasks,
     settings: Settings,
     tree_provider: CargoMakeTreeProvider,
@@ -85,7 +85,7 @@ pub struct Ui {
     cmd_tx: Sender<Command>,
 }
 
-impl Ui {
+impl CargoMake {
     /// Inits all data and update channels
     pub fn init(root_dir: String) -> (Self, Task<Message>) {
         // Init makefile updates

@@ -23,7 +23,7 @@ pub enum Command {
 }
 
 impl Command {
-    pub const fn all() -> [(&'static str, PinnedCmdFn); NUMBER_CMDS] {
+    const fn all() -> [(&'static str, PinnedCmdFn); NUMBER_CMDS] {
         [
             (CARGO_TOOLS_PINNED_ADD, |_| Some(Self::Add)),
             (CARGO_TOOLS_PINNED_REMOVE, |arg| {
