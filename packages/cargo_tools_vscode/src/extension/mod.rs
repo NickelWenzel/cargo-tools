@@ -1,51 +1,23 @@
+pub mod vscode_task_utils;
+pub use vscode_task_utils::{CommandBinding, OnFileChanged, send_file_changed};
+
 pub mod workspace;
 use workspace::Workspace;
 
 pub mod tasks;
 use tasks::Tasks;
 
-use std::collections::HashMap;
-
 use futures::{
     SinkExt,
     channel::mpsc::{Receiver, Sender, channel},
 };
 use iced_viewless::{Subscription, Task, async_application, event_loop::Exit, stream};
-use wasm_bindgen::prelude::{Closure, wasm_bindgen};
-use wasm_bindgen_futures::{js_sys::Array, spawn_local};
+use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
     runtime::CHANNEL_CAPACITY,
-    vs_code_api::{log_error, log_info, register_command},
+    vs_code_api::{log_error, log_info},
 };
-
-pub type CommandBinding = Closure<dyn FnMut(Array)>;
-type CommandMap = HashMap<&'static str, CommandBinding>;
-
-pub type OnFileChanged = Closure<dyn FnMut()>;
-
-pub fn send_file_changed(tx: Sender<()>) -> OnFileChanged {
-    Closure::new(move || {
-        let tx = tx.clone();
-        spawn_local(async move {
-            if let Err(e) = tx.clone().send(()).await {
-                log_error(&format!("Failed to notify about file change: {e}",))
-            }
-        })
-    })
-}
-
-pub fn register_tasks(cmds: CommandMap) -> Vec<CommandBinding> {
-    cmds.into_iter()
-        .map(|(command_id, cmd)| {
-            log_info(&format!("Register task '{command_id}'"));
-            if let Err(e) = register_command(command_id, &cmd) {
-                log_error(&format!("Failed to register task '{command_id}': {e:?}"));
-            };
-            cmd
-        })
-        .collect()
-}
 
 #[wasm_bindgen]
 pub struct ExitToken(Sender<()>);

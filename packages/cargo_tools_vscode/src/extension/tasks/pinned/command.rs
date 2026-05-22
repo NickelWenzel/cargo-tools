@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
-use futures::{SinkExt, channel::mpsc::Sender};
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen_futures::{js_sys::Array, spawn_local};
+use futures::channel::mpsc::Sender;
+use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     commands::pinned::*,
-    extension::{CommandBinding, CommandMap, register_tasks},
-    vs_code_api::{log_error, log_info, try_get_task_label},
+    extension::vscode_task_utils::{CommandBinding, register_commands},
+    vs_code_api::try_get_task_label,
 };
 
 #[derive(Debug, Clone)]
@@ -22,8 +19,10 @@ pub enum Command {
     Execute5,
 }
 
+type CmdFn = fn(Array) -> Option<Command>;
+
 impl Command {
-    const fn all() -> [(&'static str, PinnedCmdFn); NUMBER_CMDS] {
+    const fn all() -> [(&'static str, CmdFn); NUMBER_CMDS] {
         [
             (CARGO_TOOLS_PINNED_ADD, |_| Some(Self::Add)),
             (CARGO_TOOLS_PINNED_REMOVE, |arg| {
@@ -41,38 +40,6 @@ impl Command {
     }
 }
 
-type PinnedCmdFn = fn(Array) -> Option<Command>;
-
 pub fn register_pinned_commands(tx: Sender<Command>) -> Vec<CommandBinding> {
-    register_tasks(task_map(tx))
-}
-
-type CmdKeyValuePair = (&'static str, CommandBinding);
-
-fn create_vs_code_command(
-    tx: Sender<Command>,
-    key: &'static str,
-    cargo_cmd_fn: PinnedCmdFn,
-) -> CmdKeyValuePair {
-    let cmd = Closure::new(move |args: Array| {
-        let tx = tx.clone();
-        spawn_local(async move {
-            let Some(cmd) = cargo_cmd_fn(args) else {
-                log_error("Failed to extract cargo make command");
-                return;
-            };
-            log_info(&format!("Sending VS Code cargo make command '{cmd:?}'"));
-            if let Err(e) = tx.clone().send(cmd).await {
-                log_error(&format!("Failed to queue msg: {}", e));
-            }
-        });
-    });
-
-    (key, cmd)
-}
-
-fn task_map(tx: Sender<Command>) -> CommandMap {
-    HashMap::from(
-        Command::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
-    )
+    register_commands(tx, Command::all())
 }

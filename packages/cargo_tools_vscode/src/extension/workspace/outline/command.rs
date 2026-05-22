@@ -1,21 +1,17 @@
-use std::collections::HashMap;
-
 use cargo_tools::cargo::{
     command::{BenchTarget, BuildTarget, RunTarget},
     config::{FeatureTarget, Update},
 };
-use futures::{SinkExt, channel::mpsc::Sender};
-use serde::de::DeserializeOwned;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen_futures::{js_sys::Array, spawn_local};
+use futures::channel::mpsc::Sender;
+use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     commands::outline::*,
     extension::{
-        CommandBinding, CommandMap, register_tasks,
+        vscode_task_utils::{CommandBinding, register_commands, take_first, take_first_two},
         workspace::outline::{TargetTypesFilter, treeprovider::OutlineNodeType},
     },
-    vs_code_api::{log_error, log_info, try_get_node_type},
+    vs_code_api::try_get_node_type,
 };
 
 #[derive(Debug, Clone)]
@@ -40,10 +36,10 @@ pub enum Command {
     },
 }
 
-type OutlineCmdFn = fn(Array) -> Option<Command>;
+type CmdFn = fn(Array) -> Option<Command>;
 
 impl Command {
-    const fn all() -> [(&'static str, OutlineCmdFn); NUMBER_CMDS] {
+    const fn all() -> [(&'static str, CmdFn); NUMBER_CMDS] {
         [
             (CARGO_TOOLS_PROJECT_OUTLINE_SELECT_PACKAGE, |arg| {
                 try_get_node_type(arg)
@@ -175,63 +171,6 @@ impl Command {
     }
 }
 
-fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
-    match serde_wasm_bindgen::from_value(array.get(0)) {
-        Ok(v) => Some(v),
-        Err(e) => {
-            log_error(&format!("Failed to deserialize update: {e}"));
-            None
-        }
-    }
-}
-
-fn take_first_two<T: DeserializeOwned, U: DeserializeOwned>(array: Array) -> Option<(T, U)> {
-    match (
-        serde_wasm_bindgen::from_value(array.get(0)),
-        serde_wasm_bindgen::from_value(array.get(1)),
-    ) {
-        (Ok(v_0), Ok(v_1)) => Some((v_0, v_1)),
-        (Err(e_0), Err(e_1)) => {
-            log_error(&format!("Failed to deserialize update: {e_0}, {e_1}"));
-            None
-        }
-        (Err(e), _) | (_, Err(e)) => {
-            log_error(&format!("Failed to deserialize update: {e}"));
-            None
-        }
-    }
-}
-
 pub fn register_outline_commands(tx: Sender<Command>) -> Vec<CommandBinding> {
-    register_tasks(task_map(tx))
-}
-
-type CmdKeyValuePair = (&'static str, CommandBinding);
-
-fn create_vs_code_command(
-    tx: Sender<Command>,
-    key: &'static str,
-    cargo_cmd_fn: OutlineCmdFn,
-) -> CmdKeyValuePair {
-    let cmd = Closure::new(move |args: Array| {
-        let tx = tx.clone();
-        spawn_local(async move {
-            let Some(cmd) = cargo_cmd_fn(args) else {
-                log_error("Failed to extract cargo command");
-                return;
-            };
-            log_info(&format!("Sending VS Code cargo command '{cmd:?}'"));
-            if let Err(e) = tx.clone().send(cmd).await {
-                log_error(&format!("Failed to queue msg: {}", e));
-            }
-        });
-    });
-
-    (key, cmd)
-}
-
-fn task_map(tx: Sender<Command>) -> CommandMap {
-    HashMap::from(
-        Command::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
-    )
+    register_commands(tx, Command::all())
 }

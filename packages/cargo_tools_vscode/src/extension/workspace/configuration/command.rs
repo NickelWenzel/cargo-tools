@@ -1,14 +1,9 @@
-use std::collections::HashMap;
-
-use futures::{SinkExt, channel::mpsc::Sender};
-use serde::de::DeserializeOwned;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen_futures::{js_sys::Array, spawn_local};
+use futures::channel::mpsc::Sender;
+use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     commands::configuration::*,
-    extension::{CommandBinding, CommandMap, register_tasks},
-    vs_code_api::{log_error, log_info},
+    extension::vscode_task_utils::{CommandBinding, register_commands, take_first},
 };
 
 #[derive(Debug, Clone)]
@@ -33,10 +28,10 @@ pub enum Command {
     ToggleFeature(String),
 }
 
-type CargoCmdFn = fn(Array) -> Option<Command>;
+type CmdFn = fn(Array) -> Option<Command>;
 
 impl Command {
-    pub const fn all() -> [(&'static str, CargoCmdFn); NUMBER_CMDS] {
+    pub const fn all() -> [(&'static str, CmdFn); NUMBER_CMDS] {
         [
             (CARGO_TOOLS_SELECT_PROFILE, |_| Some(Self::SelectProfile)),
             (CARGO_TOOLS_SELECT_PACKAGE, |_| Some(Self::SelectPackage)),
@@ -74,46 +69,6 @@ impl Command {
     }
 }
 
-fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
-    match serde_wasm_bindgen::from_value(array.get(0)) {
-        Ok(v) => Some(v),
-        Err(e) => {
-            log_error(&format!("Failed to deserialize update: {e}"));
-            None
-        }
-    }
-}
-
 pub fn register_configuration_commands(tx: Sender<Command>) -> Vec<CommandBinding> {
-    register_tasks(task_map(tx))
-}
-
-type CmdKeyValuePair = (&'static str, CommandBinding);
-
-fn create_vs_code_command(
-    tx: Sender<Command>,
-    key: &'static str,
-    cargo_cmd_fn: CargoCmdFn,
-) -> CmdKeyValuePair {
-    let cmd = Closure::new(move |args: Array| {
-        let tx = tx.clone();
-        spawn_local(async move {
-            let Some(cmd) = cargo_cmd_fn(args) else {
-                log_error("Failed to extract cargo command");
-                return;
-            };
-            log_info(&format!("Sending VS Code cargo command '{cmd:?}'"));
-            if let Err(e) = tx.clone().send(cmd).await {
-                log_error(&format!("Failed to queue msg: {}", e));
-            }
-        });
-    });
-
-    (key, cmd)
-}
-
-fn task_map(tx: Sender<Command>) -> CommandMap {
-    HashMap::from(
-        Command::all().map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
-    )
+    register_commands(tx, Command::all())
 }
