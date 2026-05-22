@@ -201,6 +201,34 @@
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
+        "command": "cargo-tools.xtask.runAlias",
+        "title": "Run Alias",
+        "category": "Cargo Tools",
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+      },
+      {
+        "command": "cargo-tools.xtask.selectAndRunAlias",
+        "title": "Select and Run Alias",
+        "category": "Cargo Tools",
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+      },
+      {
+        "command": "cargo-tools.xtask.selectFilter",
+        "title": "Set Alias Filter",
+        "category": "Cargo Tools",
+        "icon": "$(filter)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+      },
+      {
+        "command": "cargo-tools.xtask.clearFilter",
+        "title": "Clear Alias Filter",
+        "category": "Cargo Tools",
+        "icon": "$(clear-all)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+      },
+      {
         "command": "cargo-tools.projectStatus.build",
         "title": "Build",
         "category": "Cargo Tools",
@@ -411,6 +439,12 @@
           "name": "Pinned Makefile Tasks",
           "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile",
           "icon": "$(pin)"
+        },
+        {
+          "id": "cargoToolsXtaskAliases",
+          "name": "Xtask Aliases",
+          "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig",
+          "icon": "$(terminal)"
         }
       ]
     },
@@ -475,6 +509,16 @@
           "command": "cargo-tools.tasks.pinned.add",
           "when": "view == cargoToolsPinnedMakefileTasks",
           "group": "navigation@1"
+        },
+        {
+          "command": "cargo-tools.xtask.selectFilter",
+          "when": "view == cargoToolsXtaskAliases",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cargo-tools.xtask.clearFilter",
+          "when": "view == cargoToolsXtaskAliases",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -677,6 +721,11 @@
           "command": "cargo-tools.tasks.pinned.remove",
           "when": "view == cargoToolsPinnedMakefileTasks && viewItem == pinned-task",
           "group": "context@1"
+        },
+        {
+          "command": "cargo-tools.xtask.runAlias",
+          "when": "view == cargoToolsXtaskAliases && viewItem == xtaskAlias",
+          "group": "inline@1"
         }
       ],
       "commandPalette": [
@@ -770,6 +819,10 @@
         },
         {
           "command": "cargo-tools.tasks.pinned.execute",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.xtask.runAlias",
           "when": "never"
         }
       ]
@@ -941,7 +994,7 @@
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/vsce": "^2.25.0",
     "@wasm-tool/wasm-pack-plugin": "^1.5.1",
-    "copy-webpack-plugin": "^14.0.0",
+    "copy-webpack-plugin": "^13.0.0",
     "eslint": "^9.25.1",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",

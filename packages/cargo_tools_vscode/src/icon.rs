@@ -133,6 +133,12 @@ pub const MAKEFILE_TASK: Icon = Icon {
     color: "charts.blue",
 };
 
+// Xtask alias
+pub const XTASK_ALIAS: Icon = Icon {
+    icon: "terminal",
+    color: "charts.green",
+};
+
 // Utility actions with chart color distinctions
 pub const REFRESH_ACTION: Icon = Icon {
     icon: "refresh",

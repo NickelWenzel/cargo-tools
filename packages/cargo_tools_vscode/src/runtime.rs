@@ -92,6 +92,7 @@ enum CargoTask {
     Cargo(Process),
     CargoMake(Process),
     RustUp(Process),
+    XtaskAlias(Process),
 }
 
 /// Task type which is exported in typescript code
@@ -111,11 +112,16 @@ impl VsCodeTask {
         Self(CargoTask::RustUp(process))
     }
 
+    pub fn xtask_alias(process: Process) -> Self {
+        Self(CargoTask::XtaskAlias(process))
+    }
+
     fn process(&self) -> &Process {
         match &self.0 {
             CargoTask::Cargo(process) => process,
             CargoTask::CargoMake(process) => process,
             CargoTask::RustUp(process) => process,
+            CargoTask::XtaskAlias(process) => process,
         }
     }
 }
@@ -128,6 +134,7 @@ impl VsCodeTask {
             CargoTask::Cargo(_) => "cargo-tools-cargo".to_string(),
             CargoTask::CargoMake(_) => "cargo-tools-cargo-make".to_string(),
             CargoTask::RustUp(_) => "cargo-tools-cargo".to_string(),
+            CargoTask::XtaskAlias(_) => "cargo-tools-xtask".to_string(),
         }
     }
 

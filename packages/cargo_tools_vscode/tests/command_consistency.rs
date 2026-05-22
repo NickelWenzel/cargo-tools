@@ -1,4 +1,4 @@
-use cargo_tools_vscode::commands::{cargo_make, configuration, outline, pinned};
+use cargo_tools_vscode::commands::{cargo_make, configuration, outline, pinned, xtask};
 
 fn all_configuration_commands() -> [&'static str; configuration::NUMBER_CMDS] {
     use cargo_tools_vscode::commands::configuration::*;
@@ -81,12 +81,23 @@ const fn all_pinned_commands() -> [&'static str; pinned::NUMBER_CMDS] {
     ]
 }
 
+const fn all_xtask_commands() -> [&'static str; xtask::NUMBER_CMDS] {
+    use cargo_tools_vscode::commands::xtask::*;
+    [
+        CARGO_TOOLS_XTASK_RUN_ALIAS,
+        CARGO_TOOLS_XTASK_SELECT_AND_RUN,
+        CARGO_TOOLS_XTASK_SELECT_FILTER,
+        CARGO_TOOLS_XTASK_CLEAR_FILTER,
+    ]
+}
+
 fn all_cargo_commands_from_cargo_tools() -> Vec<&'static str> {
     all_configuration_commands()
         .into_iter()
         .chain(all_outline_commands())
         .chain(all_cargo_make_commands())
         .chain(all_pinned_commands())
+        .chain(all_xtask_commands())
         .collect()
 }
 

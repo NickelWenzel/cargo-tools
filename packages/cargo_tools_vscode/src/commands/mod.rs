@@ -5,3 +5,4 @@ pub mod cargo_make;
 pub mod configuration;
 pub mod outline;
 pub mod pinned;
+pub mod xtask;

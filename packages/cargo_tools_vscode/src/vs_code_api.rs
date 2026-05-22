@@ -9,6 +9,7 @@ use crate::{
         tasks::{
             cargo_make::tree_provider::{CargoMakeNodeHandler, CargoMakeTreeProviderHandler},
             pinned::tree_provider::CargoMakePinnedTreeProviderHandler,
+            xtask::tree_provider::XtaskTreeProviderHandler,
         },
         workspace::{
             configuration::treeprovider::{CargoConfigurationTreeProviderHandler, NodeType},
@@ -234,6 +235,38 @@ impl Debug for CargoMakePinnedTreeProvider {
     }
 }
 
+#[wasm_bindgen(raw_module = "../xtaskTreeProvider.ts")]
+extern "C" {
+    pub type XtaskNode;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        context_value: String,
+        description: String,
+        tooltip: String,
+    ) -> XtaskNode;
+
+    pub type XtaskTreeProvider;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(handler: XtaskTreeProviderHandler) -> XtaskTreeProvider;
+
+    #[wasm_bindgen(method)]
+    pub fn update(this: &XtaskTreeProvider, handler: XtaskTreeProviderHandler);
+
+    #[wasm_bindgen]
+    pub fn try_get_xtask_label(value: Array) -> Option<String>;
+}
+
+impl Debug for XtaskTreeProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("XtaskTreeProvider").finish()
+    }
+}
+
 #[wasm_bindgen(raw_module = "../configurationTreeProvider.ts")]
 extern "C" {
     pub type CargoNode;
@@ -317,6 +350,20 @@ pub async fn set_cargo_context(has_cargo: bool) {
         Array::of2(
             &JsValue::from_str("cargoTools:workspaceHasCargo"),
             &JsValue::from_bool(has_cargo),
+        ),
+    )
+    .await;
+    if let Err(e) = res {
+        log_error(&e.to_error_string());
+    }
+}
+
+pub async fn set_xtask_context(has_xtask_config: bool) {
+    let res = executeCommand(
+        "setContext",
+        Array::of2(
+            &JsValue::from_str("cargoTools:workspaceHasXtaskConfig"),
+            &JsValue::from_bool(has_xtask_config),
         ),
     )
     .await;
