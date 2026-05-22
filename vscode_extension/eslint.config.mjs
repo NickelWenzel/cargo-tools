@@ -2,7 +2,7 @@ import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 
 export default [{
-    ignores: ["src/wasm/**"],
+    ignores: ["vscode_extension/src/wasm/**"],
 }, {
     files: ["**/*.ts"],
 }, {
@@ -17,14 +17,14 @@ export default [{
     },
 
     rules: {
-        "@typescript-eslint/naming-convention": ["warn", {
+        "@typescript-eslint/naming-convention": ["error", {
             selector: "import",
             format: ["camelCase", "PascalCase"],
         }],
 
-        curly: "warn",
-        eqeqeq: "warn",
-        "no-throw-literal": "warn",
-        semi: "warn",
+        curly: "error",
+        eqeqeq: "error",
+        "no-throw-literal": "error",
+        semi: "error",
     },
 }];

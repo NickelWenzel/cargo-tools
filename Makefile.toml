@@ -15,15 +15,20 @@ args = ["npm", "run", "compile"]
 
 [tasks.lint]
 description = "Lint the codebase"
-dependencies = ["lint-clippy", "lint-npm"]
+dependencies = ["lint-clippy", "lint-fmt", "lint-npm"]
 
 [tasks.lint-clippy]
 description = "Lint Rust code with clippy"
 command = "cargo"
-args = ["clippy"]
+args = ["clippy", "--", "-D", "warnings"]
+
+[tasks.lint-fmt]
+description = "Check Rust formatting"
+command = "cargo"
+args = ["fmt", "--check"]
 
 [tasks.lint-npm]
-description = "Lint the codebase"
+description = "Lint TypeScript code with ESLint"
 command = "npx"
 args = ["npm", "run", "lint"]
 

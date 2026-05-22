@@ -932,7 +932,7 @@
     "package": "vsce package -o cargo-tools.vsix",
     "compile": "webpack --config vscode_extension/webpack.config.js",
     "watch": "webpack --watch --config vscode_extension/webpack.config.js",
-    "lint": "eslint --config vscode_extension/eslint.config.mjs vscode_extension/src"
+    "lint": "eslint --max-warnings 0 --config vscode_extension/eslint.config.mjs vscode_extension/src"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
