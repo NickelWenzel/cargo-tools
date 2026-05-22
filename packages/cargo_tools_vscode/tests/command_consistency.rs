@@ -1,7 +1,7 @@
-use cargo_tools_vscode::commands::{cargo, cargo_make, pinned};
+use cargo_tools_vscode::commands::{cargo_make, configuration, outline, pinned};
 
-fn all_cargo_commands() -> [&'static str; cargo::NUMBER_CMDS] {
-    use cargo_tools_vscode::commands::cargo::*;
+fn all_configuration_commands() -> [&'static str; configuration::NUMBER_CMDS] {
+    use cargo_tools_vscode::commands::configuration::*;
     [
         CARGO_TOOLS_SELECT_PROFILE,
         CARGO_TOOLS_SELECT_PACKAGE,
@@ -21,6 +21,12 @@ fn all_cargo_commands() -> [&'static str; cargo::NUMBER_CMDS] {
         CARGO_TOOLS_PROJECT_STATUS_TEST,
         CARGO_TOOLS_PROJECT_STATUS_BENCH,
         CARGO_TOOLS_PROJECT_STATUS_TOGGLE_FEATURE,
+    ]
+}
+
+const fn all_outline_commands() -> [&'static str; outline::NUMBER_CMDS] {
+    use cargo_tools_vscode::commands::outline::*;
+    [
         CARGO_TOOLS_PROJECT_OUTLINE_SELECT_PACKAGE,
         CARGO_TOOLS_PROJECT_OUTLINE_UNSELECT_PACKAGE,
         CARGO_TOOLS_PROJECT_OUTLINE_SET_BUILD_TARGET,
@@ -76,10 +82,12 @@ const fn all_pinned_commands() -> [&'static str; pinned::NUMBER_CMDS] {
 }
 
 fn all_cargo_commands_from_cargo_tools() -> Vec<&'static str> {
-    let mut cmds = all_cargo_commands().into_iter().collect::<Vec<_>>();
-    cmds.extend(all_cargo_make_commands());
-    cmds.extend(all_pinned_commands());
-    cmds
+    all_configuration_commands()
+        .into_iter()
+        .chain(all_outline_commands())
+        .chain(all_cargo_make_commands())
+        .chain(all_pinned_commands())
+        .collect()
 }
 
 fn all_commands_from_package_json() -> Vec<String> {
