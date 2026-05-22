@@ -53,10 +53,13 @@ jobs:
     - name: Compile extension
       run: npm run compile
 
-    - name: Run linter
+    - name: Check Rust formatting
+      run: cargo make lint-fmt
+
+    - name: Run Rust linter
       run: cargo make lint-clippy
 
-    - name: Run linter
+    - name: Run TypeScript linter
       run: npm run lint
 
     - name: Run tests
