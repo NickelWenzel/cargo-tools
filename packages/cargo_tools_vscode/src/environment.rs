@@ -41,6 +41,10 @@ pub fn makefile_task_context() -> CargoTaskContext {
     general_task_context()
 }
 
+pub fn xtask_task_context() -> CargoTaskContext {
+    general_task_context()
+}
+
 pub fn metadata_task_context() -> CargoTaskContext {
     general_task_context()
 }

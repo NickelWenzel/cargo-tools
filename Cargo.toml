@@ -3,6 +3,7 @@ members = [
     "packages/cargo_tools",
     "packages/cargo_tools_vscode",
     "packages/iced_viewless",
+    "xtask",
 ]
 default-members = [
     "packages/cargo_tools",

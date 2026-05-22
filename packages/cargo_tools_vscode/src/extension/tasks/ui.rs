@@ -5,28 +5,37 @@ use iced_viewless::Task;
 use crate::extension::tasks::{
     cargo_make,
     pinned::{self, SettingsUpdate},
+    xtask,
 };
 
 #[derive(Debug)]
 pub enum Message {
     CargoMake(cargo_make::Message),
     Pinned(pinned::Message),
+    Xtask(xtask::Message),
 }
 
 pub struct Tasks {
     cargo_make: cargo_make::CargoMake,
     pinned: pinned::Pinned,
+    xtask: xtask::Xtask,
 }
 
 impl Tasks {
     pub fn init(root_dir: String) -> (Self, Task<Message>) {
         let (cargo_make, cargo_make_task) = cargo_make::CargoMake::init(root_dir.clone());
-        let (pinned, pinned_task) = pinned::Pinned::init(root_dir);
+        let (pinned, pinned_task) = pinned::Pinned::init(root_dir.clone());
+        let (xtask, xtask_task) = xtask::Xtask::init(root_dir);
 
-        let this = Self { cargo_make, pinned };
+        let this = Self {
+            cargo_make,
+            pinned,
+            xtask,
+        };
         let task = Task::batch([
             cargo_make_task.map(Message::CargoMake),
             pinned_task.map(Message::Pinned),
+            xtask_task.map(Message::Xtask),
         ]);
 
         (this, task)
@@ -45,6 +54,7 @@ impl Tasks {
                 .pinned
                 .update(self.cargo_make.makefile_tasks(), msg)
                 .map(Message::Pinned),
+            Message::Xtask(msg) => self.xtask.update(msg).map(Message::Xtask),
         }
     }
 }

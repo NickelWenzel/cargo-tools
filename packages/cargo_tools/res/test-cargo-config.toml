@@ -3,6 +3,6 @@ runner = 'wasm-bindgen-test-runner'
 
 [alias]
 compile = "run --package xtask -- compile"
-lint    = "run --package xtask -- lint"
+lint    = ["run", "--package", "xtask", "--", "lint"]
 xt-test = "run --package xtask -- test"
 xt-pkg  = "run --package xtask -- package"
