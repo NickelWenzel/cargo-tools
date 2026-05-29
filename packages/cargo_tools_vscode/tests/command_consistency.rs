@@ -85,7 +85,9 @@ const fn all_xtask_commands() -> [&'static str; xtask::NUMBER_CMDS] {
     use cargo_tools_vscode::commands::xtask::*;
     [
         CARGO_TOOLS_XTASK_RUN_ALIAS,
+        CARGO_TOOLS_XTASK_RUN_ALIAS_WITH_ARGS,
         CARGO_TOOLS_XTASK_SELECT_AND_RUN,
+        CARGO_TOOLS_XTASK_SELECT_AND_RUN_WITH_ARGS,
         CARGO_TOOLS_XTASK_SELECT_FILTER,
         CARGO_TOOLS_XTASK_CLEAR_FILTER,
     ]

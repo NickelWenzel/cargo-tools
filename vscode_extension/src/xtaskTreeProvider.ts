@@ -47,7 +47,7 @@ export class XtaskTreeProvider implements vscode.TreeDataProvider<XtaskNode> {
 
     async getChildren(element?: XtaskNode): Promise<XtaskNode[]> {
         if (element) { return []; }
-        return this.handler.aliases() as unknown as XtaskNode[];
+        return await this.handler.aliases() as unknown as XtaskNode[];
     }
 }
 

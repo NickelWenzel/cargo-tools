@@ -22,7 +22,7 @@ use crate::{
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
     vs_code_api::{
         TsFileWatcher, XtaskTreeProvider, execute_task, log_error, log_info, set_xtask_context,
-        show_quick_pick_type,
+        show_input_box, show_quick_pick_type, show_quick_pick_with_buttons,
     },
 };
 
@@ -122,6 +122,28 @@ impl Xtask {
     fn handle_cmd(&self, cmd: Command) -> Task<Message> {
         match cmd {
             Command::RunAlias(name) => self.run_alias(name),
+            Command::RunAliasWithArgs(name) => Task::future(async move {
+                let placeholder = format!("Extra args for 'cargo {name}'");
+                let Ok(val) = show_input_box(placeholder, String::new()).await else {
+                    return;
+                };
+                let Some(args_str) = val.as_string() else {
+                    return;
+                };
+                let extra_args = args_str
+                    .split_whitespace()
+                    .map(String::from)
+                    .collect::<Vec<_>>();
+                match XtaskAlias::try_into_process_with_extra_args(
+                    name,
+                    extra_args,
+                    xtask_task_context(),
+                ) {
+                    Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
+                    Err(e) => log_error(&e.to_string()),
+                }
+            })
+            .discard(),
             Command::SelectAndRun => {
                 let options = self.aliases.iter().cloned().collect::<Vec<_>>();
                 let current = Vec::new();
@@ -133,6 +155,56 @@ impl Xtask {
                 })
                 .and_then(Task::done)
                 .map(Message::Cmd)
+            }
+            Command::SelectAndRunWithArgs => {
+                let options = self.aliases.iter().cloned().collect::<Vec<_>>();
+                Task::future(async move {
+                    let mut items: Vec<QuickPickItem> = Vec::new();
+                    for alias in &options {
+                        let help = super::tree_provider::fetch_tooltip(&alias.name).await;
+                        items.push(alias.to_item(false).with_button_tooltip(help));
+                    }
+                    let vscode_options = match items.iter().map(to_value).collect() {
+                        Ok(arr) => arr,
+                        Err(e) => {
+                            log_error(&format!("Failed to serialize quick pick items: {e:?}"));
+                            return;
+                        }
+                    };
+                    let selected_index = match show_quick_pick_with_buttons(vscode_options).await {
+                        Ok(v) => match v.as_f64().map(|f| f as usize) {
+                            Some(i) => i,
+                            None => return,
+                        },
+                        Err(e) => {
+                            log_error(&format!("Quick pick failed: {e:?}"));
+                            return;
+                        }
+                    };
+                    let Some(alias) = options.get(selected_index).cloned() else {
+                        return;
+                    };
+                    let placeholder = format!("Extra args for 'cargo {}'", alias.name);
+                    let Ok(val) = show_input_box(placeholder, String::new()).await else {
+                        return;
+                    };
+                    let Some(args_str) = val.as_string() else {
+                        return;
+                    };
+                    let extra_args = args_str
+                        .split_whitespace()
+                        .map(String::from)
+                        .collect::<Vec<_>>();
+                    match XtaskAlias::try_into_process_with_extra_args(
+                        alias.name,
+                        extra_args,
+                        xtask_task_context(),
+                    ) {
+                        Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
+                        Err(e) => log_error(&e.to_string()),
+                    }
+                })
+                .discard()
             }
             Command::SelectFilter => self.select_filter(),
             Command::EditFilter(filter) => Task::done(Message::SettingsChanged(filter)),
