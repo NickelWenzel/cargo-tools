@@ -208,10 +208,23 @@
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
       },
       {
+        "command": "cargo-tools.xtask.runAliasWithArgs",
+        "title": "Run Alias with Extra Args",
+        "category": "Cargo Tools",
+        "icon": "$(terminal-powershell)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+      },
+      {
         "command": "cargo-tools.xtask.selectAndRunAlias",
         "title": "Select and Run Alias",
         "category": "Cargo Tools",
         "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+      },
+      {
+        "command": "cargo-tools.xtask.selectAndRunAliasWithArgs",
+        "title": "Select and Run Alias with Extra Args",
+        "category": "Cargo Tools",
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
       },
       {
@@ -726,6 +739,11 @@
           "command": "cargo-tools.xtask.runAlias",
           "when": "view == cargoToolsXtaskAliases && viewItem == xtaskAlias",
           "group": "inline@1"
+        },
+        {
+          "command": "cargo-tools.xtask.runAliasWithArgs",
+          "when": "view == cargoToolsXtaskAliases && viewItem == xtaskAlias",
+          "group": "inline@2"
         }
       ],
       "commandPalette": [
@@ -823,6 +841,10 @@
         },
         {
           "command": "cargo-tools.xtask.runAlias",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.xtask.runAliasWithArgs",
           "when": "never"
         }
       ]

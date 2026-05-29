@@ -10,7 +10,9 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum Command {
     RunAlias(String),
+    RunAliasWithArgs(String),
     SelectAndRun,
+    SelectAndRunWithArgs,
     SelectFilter,
     EditFilter(String),
     ClearFilter,
@@ -24,8 +26,14 @@ impl Command {
             (CARGO_TOOLS_XTASK_RUN_ALIAS, |arg| {
                 try_get_xtask_label(arg).map(Self::RunAlias)
             }),
+            (CARGO_TOOLS_XTASK_RUN_ALIAS_WITH_ARGS, |arg| {
+                try_get_xtask_label(arg).map(Self::RunAliasWithArgs)
+            }),
             (CARGO_TOOLS_XTASK_SELECT_AND_RUN, |_| {
                 Some(Self::SelectAndRun)
+            }),
+            (CARGO_TOOLS_XTASK_SELECT_AND_RUN_WITH_ARGS, |_| {
+                Some(Self::SelectAndRunWithArgs)
             }),
             (CARGO_TOOLS_XTASK_SELECT_FILTER, |_| {
                 Some(Self::SelectFilter)

@@ -173,6 +173,13 @@ extern "C" {
         items: Array,
         callback: &Closure<dyn FnMut(String)>,
     ) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn show_input_box(placeholder: String, prompt: String) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn show_quick_pick_with_buttons(items: Array) -> Result<JsValue, JsValue>;
+
 }
 
 #[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]

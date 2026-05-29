@@ -1,8 +1,10 @@
-use cargo_tools::xtask::XtaskAliases;
+use std::collections::HashMap;
+
+use cargo_tools::{process::Process, xtask::XtaskAliases};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::{icon::XTASK_ALIAS, vs_code_api::XtaskNode};
+use crate::{icon::XTASK_ALIAS, runtime::exec_vs_code, vs_code_api::XtaskNode};
 
 const ALIAS_CONTEXT: &str = "xtaskAlias";
 
@@ -21,24 +23,34 @@ pub struct XtaskTreeProviderHandler {
 #[wasm_bindgen]
 impl XtaskTreeProviderHandler {
     #[wasm_bindgen]
-    pub fn aliases(&self) -> Vec<XtaskNode> {
-        self.aliases
-            .iter()
-            .cloned()
-            .map(|alias| {
-                let label = alias.name.clone();
-                let description = alias.command_display();
-                let tooltip = format!("cargo {label}");
-                XtaskNode::new(
-                    label,
-                    XTASK_ALIAS,
-                    CollapsibleState::None as u32,
-                    ALIAS_CONTEXT.to_string(),
-                    description,
-                    tooltip,
-                )
-            })
-            .collect()
+    pub async fn aliases(&self) -> Vec<XtaskNode> {
+        let mut nodes = Vec::new();
+        for alias in self.aliases.iter().cloned() {
+            let label = alias.name.clone();
+            let description = alias.command_display();
+            let tooltip = fetch_tooltip(&label).await;
+            nodes.push(XtaskNode::new(
+                label,
+                XTASK_ALIAS,
+                CollapsibleState::None as u32,
+                ALIAS_CONTEXT.to_string(),
+                description,
+                tooltip,
+            ));
+        }
+        nodes
+    }
+}
+
+pub(super) async fn fetch_tooltip(label: &str) -> String {
+    let process = Process::new(
+        "cargo".to_string(),
+        vec![label.to_string(), "--help".to_string()],
+        HashMap::new(),
+    );
+    match exec_vs_code(process).await {
+        Ok(out) if !out.trim().is_empty() => out,
+        _ => format!("cargo {label}"),
     }
 }
 

@@ -21,6 +21,16 @@ impl XtaskAlias {
         ctx.try_into_process(vec![name])
     }
 
+    pub fn try_into_process_with_extra_args(
+        name: String,
+        extra_args: Vec<String>,
+        ctx: CargoTaskContext,
+    ) -> Result<Process, CargoCommandEmpty> {
+        let mut args = vec![name];
+        args.extend(extra_args);
+        ctx.try_into_process(args)
+    }
+
     pub fn command_display(&self) -> String {
         self.command.join(" ")
     }
