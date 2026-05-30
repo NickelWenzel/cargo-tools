@@ -1,4 +1,4 @@
 pub mod command;
 pub mod tree_provider;
 mod ui;
-pub use ui::{Message, Xtask};
+pub use ui::{Event, Message, Xtask};

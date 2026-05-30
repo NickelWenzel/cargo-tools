@@ -1,11 +1,12 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use futures::{SinkExt, channel::mpsc::Sender};
+use iced_viewless::Task;
 use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
-use crate::vs_code_api::{log_error, log_info, register_command};
+use crate::vs_code_api::{log_error, log_info, register_command, show_quick_pick_type};
 
 pub type CommandBinding = Closure<dyn FnMut(Array)>;
 type CommandMap = HashMap<&'static str, CommandBinding>;
@@ -92,4 +93,27 @@ pub fn register_commands<Cmd: Debug + 'static, const N: usize>(
     register_tasks(HashMap::from(
         all.map(|(key, cmd_fn)| create_vs_code_command(tx.clone(), key, cmd_fn)),
     ))
+}
+
+pub fn select_name_filter<C: Clone + Send + 'static>(
+    current: String,
+    options: Array,
+    cmd_tx: Sender<C>,
+    make_edit: fn(String) -> C,
+) -> Task<C> {
+    Task::future(async move {
+        let filter_update = Closure::new(move |filter: String| {
+            let mut tx = cmd_tx.clone();
+            spawn_local(async move {
+                if let Err(e) = tx.send(make_edit(filter)).await {
+                    log_error(&format!("Failed to queue filter update: {e}"));
+                }
+            });
+        });
+        let filter = show_quick_pick_type(current.clone(), options, &filter_update)
+            .await
+            .map(|f| f.as_string().unwrap_or(current.clone()))
+            .unwrap_or(current);
+        make_edit(filter)
+    })
 }

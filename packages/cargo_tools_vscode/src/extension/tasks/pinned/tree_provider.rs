@@ -1,13 +1,18 @@
-use cargo_tools::cargo_make::{MakefileTask, MakefileTasks};
+use cargo_tools::{
+    cargo_make::{MakefileTask, MakefileTasks},
+    xtask::PinnedAlias,
+};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    extension::tasks::cargo_make::tree_provider::CargoMakeNodeHandler, icon::MAKEFILE_TASK,
-    vs_code_api::CargoMakePinnedNode,
+    extension::tasks::cargo_make::tree_provider::CargoMakeNodeHandler,
+    icon::{MAKEFILE_TASK, XTASK_ALIAS},
+    vs_code_api::{CargoMakePinnedNode, PinnedAliasNode},
 };
 
 const PINNED_CONTEXT: &str = "pinned-task";
+const PINNED_ALIAS_CONTEXT: &str = "pinned-alias";
 
 // Make sure to keep this up to date with 'TreeItemCollapsibleState'
 enum CollapsibleState {
@@ -19,6 +24,7 @@ enum CollapsibleState {
 #[wasm_bindgen]
 pub struct CargoMakePinnedTreeProviderHandler {
     pinned_tasks: MakefileTasks,
+    pinned_aliases: Vec<PinnedAlias>,
 }
 
 /// Methods exported to typescript
@@ -32,12 +38,24 @@ impl CargoMakePinnedTreeProviderHandler {
             .map(cargo_make_pinned_node_from_task)
             .collect()
     }
+
+    #[wasm_bindgen]
+    pub fn pinned_aliases(&self) -> Vec<PinnedAliasNode> {
+        self.pinned_aliases
+            .iter()
+            .cloned()
+            .map(pinned_alias_node)
+            .collect()
+    }
 }
 
 /// Methods not exported to typescript
 impl CargoMakePinnedTreeProviderHandler {
-    pub fn new(pinned_tasks: MakefileTasks) -> Self {
-        Self { pinned_tasks }
+    pub fn new(pinned_tasks: MakefileTasks, pinned_aliases: Vec<PinnedAlias>) -> Self {
+        Self {
+            pinned_tasks,
+            pinned_aliases,
+        }
     }
 }
 
@@ -63,5 +81,25 @@ fn cargo_make_pinned_node_from_task(task: MakefileTask) -> CargoMakePinnedNode {
         description,
         tooltip,
         handler,
+    )
+}
+
+fn pinned_alias_node(alias: PinnedAlias) -> PinnedAliasNode {
+    let label = alias.name.clone();
+    let collapsible_state = CollapsibleState::None as u32;
+    let description = alias.extra_args.join(" ");
+    let tooltip = if description.is_empty() {
+        format!("Alias: {label}")
+    } else {
+        format!("Alias: {label} {description}")
+    };
+
+    PinnedAliasNode::new(
+        label,
+        XTASK_ALIAS,
+        collapsible_state,
+        PINNED_ALIAS_CONTEXT.to_string(),
+        description,
+        tooltip,
     )
 }

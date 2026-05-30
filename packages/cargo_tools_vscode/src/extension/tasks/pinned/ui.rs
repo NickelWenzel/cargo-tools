@@ -1,13 +1,16 @@
 use std::{iter, ops::Deref};
 
-use cargo_tools::cargo_make::{MakefileTask, MakefileTasks};
+use cargo_tools::{
+    cargo_make::{MakefileTask, MakefileTasks},
+    xtask::{PinnedAlias, XtaskAlias},
+};
 use futures::channel::mpsc::channel;
 use iced_viewless::Task;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    environment::makefile_task_context,
+    environment::{makefile_task_context, xtask_task_context},
     extension::{
         CommandBinding,
         tasks::pinned::{
@@ -30,6 +33,8 @@ pub enum Message {
 pub enum SettingsUpdate {
     AddPinned(MakefileTask),
     RemovePinned(usize),
+    AddPinnedAlias(PinnedAlias),
+    RemovePinnedAlias(usize),
 }
 
 #[derive(Debug)]
@@ -48,8 +53,10 @@ impl Pinned {
 
         let settings: Settings = get_state_vs_code(settings_key(&root_dir)).unwrap_or_default();
 
-        let handler =
-            CargoMakePinnedTreeProviderHandler::new(settings.pinned_makefile_tasks.clone());
+        let handler = CargoMakePinnedTreeProviderHandler::new(
+            settings.pinned_makefile_tasks.clone(),
+            settings.pinned_aliases.clone(),
+        );
 
         let this = Self {
             settings,
@@ -58,7 +65,6 @@ impl Pinned {
             root_dir,
         };
 
-        // makefile update and cmd will run for the lifetime of the extension
         let cmd = Task::stream(cmd_rx).map(Message::Cmd);
 
         (this, cmd)
@@ -74,6 +80,7 @@ impl Pinned {
     fn update_state(&mut self, update: SettingsUpdate) -> Task<Message> {
         let Settings {
             pinned_makefile_tasks,
+            pinned_aliases,
         } = &mut self.settings;
 
         let msg_task = match update {
@@ -107,6 +114,36 @@ impl Pinned {
                     )
                 }
             }
+            SettingsUpdate::AddPinnedAlias(alias) => {
+                if !pinned_aliases.contains(&alias) {
+                    pinned_aliases.push(alias);
+                    self.update_ui();
+                    None
+                } else {
+                    Some(
+                        Task::future(showInformationMessage(
+                            format!("Alias '{}' with these args is already pinned.", alias.name),
+                            Vec::new(),
+                        ))
+                        .discard(),
+                    )
+                }
+            }
+            SettingsUpdate::RemovePinnedAlias(idx) => {
+                if idx < pinned_aliases.len() {
+                    pinned_aliases.remove(idx);
+                    self.update_ui();
+                    None
+                } else {
+                    Some(
+                        Task::future(showInformationMessage(
+                            format!("Alias no. '{idx}' could not be unpinned."),
+                            Vec::new(),
+                        ))
+                        .discard(),
+                    )
+                }
+            }
         };
 
         let tasks = iter::once(
@@ -122,9 +159,11 @@ impl Pinned {
     }
 
     fn update_ui(&self) {
-        let tasks = self.settings.pinned_makefile_tasks.clone();
-        self.ui
-            .update(CargoMakePinnedTreeProviderHandler::new(tasks));
+        let handler = CargoMakePinnedTreeProviderHandler::new(
+            self.settings.pinned_makefile_tasks.clone(),
+            self.settings.pinned_aliases.clone(),
+        );
+        self.ui.update(handler);
     }
 
     fn handle_cmd(&self, makefile_tasks: &MakefileTasks, cmd: Command) -> Task<Message> {
@@ -145,9 +184,11 @@ impl Pinned {
                 else {
                     return Task::none();
                 };
-                Task::done(SettingsUpdate::RemovePinned(idx).into_cargo_make_msg())
+                Task::done(SettingsUpdate::RemovePinned(idx).into_pinned_msg())
             }
             Command::Execute(task) => self.make_task_exec(task),
+            Command::ExecuteAlias(key) => self.alias_exec_by_key(key),
+            Command::RemoveAlias(key) => self.alias_remove_by_key(key),
             Command::Execute1 => self.execute_pinned(0),
             Command::Execute2 => self.execute_pinned(1),
             Command::Execute3 => self.execute_pinned(2),
@@ -156,14 +197,24 @@ impl Pinned {
         }
     }
 
+    /// Execute the Nth item across the combined list (makefile tasks first, then aliases).
     fn execute_pinned(&self, idx: usize) -> Task<Message> {
-        match self.settings.pinned_makefile_tasks.get(idx) {
-            Some(task) => self.make_task_exec(task.name.clone()),
-            None => Task::future(showInformationMessage(
-                format!("There is no task no. {} pinned ", idx + 1),
-                Vec::new(),
-            ))
-            .discard(),
+        let task_count = self.settings.pinned_makefile_tasks.len();
+        if idx < task_count {
+            match self.settings.pinned_makefile_tasks.get(idx) {
+                Some(task) => self.make_task_exec(task.name.clone()),
+                None => Task::none(),
+            }
+        } else {
+            let alias_idx = idx - task_count;
+            match self.settings.pinned_aliases.get(alias_idx) {
+                Some(alias) => self.alias_exec(alias.clone()),
+                None => Task::future(showInformationMessage(
+                    format!("There is no task no. {} pinned ", idx + 1),
+                    Vec::new(),
+                ))
+                .discard(),
+            }
         }
     }
 
@@ -176,24 +227,70 @@ impl Pinned {
             }
         }
     }
+
+    fn alias_exec_by_key(&self, key: String) -> Task<Message> {
+        self.alias_exec(pinned_alias_from_key(&key))
+    }
+
+    fn alias_remove_by_key(&self, key: String) -> Task<Message> {
+        let target = pinned_alias_from_key(&key);
+        let Some(idx) = self
+            .settings
+            .pinned_aliases
+            .iter()
+            .position(|a| a == &target)
+        else {
+            return Task::none();
+        };
+        Task::done(SettingsUpdate::RemovePinnedAlias(idx).into_pinned_msg())
+    }
+
+    fn alias_exec(&self, alias: PinnedAlias) -> Task<Message> {
+        let result = if alias.extra_args.is_empty() {
+            XtaskAlias::try_into_process(alias.name, xtask_task_context())
+        } else {
+            XtaskAlias::try_into_process_with_extra_args(
+                alias.name,
+                alias.extra_args,
+                xtask_task_context(),
+            )
+        };
+        match result {
+            Ok(process) => Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
+            Err(e) => {
+                log_error(&e.to_string());
+                Task::none()
+            }
+        }
+    }
 }
 
-trait IntoCargoMakeMessage {
-    fn into_cargo_make_msg(self) -> Message;
+trait IntoPinnedMessage {
+    fn into_pinned_msg(self) -> Message;
 }
 
-impl IntoCargoMakeMessage for SettingsUpdate {
-    fn into_cargo_make_msg(self) -> Message {
+impl IntoPinnedMessage for SettingsUpdate {
+    fn into_pinned_msg(self) -> Message {
         Message::SettingsChanged(self)
     }
 }
 
 fn done(
-    fut: impl Future<Output = Option<impl IntoCargoMakeMessage + 'static>> + 'static,
+    fut: impl Future<Output = Option<impl IntoPinnedMessage + 'static>> + 'static,
 ) -> Task<Message> {
     Task::future(fut)
         .and_then(Task::done)
-        .map(IntoCargoMakeMessage::into_cargo_make_msg)
+        .map(IntoPinnedMessage::into_pinned_msg)
+}
+
+/// Decodes a `"name|args_string"` composite key back into a `PinnedAlias`.
+fn pinned_alias_from_key(key: &str) -> PinnedAlias {
+    let (name, args_str) = key.split_once('|').unwrap_or((key, ""));
+    let extra_args = args_str.split_whitespace().map(String::from).collect();
+    PinnedAlias {
+        name: name.to_string(),
+        extra_args,
+    }
 }
 
 fn settings_key(root_dir: &str) -> String {
@@ -203,4 +300,6 @@ fn settings_key(root_dir: &str) -> String {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Settings {
     pinned_makefile_tasks: MakefileTasks,
+    #[serde(default)]
+    pinned_aliases: Vec<PinnedAlias>,
 }

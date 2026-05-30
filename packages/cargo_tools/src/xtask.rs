@@ -6,6 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::process::{CargoCommandEmpty, CargoTaskContext, Process};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PinnedAlias {
+    pub name: String,
+    #[serde(default)]
+    pub extra_args: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct XtaskAlias {
     pub name: String,
     /// Normalized alias expansion, split into tokens.

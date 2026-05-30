@@ -197,14 +197,6 @@ extern "C" {
         tooltip: Option<String>,
     ) -> CargoMakeNode;
 
-    pub type CargoMakeTreeProvider;
-
-    #[wasm_bindgen(constructor)]
-    pub fn new(handler: CargoMakeTreeProviderHandler) -> CargoMakeTreeProvider;
-
-    #[wasm_bindgen(method)]
-    pub fn update(this: &CargoMakeTreeProvider, handler: CargoMakeTreeProviderHandler);
-
     pub type CargoMakePinnedNode;
 
     #[wasm_bindgen(constructor)]
@@ -218,8 +210,23 @@ extern "C" {
         handler: CargoMakeNodeHandler,
     ) -> CargoMakePinnedNode;
 
+    pub type PinnedAliasNode;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        context_value: String,
+        description: String,
+        tooltip: String,
+    ) -> PinnedAliasNode;
+
     #[wasm_bindgen]
     pub fn try_get_task_label(value: Array) -> Option<String>;
+
+    #[wasm_bindgen]
+    pub fn try_get_pinned_alias_key(value: Array) -> Option<String>;
 
     pub type CargoMakePinnedTreeProvider;
 
@@ -228,12 +235,6 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn update(this: &CargoMakePinnedTreeProvider, handler: CargoMakePinnedTreeProviderHandler);
-}
-
-impl Debug for CargoMakeTreeProvider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("CargoMakeTreeProvider").finish()
-    }
 }
 
 impl Debug for CargoMakePinnedTreeProvider {
@@ -256,21 +257,28 @@ extern "C" {
         tooltip: String,
     ) -> XtaskNode;
 
-    pub type XtaskTreeProvider;
-
-    #[wasm_bindgen(constructor)]
-    pub fn new(handler: XtaskTreeProviderHandler) -> XtaskTreeProvider;
-
-    #[wasm_bindgen(method)]
-    pub fn update(this: &XtaskTreeProvider, handler: XtaskTreeProviderHandler);
-
     #[wasm_bindgen]
     pub fn try_get_xtask_label(value: Array) -> Option<String>;
 }
 
-impl Debug for XtaskTreeProvider {
+#[wasm_bindgen(raw_module = "../tasksTreeProvider.ts")]
+extern "C" {
+    pub type TasksTreeProvider;
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(cm: CargoMakeTreeProviderHandler, xt: XtaskTreeProviderHandler)
+    -> TasksTreeProvider;
+
+    #[wasm_bindgen(method)]
+    pub fn update_cargo_make(this: &TasksTreeProvider, handler: CargoMakeTreeProviderHandler);
+
+    #[wasm_bindgen(method)]
+    pub fn update_xtask(this: &TasksTreeProvider, handler: XtaskTreeProviderHandler);
+}
+
+impl Debug for TasksTreeProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("XtaskTreeProvider").finish()
+        f.debug_tuple("TasksTreeProvider").finish()
     }
 }
 

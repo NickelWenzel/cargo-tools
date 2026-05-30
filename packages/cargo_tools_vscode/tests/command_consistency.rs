@@ -1,4 +1,4 @@
-use cargo_tools_vscode::commands::{cargo_make, configuration, outline, pinned, xtask};
+use cargo_tools_vscode::commands::{cargo_make, configuration, outline, pinned, tasks, xtask};
 
 fn all_configuration_commands() -> [&'static str; configuration::NUMBER_CMDS] {
     use cargo_tools_vscode::commands::configuration::*;
@@ -60,10 +60,16 @@ const fn all_cargo_make_commands() -> [&'static str; cargo_make::NUMBER_CMDS] {
     [
         CARGO_TOOLS_MAKEFILE_RUNTASK,
         CARGO_TOOLS_MAKEFILE_SELECTANDRUNTASK,
-        CARGO_TOOLS_MAKEFILE_SELECTTASKFILTER,
         CARGO_TOOLS_MAKEFILE_SELECTCATEGORYFILTER,
-        CARGO_TOOLS_MAKEFILE_CLEARALLFILTERS,
         CARGO_TOOLS_MAKEFILE_PINTASK,
+    ]
+}
+
+const fn all_tasks_commands() -> [&'static str; tasks::NUMBER_CMDS] {
+    use cargo_tools_vscode::commands::tasks::*;
+    [
+        CARGO_TOOLS_TASKS_SELECT_NAME_FILTER,
+        CARGO_TOOLS_TASKS_CLEAR_ALL_FILTERS,
     ]
 }
 
@@ -73,6 +79,8 @@ const fn all_pinned_commands() -> [&'static str; pinned::NUMBER_CMDS] {
         CARGO_TOOLS_PINNED_ADD,
         CARGO_TOOLS_PINNED_REMOVE,
         CARGO_TOOLS_PINNED_EXECUTE,
+        CARGO_TOOLS_PINNED_EXECUTE_ALIAS,
+        CARGO_TOOLS_PINNED_REMOVE_ALIAS,
         CARGO_TOOLS_PINNED_EXECUTE1,
         CARGO_TOOLS_PINNED_EXECUTE2,
         CARGO_TOOLS_PINNED_EXECUTE3,
@@ -86,10 +94,10 @@ const fn all_xtask_commands() -> [&'static str; xtask::NUMBER_CMDS] {
     [
         CARGO_TOOLS_XTASK_RUN_ALIAS,
         CARGO_TOOLS_XTASK_RUN_ALIAS_WITH_ARGS,
+        CARGO_TOOLS_XTASK_PIN_ALIAS,
+        CARGO_TOOLS_XTASK_PIN_ALIAS_WITH_ARGS,
         CARGO_TOOLS_XTASK_SELECT_AND_RUN,
         CARGO_TOOLS_XTASK_SELECT_AND_RUN_WITH_ARGS,
-        CARGO_TOOLS_XTASK_SELECT_FILTER,
-        CARGO_TOOLS_XTASK_CLEAR_FILTER,
     ]
 }
 
@@ -98,6 +106,7 @@ fn all_cargo_commands_from_cargo_tools() -> Vec<&'static str> {
         .into_iter()
         .chain(all_outline_commands())
         .chain(all_cargo_make_commands())
+        .chain(all_tasks_commands())
         .chain(all_pinned_commands())
         .chain(all_xtask_commands())
         .collect()

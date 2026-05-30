@@ -11,7 +11,6 @@ use crate::{
 pub enum Command {
     RunTask(String),
     SelectAndRunTask,
-    SelectTaskFilter,
     EditTaskFilter(String),
     SelectCategoryFilter,
     EditCategoryFilter(Vec<String>),
@@ -30,14 +29,8 @@ impl Command {
             (CARGO_TOOLS_MAKEFILE_SELECTANDRUNTASK, |_| {
                 Some(Self::SelectAndRunTask)
             }),
-            (CARGO_TOOLS_MAKEFILE_SELECTTASKFILTER, |_| {
-                Some(Self::SelectTaskFilter)
-            }),
             (CARGO_TOOLS_MAKEFILE_SELECTCATEGORYFILTER, |_| {
                 Some(Self::SelectCategoryFilter)
-            }),
-            (CARGO_TOOLS_MAKEFILE_CLEARALLFILTERS, |_| {
-                Some(Self::ClearAllFilters)
             }),
             (CARGO_TOOLS_MAKEFILE_PINTASK, |arg| {
                 try_get_task_label(arg).map(Self::PinTask)
