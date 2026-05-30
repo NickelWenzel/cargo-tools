@@ -15,6 +15,9 @@
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
 			],
+			"sourceMapPathOverrides": {
+				"webpack:///./src/*": "${workspaceFolder}/vscode_extension/src/*"
+			},
 			"preLaunchTask": "${defaultBuildTask}"
 		}
 	]
