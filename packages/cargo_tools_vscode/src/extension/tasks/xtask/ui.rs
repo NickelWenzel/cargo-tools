@@ -1,13 +1,8 @@
-use cargo_tools::xtask::{ParseError, XtaskAlias, XtaskAliases, parse_config};
-use futures::{
-    SinkExt,
-    channel::mpsc::{Sender, channel},
-};
+use cargo_tools::xtask::{ParseError, PinnedAlias, XtaskAlias, XtaskAliases, parse_config};
+use futures::channel::mpsc::channel;
 use iced_viewless::Task;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen_futures::spawn_local;
 
 use crate::{
     environment::xtask_task_context,
@@ -21,8 +16,8 @@ use crate::{
     quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem},
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
     vs_code_api::{
-        TsFileWatcher, XtaskTreeProvider, execute_task, log_error, log_info, set_xtask_context,
-        show_input_box, show_quick_pick_type, show_quick_pick_with_buttons,
+        TsFileWatcher, execute_task, log_error, set_xtask_context, show_input_box,
+        show_quick_pick_with_buttons,
     },
 };
 
@@ -38,17 +33,22 @@ pub enum Message {
     AliasesChanged(Result<XtaskAliases, String>),
     SettingsChanged(String),
     Cmd(Command),
+    PendingEvent(Event),
+}
+
+#[derive(Debug, Clone)]
+pub enum Event {
+    TreeChanged(XtaskTreeProviderHandler),
+    AddPinnedAlias(PinnedAlias),
 }
 
 #[derive(Debug)]
 pub struct Xtask {
     aliases: XtaskAliases,
     settings: Settings,
-    tree_provider: XtaskTreeProvider,
     _cmds: Vec<CommandBinding>,
     _file_watcher: TsFileWatcher,
     root_dir: String,
-    cmd_tx: Sender<Command>,
 }
 
 impl Xtask {
@@ -58,20 +58,16 @@ impl Xtask {
         _file_watcher.watch_files(vec![config_path(&root_dir)]);
 
         let (cmd_tx, cmd_rx) = channel(CHANNEL_CAPACITY);
-        let _cmds = register_xtask_commands(cmd_tx.clone());
+        let _cmds = register_xtask_commands(cmd_tx);
 
         let settings: Settings = get_state_vs_code(settings_key(&root_dir)).unwrap_or_default();
-
-        let handler = XtaskTreeProviderHandler::new(XtaskAliases::default());
 
         let this = Self {
             aliases: XtaskAliases::default(),
             settings,
-            tree_provider: XtaskTreeProvider::new(handler),
             _cmds,
             _file_watcher,
             root_dir,
-            cmd_tx,
         };
 
         let config_update = Task::stream(config_changed_rx).map(|()| Message::ConfigChanged);
@@ -82,109 +78,67 @@ impl Xtask {
         (this, Task::batch([config_update, cmd, initial_parse]))
     }
 
-    pub fn update(&mut self, msg: Message) -> Task<Message> {
+    pub fn aliases(&self) -> &XtaskAliases {
+        &self.aliases
+    }
+
+    pub fn name_filter(&self) -> &str {
+        &self.settings.filter
+    }
+
+    pub fn update(&mut self, msg: Message) -> (Task<Message>, Option<Event>) {
         match msg {
             Message::AliasesChanged(result) => match result {
                 Ok(aliases) => {
                     let has_aliases = !aliases.is_empty();
                     self.aliases = aliases;
-                    self.update_ui();
-                    Task::future(set_xtask_context(has_aliases)).discard()
+                    let event = self.tree_changed_event();
+                    (
+                        Task::future(set_xtask_context(has_aliases)).discard(),
+                        Some(event),
+                    )
                 }
                 Err(e) => {
                     log_error(&e);
                     self.aliases = XtaskAliases::default();
-                    self.update_ui();
-                    Task::future(set_xtask_context(false)).discard()
+                    let event = self.tree_changed_event();
+                    (
+                        Task::future(set_xtask_context(false)).discard(),
+                        Some(event),
+                    )
                 }
             },
-            Message::ConfigChanged => Task::future(read_and_parse(config_path(&self.root_dir)))
-                .map(Message::AliasesChanged),
+            Message::ConfigChanged => (
+                Task::future(read_and_parse(config_path(&self.root_dir)))
+                    .map(Message::AliasesChanged),
+                None,
+            ),
             Message::SettingsChanged(filter) => {
                 self.settings.filter = filter;
-                self.update_ui();
-                Task::future(persist_state_vs_code(
+                let event = self.tree_changed_event();
+                let persist = Task::future(persist_state_vs_code(
                     settings_key(&self.root_dir),
                     self.settings.clone(),
                 ))
-                .discard()
+                .discard();
+                (persist, Some(event))
             }
             Message::Cmd(cmd) => self.handle_cmd(cmd),
+            Message::PendingEvent(event) => (Task::none(), Some(event)),
         }
     }
 
-    fn update_ui(&self) {
+    fn tree_changed_event(&self) -> Event {
         let aliases = self.aliases.filtered(&self.settings.filter);
-        self.tree_provider
-            .update(XtaskTreeProviderHandler::new(aliases));
+        Event::TreeChanged(XtaskTreeProviderHandler::new(aliases))
     }
 
-    fn handle_cmd(&self, cmd: Command) -> Task<Message> {
+    fn handle_cmd(&self, cmd: Command) -> (Task<Message>, Option<Event>) {
         match cmd {
-            Command::RunAlias(name) => self.run_alias(name),
-            Command::RunAliasWithArgs(name) => Task::future(async move {
-                let placeholder = format!("Extra args for 'cargo {name}'");
-                let Ok(val) = show_input_box(placeholder, String::new()).await else {
-                    return;
-                };
-                let Some(args_str) = val.as_string() else {
-                    return;
-                };
-                let extra_args = args_str
-                    .split_whitespace()
-                    .map(String::from)
-                    .collect::<Vec<_>>();
-                match XtaskAlias::try_into_process_with_extra_args(
-                    name,
-                    extra_args,
-                    xtask_task_context(),
-                ) {
-                    Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
-                    Err(e) => log_error(&e.to_string()),
-                }
-            })
-            .discard(),
-            Command::SelectAndRun => {
-                let options = self.aliases.iter().cloned().collect::<Vec<_>>();
-                let current = Vec::new();
+            Command::RunAlias(name) => (self.run_alias(name), None),
+            Command::RunAliasWithArgs(name) => (
                 Task::future(async move {
-                    SelectInput { options, current }
-                        .select()
-                        .await
-                        .map(|alias| Command::RunAlias(alias.name))
-                })
-                .and_then(Task::done)
-                .map(Message::Cmd)
-            }
-            Command::SelectAndRunWithArgs => {
-                let options = self.aliases.iter().cloned().collect::<Vec<_>>();
-                Task::future(async move {
-                    let mut items: Vec<QuickPickItem> = Vec::new();
-                    for alias in &options {
-                        let help = super::tree_provider::fetch_tooltip(&alias.name).await;
-                        items.push(alias.to_item(false).with_button_tooltip(help));
-                    }
-                    let vscode_options = match items.iter().map(to_value).collect() {
-                        Ok(arr) => arr,
-                        Err(e) => {
-                            log_error(&format!("Failed to serialize quick pick items: {e:?}"));
-                            return;
-                        }
-                    };
-                    let selected_index = match show_quick_pick_with_buttons(vscode_options).await {
-                        Ok(v) => match v.as_f64().map(|f| f as usize) {
-                            Some(i) => i,
-                            None => return,
-                        },
-                        Err(e) => {
-                            log_error(&format!("Quick pick failed: {e:?}"));
-                            return;
-                        }
-                    };
-                    let Some(alias) = options.get(selected_index).cloned() else {
-                        return;
-                    };
-                    let placeholder = format!("Extra args for 'cargo {}'", alias.name);
+                    let placeholder = format!("Extra args for 'cargo {name}'");
                     let Ok(val) = show_input_box(placeholder, String::new()).await else {
                         return;
                     };
@@ -196,7 +150,7 @@ impl Xtask {
                         .map(String::from)
                         .collect::<Vec<_>>();
                     match XtaskAlias::try_into_process_with_extra_args(
-                        alias.name,
+                        name,
                         extra_args,
                         xtask_task_context(),
                     ) {
@@ -204,11 +158,105 @@ impl Xtask {
                         Err(e) => log_error(&e.to_string()),
                     }
                 })
-                .discard()
+                .discard(),
+                None,
+            ),
+            Command::PinAlias(name) => (
+                Task::none(),
+                Some(Event::AddPinnedAlias(PinnedAlias {
+                    name,
+                    extra_args: vec![],
+                })),
+            ),
+            Command::PinAliasWithArgs(name) => (
+                Task::future(async move {
+                    let placeholder =
+                        format!("Args to always use when running 'cargo {name}' (pinned)");
+                    let Ok(val) = show_input_box(placeholder, String::new()).await else {
+                        return None;
+                    };
+                    val.as_string().map(|args_str| {
+                        let extra_args = args_str.split_whitespace().map(String::from).collect();
+                        Message::PendingEvent(Event::AddPinnedAlias(PinnedAlias {
+                            name,
+                            extra_args,
+                        }))
+                    })
+                })
+                .and_then(Task::done),
+                None,
+            ),
+            Command::SelectAndRun => {
+                let options = self.aliases.iter().cloned().collect::<Vec<_>>();
+                let current = Vec::new();
+                (
+                    Task::future(async move {
+                        SelectInput { options, current }
+                            .select()
+                            .await
+                            .map(|alias| Command::RunAlias(alias.name))
+                    })
+                    .and_then(Task::done)
+                    .map(Message::Cmd),
+                    None,
+                )
             }
-            Command::SelectFilter => self.select_filter(),
-            Command::EditFilter(filter) => Task::done(Message::SettingsChanged(filter)),
-            Command::ClearFilter => Task::done(Message::SettingsChanged(String::new())),
+            Command::SelectAndRunWithArgs => {
+                let options = self.aliases.iter().cloned().collect::<Vec<_>>();
+                (
+                    Task::future(async move {
+                        let mut items: Vec<QuickPickItem> = Vec::new();
+                        for alias in &options {
+                            let help = super::tree_provider::fetch_tooltip(&alias.name).await;
+                            items.push(alias.to_item(false).with_button_tooltip(help));
+                        }
+                        let vscode_options = match items.iter().map(to_value).collect() {
+                            Ok(arr) => arr,
+                            Err(e) => {
+                                log_error(&format!("Failed to serialize quick pick items: {e:?}"));
+                                return;
+                            }
+                        };
+                        let selected_index =
+                            match show_quick_pick_with_buttons(vscode_options).await {
+                                Ok(v) => match v.as_f64().map(|f| f as usize) {
+                                    Some(i) => i,
+                                    None => return,
+                                },
+                                Err(e) => {
+                                    log_error(&format!("Quick pick failed: {e:?}"));
+                                    return;
+                                }
+                            };
+                        let Some(alias) = options.get(selected_index).cloned() else {
+                            return;
+                        };
+                        let placeholder = format!("Extra args for 'cargo {}'", alias.name);
+                        let Ok(val) = show_input_box(placeholder, String::new()).await else {
+                            return;
+                        };
+                        let Some(args_str) = val.as_string() else {
+                            return;
+                        };
+                        let extra_args = args_str
+                            .split_whitespace()
+                            .map(String::from)
+                            .collect::<Vec<_>>();
+                        match XtaskAlias::try_into_process_with_extra_args(
+                            alias.name,
+                            extra_args,
+                            xtask_task_context(),
+                        ) {
+                            Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
+                            Err(e) => log_error(&e.to_string()),
+                        }
+                    })
+                    .discard(),
+                    None,
+                )
+            }
+            Command::EditFilter(filter) => (Task::done(Message::SettingsChanged(filter)), None),
+            Command::ClearFilter => (Task::done(Message::SettingsChanged(String::new())), None),
         }
     }
 
@@ -220,40 +268,6 @@ impl Xtask {
                 Task::none()
             }
         }
-    }
-
-    fn select_filter(&self) -> Task<Message> {
-        let current = self.settings.filter.clone();
-        let Ok(options) = self
-            .aliases
-            .iter()
-            .map(|a| to_value(&a.to_item(false)))
-            .collect()
-        else {
-            return Task::none();
-        };
-
-        let cmd_tx = self.cmd_tx.clone();
-
-        Task::future(async move {
-            let filter_update = Closure::new(move |filter: String| {
-                let mut tx = cmd_tx.clone();
-                spawn_local(async move {
-                    log_info(&format!("Sending xtask filter '{filter}'"));
-                    if let Err(e) = tx.send(Command::EditFilter(filter)).await {
-                        log_error(&format!("Failed to queue msg: {e}"));
-                    }
-                });
-            });
-
-            let filter = show_quick_pick_type(current.clone(), options, &filter_update)
-                .await
-                .map(|f| f.as_string().unwrap_or(current.clone()))
-                .unwrap_or(current);
-
-            Command::EditFilter(filter)
-        })
-        .map(Message::Cmd)
     }
 }
 

@@ -117,20 +117,6 @@
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
-        "command": "cargo-tools.makefile.selectTaskFilter",
-        "title": "Filter Tasks",
-        "category": "Cargo Tools",
-        "icon": "$(filter)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
-      },
-      {
-        "command": "cargo-tools.makefile.clearAllFilters",
-        "title": "Clear Filters",
-        "category": "Cargo Tools",
-        "icon": "$(clear-all)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
-      },
-      {
         "command": "cargo-tools.makefile.selectCategoryFilter",
         "title": "Filter Categories",
         "category": "Cargo Tools",
@@ -142,21 +128,21 @@
         "title": "Add Task",
         "category": "Cargo Tools",
         "icon": "$(add)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.remove",
         "title": "Remove Task",
         "category": "Cargo Tools",
         "icon": "$(remove)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute",
         "title": "Execute Task",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.makefile.pinTask",
@@ -166,80 +152,80 @@
         "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
       },
       {
+        "command": "cargo-tools.tasks.selectNameFilter",
+        "title": "Filter by Name",
+        "category": "Cargo Tools",
+        "icon": "$(filter)",
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
+      },
+      {
+        "command": "cargo-tools.tasks.clearAllFilters",
+        "title": "Clear All Filters",
+        "category": "Cargo Tools",
+        "icon": "$(clear-all)",
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
+      },
+      {
         "command": "cargo-tools.tasks.pinned.execute1",
         "title": "Execute 1st Pinned Task",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute2",
         "title": "Execute 2nd Pinned Task",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute3",
         "title": "Execute 3rd Pinned Task",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute4",
         "title": "Execute 4th Pinned Task",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute5",
         "title": "Execute 5th Pinned Task",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.xtask.runAlias",
         "title": "Run Alias",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.xtask.runAliasWithArgs",
         "title": "Run Alias with Extra Args",
         "category": "Cargo Tools",
         "icon": "$(terminal-powershell)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.xtask.selectAndRunAlias",
         "title": "Select and Run Alias",
         "category": "Cargo Tools",
         "icon": "$(play)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.xtask.selectAndRunAliasWithArgs",
         "title": "Select and Run Alias with Extra Args",
         "category": "Cargo Tools",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
-      },
-      {
-        "command": "cargo-tools.xtask.selectFilter",
-        "title": "Set Alias Filter",
-        "category": "Cargo Tools",
-        "icon": "$(filter)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
-      },
-      {
-        "command": "cargo-tools.xtask.clearFilter",
-        "title": "Clear Alias Filter",
-        "category": "Cargo Tools",
-        "icon": "$(clear-all)",
-        "enablement": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig"
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.projectStatus.build",
@@ -408,6 +394,34 @@
         "title": "Toggle Workspace Member Grouping",
         "category": "Cargo Tools",
         "icon": "$(group-by-ref-type)"
+      },
+      {
+        "command": "cargo-tools.xtask.pinAlias",
+        "title": "Pin Alias",
+        "category": "Cargo Tools",
+        "icon": "$(pin)",
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
+      },
+      {
+        "command": "cargo-tools.xtask.pinAliasWithArgs",
+        "title": "Pin Alias with Args",
+        "category": "Cargo Tools",
+        "icon": "$(pin)",
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
+      },
+      {
+        "command": "cargo-tools.tasks.pinned.executeAlias",
+        "title": "Execute Alias",
+        "category": "Cargo Tools",
+        "icon": "$(play)",
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
+      },
+      {
+        "command": "cargo-tools.tasks.pinned.removeAlias",
+        "title": "Remove Alias",
+        "category": "Cargo Tools",
+        "icon": "$(remove)",
+        "enablement": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       }
     ],
     "viewsContainers": {
@@ -443,21 +457,15 @@
         },
         {
           "id": "cargoToolsMakefile",
-          "name": "Makefile",
-          "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile",
+          "name": "Tasks",
+          "when": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)",
           "icon": "$(tools)"
         },
         {
           "id": "cargoToolsPinnedMakefileTasks",
-          "name": "Pinned Makefile Tasks",
-          "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile",
+          "name": "Pinned Tasks",
+          "when": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)",
           "icon": "$(pin)"
-        },
-        {
-          "id": "cargoToolsXtaskAliases",
-          "name": "Xtask Aliases",
-          "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasXtaskConfig",
-          "icon": "$(terminal)"
         }
       ]
     },
@@ -504,7 +512,7 @@
           "group": "navigation@4"
         },
         {
-          "command": "cargo-tools.makefile.selectTaskFilter",
+          "command": "cargo-tools.tasks.selectNameFilter",
           "when": "view == cargoToolsMakefile",
           "group": "navigation@1"
         },
@@ -514,7 +522,7 @@
           "group": "navigation@2"
         },
         {
-          "command": "cargo-tools.makefile.clearAllFilters",
+          "command": "cargo-tools.tasks.clearAllFilters",
           "when": "view == cargoToolsMakefile",
           "group": "navigation@3"
         },
@@ -522,16 +530,6 @@
           "command": "cargo-tools.tasks.pinned.add",
           "when": "view == cargoToolsPinnedMakefileTasks",
           "group": "navigation@1"
-        },
-        {
-          "command": "cargo-tools.xtask.selectFilter",
-          "when": "view == cargoToolsXtaskAliases",
-          "group": "navigation@1"
-        },
-        {
-          "command": "cargo-tools.xtask.clearFilter",
-          "when": "view == cargoToolsXtaskAliases",
-          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -737,13 +735,33 @@
         },
         {
           "command": "cargo-tools.xtask.runAlias",
-          "when": "view == cargoToolsXtaskAliases && viewItem == xtaskAlias",
+          "when": "view == cargoToolsMakefile && viewItem == xtaskAlias",
           "group": "inline@1"
         },
         {
           "command": "cargo-tools.xtask.runAliasWithArgs",
-          "when": "view == cargoToolsXtaskAliases && viewItem == xtaskAlias",
+          "when": "view == cargoToolsMakefile && viewItem == xtaskAlias",
           "group": "inline@2"
+        },
+        {
+          "command": "cargo-tools.xtask.pinAlias",
+          "when": "view == cargoToolsMakefile && viewItem == xtaskAlias",
+          "group": "context@1"
+        },
+        {
+          "command": "cargo-tools.xtask.pinAliasWithArgs",
+          "when": "view == cargoToolsMakefile && viewItem == xtaskAlias",
+          "group": "context@2"
+        },
+        {
+          "command": "cargo-tools.tasks.pinned.executeAlias",
+          "when": "view == cargoToolsPinnedMakefileTasks && viewItem == pinned-alias",
+          "group": "inline@1"
+        },
+        {
+          "command": "cargo-tools.tasks.pinned.removeAlias",
+          "when": "view == cargoToolsPinnedMakefileTasks && viewItem == pinned-alias",
+          "group": "context@1"
         }
       ],
       "commandPalette": [
@@ -845,6 +863,30 @@
         },
         {
           "command": "cargo-tools.xtask.runAliasWithArgs",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.xtask.pinAlias",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.xtask.pinAliasWithArgs",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.tasks.pinned.executeAlias",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.tasks.pinned.removeAlias",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.tasks.selectNameFilter",
+          "when": "never"
+        },
+        {
+          "command": "cargo-tools.tasks.clearAllFilters",
           "when": "never"
         }
       ]
@@ -978,27 +1020,27 @@
       {
         "command": "cargo-tools.tasks.pinned.execute1",
         "key": "ctrl+alt+1",
-        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "when": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute2",
         "key": "ctrl+alt+2",
-        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "when": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute3",
         "key": "ctrl+alt+3",
-        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "when": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute4",
         "key": "ctrl+alt+4",
-        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "when": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       },
       {
         "command": "cargo-tools.tasks.pinned.execute5",
         "key": "ctrl+alt+5",
-        "when": "cargoTools:workspaceHasCargo && cargoTools:workspaceHasMakefile"
+        "when": "cargoTools:workspaceHasCargo && (cargoTools:workspaceHasMakefile || cargoTools:workspaceHasXtaskConfig)"
       }
     ]
   },

@@ -6,5 +6,5 @@ pub const CARGO_TOOLS_XTASK_RUN_ALIAS_WITH_ARGS: &str = "cargo-tools.xtask.runAl
 pub const CARGO_TOOLS_XTASK_SELECT_AND_RUN: &str = "cargo-tools.xtask.selectAndRunAlias";
 pub const CARGO_TOOLS_XTASK_SELECT_AND_RUN_WITH_ARGS: &str =
     "cargo-tools.xtask.selectAndRunAliasWithArgs";
-pub const CARGO_TOOLS_XTASK_SELECT_FILTER: &str = "cargo-tools.xtask.selectFilter";
-pub const CARGO_TOOLS_XTASK_CLEAR_FILTER: &str = "cargo-tools.xtask.clearFilter";
+pub const CARGO_TOOLS_XTASK_PIN_ALIAS: &str = "cargo-tools.xtask.pinAlias";
+pub const CARGO_TOOLS_XTASK_PIN_ALIAS_WITH_ARGS: &str = "cargo-tools.xtask.pinAliasWithArgs";

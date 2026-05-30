@@ -9,8 +9,6 @@ use iced_viewless::Task;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use serde_wasm_bindgen::to_value;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::{
@@ -22,14 +20,11 @@ use crate::{
             tree_provider::CargoMakeTreeProviderHandler,
         },
     },
-    quick_pick::{SelectInput, ToQuickPickItem},
+    quick_pick::SelectInput,
     runtime::{
         CHANNEL_CAPACITY, VsCodeTask, exec_vs_code, get_state_vs_code, persist_state_vs_code,
     },
-    vs_code_api::{
-        CargoMakeTreeProvider, TsFileWatcher, execute_task, log_error, log_info,
-        set_makefile_context, show_quick_pick_type,
-    },
+    vs_code_api::{TsFileWatcher, execute_task, log_error, log_info, set_makefile_context},
 };
 
 #[derive(Debug, Clone)]
@@ -65,6 +60,7 @@ pub enum Message {
 
 pub enum Event {
     AddPinned(MakefileTask),
+    TreeChanged(CargoMakeTreeProviderHandler),
 }
 
 #[derive(Debug, Clone)]
@@ -78,7 +74,6 @@ pub enum SettingsUpdate {
 pub struct CargoMake {
     makefile_tasks: MakefileTasks,
     settings: Settings,
-    tree_provider: CargoMakeTreeProvider,
     _cmds: Vec<CommandBinding>,
     _file_watcher: TsFileWatcher,
     root_dir: String,
@@ -98,12 +93,9 @@ impl CargoMake {
 
         let settings: Settings = get_state_vs_code(settings_key(&root_dir)).unwrap_or_default();
 
-        let handler = CargoMakeTreeProviderHandler::new(MakefileTasks::default());
-
         let this = Self {
             makefile_tasks: MakefileTasks::default(),
             settings,
-            tree_provider: CargoMakeTreeProvider::new(handler),
             _cmds,
             _file_watcher,
             root_dir,
@@ -130,20 +122,30 @@ impl CargoMake {
         &self.makefile_tasks
     }
 
+    pub fn name_filter(&self) -> &str {
+        &self.settings.task_filter
+    }
+
     pub fn update(&mut self, msg: Message) -> (Task<Message>, Option<Event>) {
         match msg {
             Message::MakefileTasksChanged(update) => match update {
                 MakefileTasksUpdate::New(makefile_tasks) => {
                     self.makefile_tasks = makefile_tasks.clone();
-                    self.update_ui();
-                    (Task::future(set_makefile_context(true)).discard(), None)
+                    let event = self.tree_changed_event();
+                    (
+                        Task::future(set_makefile_context(true)).discard(),
+                        Some(event),
+                    )
                 }
                 MakefileTasksUpdate::CargoMakeNotInstalled(e)
                 | MakefileTasksUpdate::NoMakefile(e) => {
                     log_error(&e);
                     self.makefile_tasks = MakefileTasks::default();
-                    self.update_ui();
-                    (Task::future(set_makefile_context(false)).discard(), None)
+                    let event = self.tree_changed_event();
+                    (
+                        Task::future(set_makefile_context(false)).discard(),
+                        Some(event),
+                    )
                 }
                 // For invalid makefiles or cargo command config leave everything as is
                 MakefileTasksUpdate::CargoCommandEmpty(e)
@@ -176,13 +178,11 @@ impl CargoMake {
         let event = match update {
             SettingsUpdate::TaskFilter(tf) => {
                 *task_filter = tf;
-                self.update_ui();
-                None
+                Some(self.tree_changed_event())
             }
             SettingsUpdate::CategoryFilter(cf) => {
                 *category_filters = cf;
-                self.update_ui();
-                None
+                Some(self.tree_changed_event())
             }
             SettingsUpdate::AddPinned(makefile_task) => Some(Event::AddPinned(makefile_task)),
         };
@@ -196,15 +196,11 @@ impl CargoMake {
         (task, event)
     }
 
-    fn update_ui(&self) {
-        let Settings {
-            task_filter,
-            category_filters,
-        } = &self.settings;
-
-        let tasks = self.makefile_tasks.filtered(task_filter, category_filters);
-        self.tree_provider
-            .update(CargoMakeTreeProviderHandler::new(tasks));
+    fn tree_changed_event(&self) -> Event {
+        let tasks = self
+            .makefile_tasks
+            .filtered(&self.settings.task_filter, &self.settings.category_filters);
+        Event::TreeChanged(CargoMakeTreeProviderHandler::new(tasks))
     }
 
     fn handle_cmd(&self, cmd: Command) -> Task<Message> {
@@ -217,7 +213,6 @@ impl CargoMake {
                 };
                 done(async move { input.select().await.map(|task| Command::RunTask(task.name)) })
             }
-            Command::SelectTaskFilter => self.select_task_filter(),
             Command::EditTaskFilter(filter) => {
                 Task::done(SettingsUpdate::TaskFilter(filter).into_cargo_make_msg())
             }
@@ -248,41 +243,6 @@ impl CargoMake {
                 Task::none()
             }
         }
-    }
-
-    fn select_task_filter(&self) -> Task<Message> {
-        let current = self.settings.task_filter.clone();
-        let Ok(options) = self
-            .makefile_tasks
-            .iter()
-            .map(|i| to_value(&i.to_item(false)))
-            .collect()
-        else {
-            return Task::none();
-        };
-
-        let cmd_tx = self.cmd_tx.clone();
-
-        Task::future(async move {
-            // Closure only needs to live while the quickpick is active
-            let filter_update = Closure::new(move |filter: String| {
-                let mut tx = cmd_tx.clone();
-                spawn_local(async move {
-                    log_info(&format!("Sending cargo make task filter '{filter}'"));
-                    if let Err(e) = tx.send(Command::EditTaskFilter(filter)).await {
-                        log_error(&format!("Failed to queue msg: {}", e));
-                    }
-                });
-            });
-
-            let filter = show_quick_pick_type(current.clone(), options, &filter_update)
-                .await
-                .map(|f| f.as_string().unwrap_or(current.clone()))
-                .unwrap_or(current);
-
-            Command::EditTaskFilter(filter)
-        })
-        .map(Message::Cmd)
     }
 
     fn select_category_filter(&self) -> Task<Message> {

@@ -1,5 +1,5 @@
 pub mod vscode_task_utils;
-pub use vscode_task_utils::{CommandBinding, OnFileChanged, send_file_changed};
+pub use vscode_task_utils::{CommandBinding, OnFileChanged, select_name_filter, send_file_changed};
 
 pub mod workspace;
 use workspace::Workspace;

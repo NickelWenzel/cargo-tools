@@ -4,7 +4,7 @@ use wasm_bindgen_futures::js_sys::Array;
 use crate::{
     commands::pinned::*,
     extension::vscode_task_utils::{CommandBinding, register_commands},
-    vs_code_api::try_get_task_label,
+    vs_code_api::{try_get_pinned_alias_key, try_get_task_label},
 };
 
 #[derive(Debug, Clone)]
@@ -12,6 +12,8 @@ pub enum Command {
     Add,
     Remove(String),
     Execute(String),
+    ExecuteAlias(String),
+    RemoveAlias(String),
     Execute1,
     Execute2,
     Execute3,
@@ -30,6 +32,12 @@ impl Command {
             }),
             (CARGO_TOOLS_PINNED_EXECUTE, |arg| {
                 try_get_task_label(arg).map(Self::Execute)
+            }),
+            (CARGO_TOOLS_PINNED_EXECUTE_ALIAS, |arg| {
+                try_get_pinned_alias_key(arg).map(Self::ExecuteAlias)
+            }),
+            (CARGO_TOOLS_PINNED_REMOVE_ALIAS, |arg| {
+                try_get_pinned_alias_key(arg).map(Self::RemoveAlias)
             }),
             (CARGO_TOOLS_PINNED_EXECUTE1, |_| Some(Self::Execute1)),
             (CARGO_TOOLS_PINNED_EXECUTE2, |_| Some(Self::Execute2)),
