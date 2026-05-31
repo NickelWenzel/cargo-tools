@@ -81,19 +81,48 @@ All commands are in the **Cargo Tools** category and can be invoked from the Com
 
 ## cargo-make Commands
 
-| Command ID                                  | Title                   | Default Keybinding | Description                                                                   |
-| ------------------------------------------- | ----------------------- | ------------------ | ----------------------------------------------------------------------------- |
-| `cargo-tools.makefile.selectAndRunTask`     | Run Makefile Task...    | —                  | Pick and run a task from the Command Palette                                  |
-| `cargo-tools.makefile.runTask`              | Run Makefile Task       | —                  | Run the selected task *(context menu only)*                                   |
-| `cargo-tools.makefile.pinTask`              | Pin Task                | —                  | Add the selected task to the Pinned Makefile Tasks view *(context menu only)* |
-| `cargo-tools.makefile.selectTaskFilter`     | Filter Tasks            | —                  | Filter tasks by name                                                          |
-| `cargo-tools.makefile.selectCategoryFilter` | Filter Categories       | —                  | Filter tasks by category                                                      |
-| `cargo-tools.makefile.clearAllFilters`      | Clear Filters           | —                  | Remove all active task filters                                                |
-| `cargo-tools.tasks.pinned.add`              | Add Task                | —                  | Add a task to the pinned list                                                 |
-| `cargo-tools.tasks.pinned.execute`          | Execute Task            | —                  | Run the selected pinned task *(context menu only)*                            |
-| `cargo-tools.tasks.pinned.remove`           | Remove Task             | —                  | Remove a task from the pinned list *(context menu only)*                      |
-| `cargo-tools.tasks.pinned.execute1`         | Execute 1st Pinned Task | `Ctrl+Alt+1`       | Run the 1st pinned task                                                       |
-| `cargo-tools.tasks.pinned.execute2`         | Execute 2nd Pinned Task | `Ctrl+Alt+2`       | Run the 2nd pinned task                                                       |
-| `cargo-tools.tasks.pinned.execute3`         | Execute 3rd Pinned Task | `Ctrl+Alt+3`       | Run the 3rd pinned task                                                       |
-| `cargo-tools.tasks.pinned.execute4`         | Execute 4th Pinned Task | `Ctrl+Alt+4`       | Run the 4th pinned task                                                       |
-| `cargo-tools.tasks.pinned.execute5`         | Execute 5th Pinned Task | `Ctrl+Alt+5`       | Run the 5th pinned task                                                       |
+| Command ID                              | Title                | Default Keybinding | Description                                                     |
+| --------------------------------------- | -------------------- | ------------------ | --------------------------------------------------------------- |
+| `cargo-tools.makefile.selectAndRunTask` | Run Makefile Task... | —                  | Pick and run a task from the Command Palette                    |
+| `cargo-tools.makefile.runTask`          | Run Makefile Task    | —                  | Run the selected task *(context menu only)*                     |
+| `cargo-tools.makefile.pinTask`          | Pin Task             | —                  | Add the selected task to the Pinned Tasks view *(context menu only)* |
+
+### Tasks view controls
+
+These controls apply to both the cargo-make tasks and the cargo alias sections of the Tasks panel.
+
+| Command ID                                  | Title             | Description                                             |
+| ------------------------------------------- | ----------------- | ------------------------------------------------------- |
+| `cargo-tools.tasks.selectNameFilter`        | Filter by Name    | Filter both tasks and aliases by name                   |
+| `cargo-tools.makefile.selectCategoryFilter` | Filter Categories | Filter cargo-make tasks by category                     |
+| `cargo-tools.tasks.clearAllFilters`         | Clear All Filters | Remove all active name and category filters             |
+
+## Cargo Alias Commands
+
+Cargo Tools reads `[alias]` entries from `.cargo/config.toml` and surfaces them as runnable tasks. This covers simple aliases as well as the [xtask pattern](https://github.com/matklad/cargo-xtask), where a workspace member acts as a build tool invoked through a cargo alias (e.g. `cargo xtask compile`).
+
+| Command ID                                    | Title                    | Default Keybinding | Description                                                                              |
+| --------------------------------------------- | ------------------------ | ------------------ | ---------------------------------------------------------------------------------------- |
+| `cargo-tools.xtask.selectAndRunAlias`         | Run Alias...             | —                  | Pick and run an alias from the Command Palette                                           |
+| `cargo-tools.xtask.selectAndRunAliasWithArgs` | Run Alias With Args...   | —                  | Pick an alias and supply extra arguments; each alias shows its `--help` text for context |
+| `cargo-tools.xtask.runAlias`                  | Run Alias                | —                  | Run the selected alias *(context menu only)*                                             |
+| `cargo-tools.xtask.runAliasWithArgs`          | Run Alias With Args      | —                  | Run the selected alias with extra arguments *(context menu only)*                        |
+| `cargo-tools.xtask.pinAlias`                  | Pin Alias                | —                  | Add alias to Pinned Tasks with no fixed arguments *(context menu only)*                  |
+| `cargo-tools.xtask.pinAliasWithArgs`          | Pin Alias With Args      | —                  | Add alias to Pinned Tasks with fixed default arguments *(context menu only)*             |
+
+## Pinned Tasks Commands
+
+The Pinned Tasks panel holds both cargo-make tasks and cargo aliases. Items execute in order — tasks first, then aliases — when using the numbered keyboard shortcuts.
+
+| Command ID                          | Title                   | Default Keybinding | Description                                                              |
+| ----------------------------------- | ----------------------- | ------------------ | ------------------------------------------------------------------------ |
+| `cargo-tools.tasks.pinned.add`      | Add Task                | —                  | Add a cargo-make task or cargo alias to the pinned list                  |
+| `cargo-tools.tasks.pinned.execute`  | Execute Task            | —                  | Run the selected pinned cargo-make task *(context menu only)*            |
+| `cargo-tools.tasks.pinned.remove`   | Remove Task             | —                  | Remove a pinned cargo-make task from the list *(context menu only)*      |
+| `cargo-tools.tasks.pinned.executeAlias` | Execute Alias       | —                  | Run the selected pinned alias *(context menu only)*                      |
+| `cargo-tools.tasks.pinned.removeAlias`  | Remove Alias        | —                  | Remove a pinned alias from the list *(context menu only)*                |
+| `cargo-tools.tasks.pinned.execute1` | Execute 1st Pinned Task | `Ctrl+Alt+1`       | Run the 1st pinned item (tasks first, then aliases)                      |
+| `cargo-tools.tasks.pinned.execute2` | Execute 2nd Pinned Task | `Ctrl+Alt+2`       | Run the 2nd pinned item                                                  |
+| `cargo-tools.tasks.pinned.execute3` | Execute 3rd Pinned Task | `Ctrl+Alt+3`       | Run the 3rd pinned item                                                  |
+| `cargo-tools.tasks.pinned.execute4` | Execute 4th Pinned Task | `Ctrl+Alt+4`       | Run the 4th pinned item                                                  |
+| `cargo-tools.tasks.pinned.execute5` | Execute 5th Pinned Task | `Ctrl+Alt+5`       | Run the 5th pinned item                                                  |
