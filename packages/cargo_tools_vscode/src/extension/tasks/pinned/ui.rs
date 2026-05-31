@@ -1,8 +1,8 @@
-use std::{iter, ops::Deref};
+use std::iter;
 
 use cargo_tools::{
     cargo_make::{MakefileTask, MakefileTasks},
-    xtask::{PinnedAlias, XtaskAlias},
+    xtask::{PinnedAlias, XtaskAlias, XtaskAliases},
 };
 use futures::channel::mpsc::channel;
 use iced_viewless::Task;
@@ -18,9 +18,12 @@ use crate::{
             tree_provider::CargoMakePinnedTreeProviderHandler,
         },
     },
-    quick_pick::SelectInput,
+    quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem},
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
-    vs_code_api::{CargoMakePinnedTreeProvider, execute_task, log_error, showInformationMessage},
+    vs_code_api::{
+        CargoMakePinnedTreeProvider, execute_task, log_error, show_input_box,
+        showInformationMessage,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -70,10 +73,15 @@ impl Pinned {
         (this, cmd)
     }
 
-    pub fn update(&mut self, makefile_tasks: &MakefileTasks, msg: Message) -> Task<Message> {
+    pub fn update(
+        &mut self,
+        makefile_tasks: &MakefileTasks,
+        xtask_aliases: &XtaskAliases,
+        msg: Message,
+    ) -> Task<Message> {
         match msg {
             Message::SettingsChanged(update) => self.update_state(update),
-            Message::Cmd(cmd) => self.handle_cmd(makefile_tasks, cmd),
+            Message::Cmd(cmd) => self.handle_cmd(makefile_tasks, xtask_aliases, cmd),
         }
     }
 
@@ -166,14 +174,46 @@ impl Pinned {
         self.ui.update(handler);
     }
 
-    fn handle_cmd(&self, makefile_tasks: &MakefileTasks, cmd: Command) -> Task<Message> {
+    fn handle_cmd(
+        &self,
+        makefile_tasks: &MakefileTasks,
+        xtask_aliases: &XtaskAliases,
+        cmd: Command,
+    ) -> Task<Message> {
         match cmd {
             Command::Add => {
+                let options: Vec<PinnableItem> = makefile_tasks
+                    .iter()
+                    .cloned()
+                    .map(PinnableItem::Task)
+                    .chain(xtask_aliases.iter().cloned().map(PinnableItem::Alias))
+                    .collect();
                 let input = SelectInput {
-                    options: makefile_tasks.deref().clone(),
+                    options,
                     current: Vec::new(),
                 };
-                done(async move { input.select().await.map(SettingsUpdate::AddPinned) })
+                done(async move {
+                    let selected = input.select().await?;
+                    match selected {
+                        PinnableItem::Task(task) => Some(SettingsUpdate::AddPinned(task)),
+                        PinnableItem::Alias(alias) => {
+                            let placeholder = format!(
+                                "Args to always use when running 'cargo {}' (pinned)",
+                                alias.name
+                            );
+                            let Ok(val) = show_input_box(placeholder, String::new()).await else {
+                                return None;
+                            };
+                            let args_str = val.as_string().unwrap_or_default();
+                            let extra_args =
+                                args_str.split_whitespace().map(String::from).collect();
+                            Some(SettingsUpdate::AddPinnedAlias(PinnedAlias {
+                                name: alias.name,
+                                extra_args,
+                            }))
+                        }
+                    }
+                })
             }
             Command::Remove(task) => {
                 let Some(idx) = self
@@ -257,6 +297,21 @@ impl Pinned {
                 log_error(&e.to_string());
                 Task::none()
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum PinnableItem {
+    Task(MakefileTask),
+    Alias(XtaskAlias),
+}
+
+impl ToQuickPickItem for PinnableItem {
+    fn to_item(&self, picked: bool) -> QuickPickItem {
+        match self {
+            Self::Task(t) => t.to_item(picked),
+            Self::Alias(a) => a.to_item(picked),
         }
     }
 }
