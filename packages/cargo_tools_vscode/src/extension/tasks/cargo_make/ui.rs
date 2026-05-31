@@ -213,17 +213,9 @@ impl CargoMake {
                 };
                 done(async move { input.select().await.map(|task| Command::RunTask(task.name)) })
             }
-            Command::EditTaskFilter(filter) => {
-                Task::done(SettingsUpdate::TaskFilter(filter).into_cargo_make_msg())
-            }
             Command::SelectCategoryFilter => self.select_category_filter(),
             Command::EditCategoryFilter(category_filters) => {
                 Task::done(SettingsUpdate::CategoryFilter(category_filters).into_cargo_make_msg())
-            }
-            Command::ClearAllFilters => {
-                let task = Task::done(SettingsUpdate::TaskFilter(String::new()));
-                let category = Task::done(SettingsUpdate::CategoryFilter(Vec::new()));
-                Task::batch([task, category]).map(SettingsUpdate::into_cargo_make_msg)
             }
             Command::PinTask(task) => self
                 .makefile_tasks

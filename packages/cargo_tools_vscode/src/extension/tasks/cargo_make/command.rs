@@ -11,10 +11,8 @@ use crate::{
 pub enum Command {
     RunTask(String),
     SelectAndRunTask,
-    EditTaskFilter(String),
     SelectCategoryFilter,
     EditCategoryFilter(Vec<String>),
-    ClearAllFilters,
     PinTask(String),
 }
 

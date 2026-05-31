@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cargo_tools::{process::Process, xtask::XtaskAliases};
+use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -24,21 +25,22 @@ pub struct XtaskTreeProviderHandler {
 impl XtaskTreeProviderHandler {
     #[wasm_bindgen]
     pub async fn aliases(&self) -> Vec<XtaskNode> {
-        let mut nodes = Vec::new();
-        for alias in self.aliases.iter().cloned() {
-            let label = alias.name.clone();
-            let description = alias.command_display();
-            let tooltip = fetch_tooltip(&label).await;
-            nodes.push(XtaskNode::new(
-                label,
-                XTASK_ALIAS,
-                CollapsibleState::None as u32,
-                ALIAS_CONTEXT.to_string(),
-                description,
-                tooltip,
-            ));
-        }
-        nodes
+        let tooltips = join_all(self.aliases.iter().map(|alias| fetch_tooltip(&alias.name))).await;
+
+        self.aliases
+            .iter()
+            .zip(tooltips)
+            .map(|(alias, tooltip)| {
+                XtaskNode::new(
+                    alias.name.clone(),
+                    XTASK_ALIAS,
+                    CollapsibleState::None as u32,
+                    ALIAS_CONTEXT.to_string(),
+                    alias.command_display(),
+                    tooltip,
+                )
+            })
+            .collect()
     }
 }
 
