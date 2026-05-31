@@ -23,12 +23,12 @@ The extension activates automatically when VS Code detects a `Cargo.toml` file i
 
 Once active, the following views appear in the **Cargo Tools** Activity Bar panel:
 
-| View                      | Description                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------ |
-| **Configuration**         | Active profile, package, and target selections with quick-action buttons                   |
-| **Project Outline**       | Hierarchical tree of workspace members, packages, and targets                              |
-| **Makefile**              | Tasks from `Makefile.toml` — visible only when a `Makefile.toml` is present                |
-| **Pinned Makefile Tasks** | Pinned tasks for keyboard-shortcut access — visible only when a `Makefile.toml` is present |
+| View                | Description                                                                                                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Configuration**   | Active profile, package, and target selections with quick-action buttons                                                                                                   |
+| **Project Outline** | Hierarchical tree of workspace members, packages, and targets                                                                                                              |
+| **Tasks**           | cargo-make tasks from `Makefile.toml` and cargo alias shortcuts from `.cargo/config.toml` (including the [xtask pattern](https://github.com/matklad/cargo-xtask)); visible when either is present |
+| **Pinned Tasks**    | Pinned cargo-make tasks and alias shortcuts for keyboard-shortcut access (`Ctrl+Alt+1`–`5`); visible when the Tasks panel is visible                                       |
 
 A condensed **Cargo Tools** panel also appears in the Explorer sidebar.
 
