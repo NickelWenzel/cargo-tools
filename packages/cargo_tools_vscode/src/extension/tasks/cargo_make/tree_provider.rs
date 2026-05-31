@@ -5,10 +5,28 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    icon::{MAKEFILE_CATEGORY, MAKEFILE_TASK},
-    vs_code_api::CargoMakeNode,
-};
+use wasm_bindgen_futures::js_sys::Array;
+
+use crate::icon::{MAKEFILE_CATEGORY, MAKEFILE_TASK};
+
+#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+extern "C" {
+    pub type CargoMakeNode;
+
+    #[wasm_bindgen(constructor)]
+    fn new(
+        label: String,
+        icon: crate::icon::Icon,
+        collapsible_state: u32,
+        context_value: String,
+        description: String,
+        handler: CargoMakeNodeHandler,
+        tooltip: Option<String>,
+    ) -> CargoMakeNode;
+
+    #[wasm_bindgen]
+    pub(crate) fn try_get_task_label(value: Array) -> Option<String>;
+}
 
 const TASK_CONTEXT: &str = "makefileTask";
 const CATEGORY_CONTEXT: &str = "category";

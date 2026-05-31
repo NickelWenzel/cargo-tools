@@ -4,7 +4,15 @@ use serde_wasm_bindgen::{from_value, to_value};
 use std::collections::HashMap;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
-use crate::vs_code_api;
+#[wasm_bindgen(raw_module = "../configuration.ts")]
+extern "C" {
+    fn get_config(
+        section: &str,
+        key: &str,
+        config_value_type: u32,
+        default_value: JsValue,
+    ) -> JsValue;
+}
 
 const CARGO_TOOLS_SECTION: &str = "cargoTools";
 const RUST_ANALYZER_SECTION: &str = "rust-analyzer";
@@ -133,7 +141,7 @@ fn get<T: Serialize + DeserializeOwned + ToConfigValueType>(
 ) -> T {
     let value_type = T::to_config_value_type() as u32;
     let default_value = to_value(&default).unwrap_or(JsValue::NULL);
-    let result = vs_code_api::get_config(section, key, value_type, default_value);
+    let result = get_config(section, key, value_type, default_value);
     from_value(result).unwrap_or(default)
 }
 

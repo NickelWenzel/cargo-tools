@@ -13,11 +13,12 @@ use crate::{
             tree_provider::XtaskTreeProviderHandler,
         },
     },
-    quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem},
-    runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
-    vs_code_api::{
-        TsFileWatcher, execute_task, set_xtask_context, show_input_box,
-        show_quick_pick_with_buttons,
+    quick_pick::{
+        QuickPickItem, SelectInput, ToQuickPickItem, show_input_box, show_quick_pick_with_buttons,
+    },
+    runtime::{
+        CHANNEL_CAPACITY, TsFileWatcher, VsCodeTask, execute_task, get_state_vs_code,
+        persist_state_vs_code, set_xtask_context,
     },
 };
 use tracing::error;

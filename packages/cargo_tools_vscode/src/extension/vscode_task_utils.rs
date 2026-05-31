@@ -3,11 +3,18 @@ use std::{collections::HashMap, fmt::Debug};
 use futures::{SinkExt, channel::mpsc::Sender};
 use iced_viewless::Task;
 use serde::de::DeserializeOwned;
-use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
-use crate::vs_code_api::{register_command, show_quick_pick_type};
+use crate::quick_pick::show_quick_pick_type;
 use tracing::{error, info};
+
+#[wasm_bindgen(raw_module = "../runtime.ts")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    fn register_command(command: &str, callback: &Closure<dyn FnMut(Array)>)
+    -> Result<(), JsValue>;
+}
 
 pub type CommandBinding = Closure<dyn FnMut(Array)>;
 type CommandMap = HashMap<&'static str, CommandBinding>;

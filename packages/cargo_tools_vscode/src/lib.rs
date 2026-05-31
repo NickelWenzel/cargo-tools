@@ -16,8 +16,4 @@ pub mod quick_pick;
 #[cfg(target_arch = "wasm32")]
 pub mod runtime;
 
-/// Imports typescript methods and types via wasm bindgen
-#[cfg(target_arch = "wasm32")]
-pub mod vs_code_api;
-
 pub mod commands;

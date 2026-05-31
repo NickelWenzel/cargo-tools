@@ -1,11 +1,17 @@
 use futures::channel::mpsc::Sender;
+use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     commands::xtask::*,
     extension::vscode_task_utils::{CommandBinding, register_commands},
-    vs_code_api::try_get_xtask_label,
 };
+
+#[wasm_bindgen(raw_module = "../xtaskTreeProvider.ts")]
+extern "C" {
+    #[wasm_bindgen]
+    fn try_get_xtask_label(value: Array) -> Option<String>;
+}
 
 #[derive(Debug, Clone)]
 pub enum Command {

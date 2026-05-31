@@ -18,9 +18,36 @@ use crate::{
         BENCH_TARGET, BIN_TARGET, EXAMPLE_TARGET, FEATURES_CONFIG, Icon, LIB_TARGET, PACKAGE,
         PROJECT, SELECTED_STATE, UNSELECTED_STATE,
     },
-    vs_code_api::CargoOutlineNode,
 };
 use tracing::error;
+
+#[wasm_bindgen(raw_module = "../outlineTreeProvider.ts")]
+extern "C" {
+    pub type CargoOutlineNode;
+
+    #[wasm_bindgen(constructor)]
+    fn new(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        node_type: OutlineNodeType,
+        context_value: Option<String>,
+        description: Option<String>,
+        tooltip: Option<String>,
+        command: Option<String>,
+        command_args: Option<String>,
+    ) -> CargoOutlineNode;
+
+    #[wasm_bindgen(static_method_of = CargoOutlineNode)]
+    fn feature(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        node_type: OutlineNodeType,
+        command: String,
+        command_args: Vec<String>,
+    ) -> CargoOutlineNode;
+}
 
 // Make sure to keep this up to date with 'TreeItemCollapsibleState'
 #[derive(Debug, Clone)]

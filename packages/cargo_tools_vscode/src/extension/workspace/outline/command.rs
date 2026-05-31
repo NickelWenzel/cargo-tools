@@ -5,14 +5,21 @@ use cargo_tools::cargo::{
 use futures::channel::mpsc::Sender;
 use wasm_bindgen_futures::js_sys::Array;
 
+use wasm_bindgen::prelude::wasm_bindgen;
+
 use crate::{
     commands::outline::*,
     extension::{
         vscode_task_utils::{CommandBinding, register_commands, take_first, take_first_two},
         workspace::outline::{TargetTypesFilter, treeprovider::OutlineNodeType},
     },
-    vs_code_api::try_get_node_type,
 };
+
+#[wasm_bindgen(raw_module = "../outlineTreeProvider.ts")]
+extern "C" {
+    #[wasm_bindgen]
+    fn try_get_node_type(value: Array) -> Option<OutlineNodeType>;
+}
 
 #[derive(Debug, Clone)]
 pub enum Command {

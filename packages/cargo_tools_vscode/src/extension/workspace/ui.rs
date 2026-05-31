@@ -9,7 +9,7 @@ use crate::{
         workspace::{configuration, outline},
     },
     runtime::{CHANNEL_CAPACITY, exec_vs_code, read_file_vs_code},
-    vs_code_api::{TsFileWatcher, set_cargo_context},
+    runtime::{TsFileWatcher, set_cargo_context},
 };
 use tracing::error;
 

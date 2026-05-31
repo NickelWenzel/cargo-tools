@@ -6,11 +6,36 @@ use cargo_tools::{
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::js_sys::Array;
 
 use std::fmt::Debug;
 
-use crate::vs_code_api::{show_quick_pick, show_quick_pick_multiple};
 use tracing::error;
+
+#[wasm_bindgen(raw_module = "../window.ts")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    pub(crate) async fn show_quick_pick(items: Array) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub(crate) async fn show_quick_pick_multiple(
+        items: Array,
+        on_pick: &Closure<dyn FnMut(Vec<String>)>,
+    ) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn show_quick_pick_type(
+        current: String,
+        items: Array,
+        callback: &Closure<dyn FnMut(String)>,
+    ) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn show_input_box(placeholder: String, prompt: String) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub(crate) async fn show_quick_pick_with_buttons(items: Array) -> Result<JsValue, JsValue>;
+}
 
 /// Represents an item in a VS Code quick pick menu.
 #[derive(Debug, Clone, Serialize, Deserialize)]
