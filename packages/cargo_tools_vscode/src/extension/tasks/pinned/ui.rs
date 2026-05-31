@@ -246,15 +246,11 @@ impl Pinned {
     }
 
     fn alias_exec(&self, alias: PinnedAlias) -> Task<Message> {
-        let result = if alias.extra_args.is_empty() {
-            XtaskAlias::try_into_process(alias.name, xtask_task_context())
-        } else {
-            XtaskAlias::try_into_process_with_extra_args(
-                alias.name,
-                alias.extra_args,
-                xtask_task_context(),
-            )
-        };
+        let result = XtaskAlias::try_into_process_with_extra_args(
+            alias.name,
+            alias.extra_args,
+            xtask_task_context(),
+        );
         match result {
             Ok(process) => Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
             Err(e) => {

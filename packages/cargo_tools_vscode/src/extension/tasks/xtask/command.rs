@@ -15,8 +15,6 @@ pub enum Command {
     PinAliasWithArgs(String),
     SelectAndRun,
     SelectAndRunWithArgs,
-    EditFilter(String),
-    ClearFilter,
 }
 
 type CmdFn = fn(Array) -> Option<Command>;

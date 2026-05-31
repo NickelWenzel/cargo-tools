@@ -126,7 +126,15 @@ impl Tasks {
     fn handle_shared_cmd(&self, cmd: SharedCommand) -> Task<Message> {
         match cmd {
             SharedCommand::SelectNameFilter => {
-                let current = self.cargo_make.name_filter().to_owned();
+                let cm = self.cargo_make.name_filter();
+                // If the two panels have diverged (only possible from legacy persisted state
+                // before the shared filter existed), start fresh rather than silently
+                // promoting one panel's stale value as canonical.
+                let current = if cm == self.xtask.name_filter() {
+                    cm.to_owned()
+                } else {
+                    String::new()
+                };
                 let options = Array::new();
                 for item in self.cargo_make.makefile_tasks().iter() {
                     if let Ok(v) = to_value(&item.to_item(false)) {
@@ -147,19 +155,20 @@ impl Tasks {
                 .map(Message::SharedCmd)
             }
             SharedCommand::EditNameFilter(filter) => Task::batch([
-                Task::done(Message::CargoMake(cargo_make::Message::Cmd(
-                    cargo_make::command::Command::EditTaskFilter(filter.clone()),
+                Task::done(Message::CargoMake(cargo_make::Message::SettingsChanged(
+                    cargo_make::SettingsUpdate::TaskFilter(filter.clone()),
                 ))),
-                Task::done(Message::Xtask(xtask::Message::Cmd(
-                    xtask::command::Command::EditFilter(filter),
-                ))),
+                Task::done(Message::Xtask(xtask::Message::SettingsChanged(filter))),
             ]),
             SharedCommand::ClearAllFilters => Task::batch([
-                Task::done(Message::CargoMake(cargo_make::Message::Cmd(
-                    cargo_make::command::Command::ClearAllFilters,
+                Task::done(Message::CargoMake(cargo_make::Message::SettingsChanged(
+                    cargo_make::SettingsUpdate::TaskFilter(String::new()),
                 ))),
-                Task::done(Message::Xtask(xtask::Message::Cmd(
-                    xtask::command::Command::ClearFilter,
+                Task::done(Message::CargoMake(cargo_make::Message::SettingsChanged(
+                    cargo_make::SettingsUpdate::CategoryFilter(Vec::new()),
+                ))),
+                Task::done(Message::Xtask(xtask::Message::SettingsChanged(
+                    String::new(),
                 ))),
             ]),
         }

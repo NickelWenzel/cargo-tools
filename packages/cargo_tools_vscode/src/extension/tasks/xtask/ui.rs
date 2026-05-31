@@ -1,5 +1,5 @@
 use cargo_tools::xtask::{ParseError, PinnedAlias, XtaskAlias, XtaskAliases, parse_config};
-use futures::channel::mpsc::channel;
+use futures::{channel::mpsc::channel, future::join_all};
 use iced_viewless::Task;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
@@ -205,11 +205,17 @@ impl Xtask {
                 let options = self.aliases.iter().cloned().collect::<Vec<_>>();
                 (
                     Task::future(async move {
-                        let mut items: Vec<QuickPickItem> = Vec::new();
-                        for alias in &options {
-                            let help = super::tree_provider::fetch_tooltip(&alias.name).await;
-                            items.push(alias.to_item(false).with_button_tooltip(help));
-                        }
+                        let tooltips = join_all(
+                            options
+                                .iter()
+                                .map(|alias| super::tree_provider::fetch_tooltip(&alias.name)),
+                        )
+                        .await;
+                        let items: Vec<QuickPickItem> = options
+                            .iter()
+                            .zip(tooltips)
+                            .map(|(alias, help)| alias.to_item(false).with_button_tooltip(help))
+                            .collect();
                         let vscode_options = match items.iter().map(to_value).collect() {
                             Ok(arr) => arr,
                             Err(e) => {
@@ -255,8 +261,6 @@ impl Xtask {
                     None,
                 )
             }
-            Command::EditFilter(filter) => (Task::done(Message::SettingsChanged(filter)), None),
-            Command::ClearFilter => (Task::done(Message::SettingsChanged(String::new())), None),
         }
     }
 
