@@ -19,6 +19,7 @@ use crate::{
     icon::Icon,
     runtime::{VsCodeProcess, VsCodeTask},
 };
+use tracing::error;
 
 #[wasm_bindgen(raw_module = "../execute.ts")]
 extern "C" {
@@ -67,6 +68,7 @@ extern "C" {
     pub fn log_info(msg: &str);
     pub fn log_warn(msg: &str);
     pub fn log_error(msg: &str);
+    pub fn log_trace(msg: &str);
 
     /// Get a state value from VS Code workspace state storage.
     #[wasm_bindgen(catch)]
@@ -369,7 +371,7 @@ pub async fn set_cargo_context(has_cargo: bool) {
     )
     .await;
     if let Err(e) = res {
-        log_error(&e.to_error_string());
+        error!("{}", e.to_error_string());
     }
 }
 
@@ -383,7 +385,7 @@ pub async fn set_xtask_context(has_xtask_config: bool) {
     )
     .await;
     if let Err(e) = res {
-        log_error(&e.to_error_string());
+        error!("{}", e.to_error_string());
     }
 }
 
@@ -397,7 +399,7 @@ pub async fn set_makefile_context(has_makefile: bool) {
     )
     .await;
     if let Err(e) = res {
-        log_error(&e.to_error_string());
+        error!("{}", e.to_error_string());
     }
 }
 

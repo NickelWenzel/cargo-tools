@@ -4,6 +4,8 @@ pub mod environment;
 pub mod extension;
 #[cfg(target_arch = "wasm32")]
 pub mod icon;
+#[cfg(target_arch = "wasm32")]
+pub mod logger;
 
 /// Helpers to setup VS Code quick pick menus
 #[cfg(target_arch = "wasm32")]

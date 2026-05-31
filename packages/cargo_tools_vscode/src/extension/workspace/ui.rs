@@ -9,8 +9,9 @@ use crate::{
         workspace::{configuration, outline},
     },
     runtime::{CHANNEL_CAPACITY, exec_vs_code, read_file_vs_code},
-    vs_code_api::{TsFileWatcher, log_error, set_cargo_context},
+    vs_code_api::{TsFileWatcher, set_cargo_context},
 };
+use tracing::error;
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
@@ -98,7 +99,7 @@ impl Workspace {
                     Task::batch([config, outline, cargo_context])
                 }
                 MetadataUpdate::NoCargoToml(e) => {
-                    log_error(&e);
+                    error!("{e}");
                     // Always check for mainfest in root dir
                     self.file_watcher.watch_files(vec![self.root_manifest()]);
 
@@ -114,7 +115,7 @@ impl Workspace {
                 }
                 // For invalid metadata or cargo command leave everything as is
                 MetadataUpdate::CargoCommandEmpty(e) | MetadataUpdate::FailedToParse(e) => {
-                    log_error(&e);
+                    error!("{e}");
                     Task::none()
                 }
             },

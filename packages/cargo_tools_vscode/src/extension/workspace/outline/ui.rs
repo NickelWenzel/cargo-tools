@@ -34,10 +34,11 @@ use crate::{
     quick_pick::{SelectInput, ToQuickPickItem},
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
     vs_code_api::{
-        CargoOutlineTreeProvider, JsValueExt, debug, execute_task, host_platform, log_error,
-        log_info, show_quick_pick_type,
+        CargoOutlineTreeProvider, JsValueExt, debug, execute_task, host_platform,
+        show_quick_pick_type,
     },
 };
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum Message {
@@ -239,7 +240,7 @@ impl Outline {
         match cmd.try_into_process(config, ctx) {
             Ok(process) => Task::future(execute_task(VsCodeTask::cargo(process))).discard(),
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 Task::none()
             }
         }
@@ -266,7 +267,7 @@ impl Outline {
         let build_debug_process = match build_debug_cmd.try_into_process(&config, ctx) {
             Ok(process) => process,
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 return Task::none();
             }
         };
@@ -277,7 +278,7 @@ impl Outline {
             execute_task(VsCodeTask::cargo(build_debug_process)).await;
 
             if let Err(e) = debug(&target_exe_path, &target.package).await {
-                log_error(&format!("Error while debugging: {}", e.to_error_string()));
+                error!("Error while debugging: {}", e.to_error_string());
             }
         })
         .discard()
@@ -305,9 +306,9 @@ impl Outline {
             let filter_update = Closure::new(move |filter: String| {
                 let mut tx = cmd_tx.clone();
                 spawn_local(async move {
-                    log_info(&format!("Sending workspace member filter '{filter}'"));
+                    info!("Sending workspace member filter '{filter}'");
                     if let Err(e) = tx.send(Command::EditWorkspaceMemberFilter(filter)).await {
-                        log_error(&format!("Failed to queue msg: {}", e));
+                        error!("Failed to queue msg: {}", e);
                     }
                 });
             });
@@ -343,15 +344,13 @@ impl Outline {
 
         let cmd_tx = self.cmd_tx.clone();
         let filter_update = move |selected: Vec<String>| {
-            log_info(&format!(
-                "Received category filter update from quickpick'{selected:?}'"
-            ));
+            info!("Received category filter update from quickpick'{selected:?}'");
             let mut tx = cmd_tx.clone();
             spawn_local(async move {
                 let filter = TargetTypesFilter::from_selected(selected);
 
                 if let Err(e) = tx.send(Command::EditTargetTypeFilter(filter)).await {
-                    log_error(&format!("Failed to queue msg: {}", e));
+                    error!("Failed to queue msg: {}", e);
                 }
             });
         };

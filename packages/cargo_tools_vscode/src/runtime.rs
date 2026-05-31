@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Map;
 
 use crate::vs_code_api::*;
+use tracing::{error, info};
 
 pub const CHANNEL_CAPACITY: usize = 100;
 
@@ -20,29 +21,29 @@ pub async fn persist_state_vs_code(key: String, state: impl Serialize) {
     let state = serde_json::to_string(&state);
     let Ok(state) = state else {
         let e = state.unwrap_err();
-        log_error(&format!("Failed to serialize state: {e}"));
+        error!("Failed to serialize state: {e}");
         return;
     };
 
     if let Err(e) = set_state(&key, state).await {
         let e = e.to_error_string();
-        log_error(&format!("Failed to set state: {e}"));
+        error!("Failed to set state: {e}");
     }
 }
 
 pub fn get_state_vs_code<T: DeserializeOwned + Debug>(key: String) -> Option<T> {
     let state = get_state(&key);
     let Ok(state) = state else {
-        log_info(&format!(
+        info!(
             "Failed to get state: {}",
             state.unwrap_err().to_error_string()
-        ));
+        );
         return None;
     };
     let state = serde_json::from_str(&state);
     let Ok(state) = state else {
         let e = state.unwrap_err();
-        log_error(&format!("Failed to deserialize state: {e}"));
+        error!("Failed to deserialize state: {e}");
         return None;
     };
     Some(state)

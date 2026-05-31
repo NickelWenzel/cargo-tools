@@ -18,8 +18,9 @@ use crate::{
         BENCH_TARGET, BIN_TARGET, EXAMPLE_TARGET, FEATURES_CONFIG, Icon, LIB_TARGET, PACKAGE,
         PROJECT, SELECTED_STATE, UNSELECTED_STATE,
     },
-    vs_code_api::{CargoOutlineNode, log_error},
+    vs_code_api::CargoOutlineNode,
 };
+use tracing::error;
 
 // Make sure to keep this up to date with 'TreeItemCollapsibleState'
 #[derive(Debug, Clone)]
@@ -749,7 +750,7 @@ impl CargoOutlineTreeProviderHandler {
         let update = OutlineUiRequest { tx, node_type };
 
         if let Err(e) = self.tx.clone().send(update).await {
-            log_error(&format!("Failed to send UiConfigUpdate: {e}"));
+            error!("Failed to send UiConfigUpdate: {e}");
         }
 
         rx.next()

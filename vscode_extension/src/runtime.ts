@@ -88,6 +88,10 @@ export function log_error(msg: string) {
     try { return log.error(msg); } catch (error) { }
 }
 
+export function log_trace(msg: string) {
+    try { return log.trace(msg); } catch (error) { }
+}
+
 export function register_command(command: string, callback: (args: any[]) => any) {
     extension_context?.subscriptions.push(vscode.commands.registerCommand(command, (...args: any[]) => { return callback([...args]); }));
 }

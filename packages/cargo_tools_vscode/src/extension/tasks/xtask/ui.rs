@@ -16,10 +16,11 @@ use crate::{
     quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem},
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
     vs_code_api::{
-        TsFileWatcher, execute_task, log_error, set_xtask_context, show_input_box,
+        TsFileWatcher, execute_task, set_xtask_context, show_input_box,
         show_quick_pick_with_buttons,
     },
 };
+use tracing::error;
 
 impl ToQuickPickItem for XtaskAlias {
     fn to_item(&self, _picked: bool) -> QuickPickItem {
@@ -99,7 +100,7 @@ impl Xtask {
                     )
                 }
                 Err(e) => {
-                    log_error(&e);
+                    error!("{e}");
                     self.aliases = XtaskAliases::default();
                     let event = self.tree_changed_event();
                     (
@@ -155,7 +156,7 @@ impl Xtask {
                         xtask_task_context(),
                     ) {
                         Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
-                        Err(e) => log_error(&e.to_string()),
+                        Err(e) => error!("{e}"),
                     }
                 })
                 .discard(),
@@ -219,7 +220,7 @@ impl Xtask {
                         let vscode_options = match items.iter().map(to_value).collect() {
                             Ok(arr) => arr,
                             Err(e) => {
-                                log_error(&format!("Failed to serialize quick pick items: {e:?}"));
+                                error!("Failed to serialize quick pick items: {e:?}");
                                 return;
                             }
                         };
@@ -230,7 +231,7 @@ impl Xtask {
                                     None => return,
                                 },
                                 Err(e) => {
-                                    log_error(&format!("Quick pick failed: {e:?}"));
+                                    error!("Quick pick failed: {e:?}");
                                     return;
                                 }
                             };
@@ -254,7 +255,7 @@ impl Xtask {
                             xtask_task_context(),
                         ) {
                             Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
-                            Err(e) => log_error(&e.to_string()),
+                            Err(e) => error!("{e}"),
                         }
                     })
                     .discard(),
@@ -268,7 +269,7 @@ impl Xtask {
         match XtaskAlias::try_into_process(name, xtask_task_context()) {
             Ok(process) => Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 Task::none()
             }
         }

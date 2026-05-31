@@ -28,10 +28,10 @@ use crate::{
     },
     vs_code_api::{
         CargoConfigurationTreeProvider, JsValueExt, debug, execute_task,
-        get_rust_analyzer_check_targets, host_platform, log_error,
-        update_rust_analyzer_check_targets,
+        get_rust_analyzer_check_targets, host_platform, update_rust_analyzer_check_targets,
     },
 };
+use tracing::error;
 
 #[derive(Debug)]
 pub enum Message {
@@ -237,7 +237,7 @@ impl Configuration {
         match cmd.try_into_process(&self.config, ctx) {
             Ok(process) => Task::future(execute_task(VsCodeTask::cargo(process))).discard(),
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 Task::none()
             }
         }
@@ -264,7 +264,7 @@ impl Configuration {
         let build_debug_process = match build_debug_cmd.try_into_process(&config, ctx) {
             Ok(process) => process,
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 return Task::none();
             }
         };
@@ -275,7 +275,7 @@ impl Configuration {
             execute_task(VsCodeTask::cargo(build_debug_process)).await;
 
             if let Err(e) = debug(&target_exe_path, &target.package).await {
-                log_error(&format!("Error while debugging: {}", e.to_error_string()));
+                error!("Error while debugging: {}", e.to_error_string());
             }
         })
         .discard()
@@ -397,7 +397,7 @@ async fn platform_targets() -> Option<Vec<String>> {
     match exec_vs_code(process).await {
         Ok(output) => Some(output.lines().map(|l| l.trim().to_string()).collect()),
         Err(e) => {
-            log_error(&format!("Failed to get platform targets from rustup: {e}"));
+            error!("Failed to get platform targets from rustup: {e}");
             None
         }
     }
