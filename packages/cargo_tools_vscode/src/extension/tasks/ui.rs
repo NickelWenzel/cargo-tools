@@ -102,7 +102,7 @@ impl Tasks {
             }
             Message::Pinned(msg) => self
                 .pinned
-                .update(self.cargo_make.makefile_tasks(), msg)
+                .update(self.cargo_make.makefile_tasks(), self.xtask.aliases(), msg)
                 .map(Message::Pinned),
             Message::Xtask(msg) => {
                 let (task, event) = self.xtask.update(msg);
