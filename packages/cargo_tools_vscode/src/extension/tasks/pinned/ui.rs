@@ -9,6 +9,9 @@ use iced_viewless::Task;
 
 use serde::{Deserialize, Serialize};
 
+use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen_futures::js_sys::JsString;
+
 use crate::{
     environment::{makefile_task_context, xtask_task_context},
     extension::{
@@ -18,13 +21,38 @@ use crate::{
             tree_provider::CargoMakePinnedTreeProviderHandler,
         },
     },
-    quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem},
-    runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
-    vs_code_api::{
-        CargoMakePinnedTreeProvider, execute_task, show_input_box, showInformationMessage,
+    quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem, show_input_box},
+    runtime::{
+        CHANNEL_CAPACITY, VsCodeTask, execute_task, get_state_vs_code, persist_state_vs_code,
     },
 };
 use tracing::error;
+
+#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+extern "C" {
+    type CargoMakePinnedTreeProvider;
+
+    #[wasm_bindgen(constructor)]
+    fn new(handler: CargoMakePinnedTreeProviderHandler) -> CargoMakePinnedTreeProvider;
+
+    #[wasm_bindgen(method)]
+    fn update(this: &CargoMakePinnedTreeProvider, handler: CargoMakePinnedTreeProviderHandler);
+}
+
+impl std::fmt::Debug for CargoMakePinnedTreeProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CargoMakePinnedTreeProvider").finish()
+    }
+}
+
+#[wasm_bindgen(raw_module = "../execute.ts")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    async fn showInformationMessage(
+        message: String,
+        items: Vec<String>,
+    ) -> Result<JsString, wasm_bindgen::JsValue>;
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {

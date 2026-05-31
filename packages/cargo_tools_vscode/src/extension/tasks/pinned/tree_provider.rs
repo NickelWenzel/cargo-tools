@@ -8,8 +8,35 @@ use wasm_bindgen::prelude::*;
 use crate::{
     extension::tasks::cargo_make::tree_provider::CargoMakeNodeHandler,
     icon::{MAKEFILE_TASK, XTASK_ALIAS},
-    vs_code_api::{CargoMakePinnedNode, PinnedAliasNode},
 };
+
+#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+extern "C" {
+    pub type CargoMakePinnedNode;
+
+    #[wasm_bindgen(constructor)]
+    fn new(
+        label: String,
+        icon: crate::icon::Icon,
+        collapsible_state: u32,
+        context_value: String,
+        description: String,
+        tooltip: String,
+        handler: CargoMakeNodeHandler,
+    ) -> CargoMakePinnedNode;
+
+    pub type PinnedAliasNode;
+
+    #[wasm_bindgen(constructor)]
+    fn new(
+        label: String,
+        icon: crate::icon::Icon,
+        collapsible_state: u32,
+        context_value: String,
+        description: String,
+        tooltip: String,
+    ) -> PinnedAliasNode;
+}
 
 const PINNED_CONTEXT: &str = "pinned-task";
 const PINNED_ALIAS_CONTEXT: &str = "pinned-alias";

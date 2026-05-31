@@ -31,14 +31,23 @@ use crate::{
             treeprovider::{CargoOutlineTreeProviderHandler, OutlineNodeData, OutlineUiRequest},
         },
     },
+    quick_pick::show_quick_pick_type,
     quick_pick::{SelectInput, ToQuickPickItem},
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
-    vs_code_api::{
-        CargoOutlineTreeProvider, JsValueExt, debug, execute_task, host_platform,
-        show_quick_pick_type,
-    },
+    runtime::{JsValueExt, debug, execute_task, host_platform},
 };
 use tracing::{error, info};
+
+#[wasm_bindgen::prelude::wasm_bindgen(raw_module = "../outlineTreeProvider.ts")]
+extern "C" {
+    type CargoOutlineTreeProvider;
+
+    #[wasm_bindgen::prelude::wasm_bindgen(constructor)]
+    fn new(handler: CargoOutlineTreeProviderHandler) -> CargoOutlineTreeProvider;
+
+    #[wasm_bindgen::prelude::wasm_bindgen(method)]
+    fn update(this: &CargoOutlineTreeProvider);
+}
 
 #[derive(Debug)]
 pub enum Message {

@@ -5,7 +5,22 @@ use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::{icon::XTASK_ALIAS, runtime::exec_vs_code, vs_code_api::XtaskNode};
+use crate::{icon::XTASK_ALIAS, runtime::exec_vs_code};
+
+#[wasm_bindgen(raw_module = "../xtaskTreeProvider.ts")]
+extern "C" {
+    pub type XtaskNode;
+
+    #[wasm_bindgen(constructor)]
+    fn new(
+        label: String,
+        icon: crate::icon::Icon,
+        collapsible_state: u32,
+        context_value: String,
+        description: String,
+        tooltip: String,
+    ) -> XtaskNode;
+}
 
 const ALIAS_CONTEXT: &str = "xtaskAlias";
 

@@ -6,14 +6,29 @@ use futures::{
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{
-    icon::{
-        BENCH_ACTION, BENCH_TARGET, BUILD_ACTION, FEATURES_CONFIG, Icon, PACKAGE, PLATFORM_CONFIG,
-        PROFILE_CONFIG, RUN_ACTION, SELECTED_STATE, TARGET_CONFIG, UNSELECTED_STATE,
-    },
-    vs_code_api::CargoNode,
+use crate::icon::{
+    BENCH_ACTION, BENCH_TARGET, BUILD_ACTION, FEATURES_CONFIG, Icon, PACKAGE, PLATFORM_CONFIG,
+    PROFILE_CONFIG, RUN_ACTION, SELECTED_STATE, TARGET_CONFIG, UNSELECTED_STATE,
 };
 use tracing::error;
+
+#[wasm_bindgen(raw_module = "../configurationTreeProvider.ts")]
+extern "C" {
+    pub type CargoNode;
+
+    #[wasm_bindgen(constructor)]
+    fn new(
+        label: String,
+        icon: Icon,
+        collapsible_state: u32,
+        handler: NodeType,
+        context_value: Option<String>,
+        description: Option<String>,
+        tooltip: Option<String>,
+        command: Option<String>,
+        command_arg: Option<String>,
+    ) -> CargoNode;
+}
 
 const PACKAGE_CTX: &str = "packageSelection";
 const BUILD_CTX: &str = "buildTargetSelection";

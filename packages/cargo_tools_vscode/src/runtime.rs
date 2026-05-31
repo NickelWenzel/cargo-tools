@@ -2,11 +2,138 @@ use cargo_tools::process::Process;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_wasm_bindgen::to_value;
 use std::fmt::Debug;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::js_sys::Map;
-
-use crate::vs_code_api::*;
 use tracing::{error, info};
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::js_sys::{Array, JsString, Map};
+
+// ── execute.ts ───────────────────────────────────────────────────────────────
+
+#[wasm_bindgen(raw_module = "../execute.ts")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    async fn execute_async(process: VsCodeProcess) -> Result<JsString, JsValue>;
+
+    pub async fn execute_task(task: VsCodeTask);
+
+    #[wasm_bindgen(catch)]
+    async fn executeCommand(command: &str, rest: Array) -> Result<JsValue, JsValue>;
+}
+
+// ── runtime.ts ───────────────────────────────────────────────────────────────
+
+#[wasm_bindgen(raw_module = "../runtime.ts")]
+extern "C" {
+    type FileWatcher;
+
+    #[wasm_bindgen(constructor)]
+    fn new() -> FileWatcher;
+
+    #[wasm_bindgen(method)]
+    fn on_changed(this: &FileWatcher, callback: &Closure<dyn FnMut()>);
+
+    #[wasm_bindgen(method)]
+    fn watch_files(this: &FileWatcher, paths: Vec<String>);
+
+    #[wasm_bindgen(catch)]
+    async fn read_file(file_path: &str) -> Result<JsString, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    pub async fn debug(target_exe_path: &str, target_name: &str) -> Result<JsValue, JsValue>;
+
+    pub fn host_platform() -> String;
+
+    #[wasm_bindgen(catch)]
+    fn get_state(key: &str) -> Result<String, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    async fn set_state(key: &str, value: String) -> Result<(), JsValue>;
+}
+
+// ── TsFileWatcher ────────────────────────────────────────────────────────────
+
+pub struct TsFileWatcher {
+    file_watcher: FileWatcher,
+    _on_file_changed: Closure<dyn FnMut()>,
+}
+
+impl TsFileWatcher {
+    pub fn new(callback: Closure<dyn FnMut()>) -> Self {
+        let file_watcher = FileWatcher::new();
+        file_watcher.on_changed(&callback);
+        Self {
+            file_watcher,
+            _on_file_changed: callback,
+        }
+    }
+
+    pub fn watch_files(&self, paths: Vec<String>) {
+        self.file_watcher.watch_files(paths);
+    }
+}
+
+impl Debug for TsFileWatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TsFileWatcher").finish()
+    }
+}
+
+// ── VS Code context setters ───────────────────────────────────────────────────
+
+pub async fn set_cargo_context(has_cargo: bool) {
+    let res = executeCommand(
+        "setContext",
+        Array::of2(
+            &JsValue::from_str("cargoTools:workspaceHasCargo"),
+            &JsValue::from_bool(has_cargo),
+        ),
+    )
+    .await;
+    if let Err(e) = res {
+        error!("{}", e.to_error_string());
+    }
+}
+
+pub async fn set_xtask_context(has_xtask_config: bool) {
+    let res = executeCommand(
+        "setContext",
+        Array::of2(
+            &JsValue::from_str("cargoTools:workspaceHasXtaskConfig"),
+            &JsValue::from_bool(has_xtask_config),
+        ),
+    )
+    .await;
+    if let Err(e) = res {
+        error!("{}", e.to_error_string());
+    }
+}
+
+pub async fn set_makefile_context(has_makefile: bool) {
+    let res = executeCommand(
+        "setContext",
+        Array::of2(
+            &JsValue::from_str("cargoTools:workspaceHasMakefile"),
+            &JsValue::from_bool(has_makefile),
+        ),
+    )
+    .await;
+    if let Err(e) = res {
+        error!("{}", e.to_error_string());
+    }
+}
+
+// ── JsValueExt ───────────────────────────────────────────────────────────────
+
+pub trait JsValueExt {
+    fn to_error_string(self) -> String;
+}
+
+impl JsValueExt for JsValue {
+    fn to_error_string(self) -> String {
+        self.as_string().unwrap_or(format!("{self:?}"))
+    }
+}
+
+// ── Runtime wrappers ─────────────────────────────────────────────────────────
 
 pub const CHANNEL_CAPACITY: usize = 100;
 
@@ -65,6 +192,8 @@ impl ProcessExt for Process {
         to_value(&self.env()).map(Map::from).unwrap_or_default()
     }
 }
+
+// ── VsCodeProcess / VsCodeTask ────────────────────────────────────────────────
 
 /// Task type which is exported in typescript code
 #[wasm_bindgen]

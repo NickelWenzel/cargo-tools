@@ -1,5 +1,7 @@
 use std::{collections::HashMap, iter, path::PathBuf};
 
+use wasm_bindgen::prelude::*;
+
 use cargo_tools::{
     CargoCommand,
     cargo::{
@@ -26,12 +28,26 @@ use crate::{
     runtime::{
         CHANNEL_CAPACITY, VsCodeTask, exec_vs_code, get_state_vs_code, persist_state_vs_code,
     },
-    vs_code_api::{
-        CargoConfigurationTreeProvider, JsValueExt, debug, execute_task,
-        get_rust_analyzer_check_targets, host_platform, update_rust_analyzer_check_targets,
-    },
+    runtime::{JsValueExt, debug, execute_task, host_platform},
 };
 use tracing::error;
+
+#[wasm_bindgen::prelude::wasm_bindgen(raw_module = "../configuration.ts")]
+extern "C" {
+    fn get_rust_analyzer_check_targets() -> Vec<String>;
+    async fn update_rust_analyzer_check_targets(targets: Vec<String>);
+}
+
+#[wasm_bindgen::prelude::wasm_bindgen(raw_module = "../configurationTreeProvider.ts")]
+extern "C" {
+    type CargoConfigurationTreeProvider;
+
+    #[wasm_bindgen::prelude::wasm_bindgen(constructor)]
+    fn new(handler: CargoConfigurationTreeProviderHandler) -> CargoConfigurationTreeProvider;
+
+    #[wasm_bindgen::prelude::wasm_bindgen(method)]
+    fn update(this: &CargoConfigurationTreeProvider);
+}
 
 #[derive(Debug)]
 pub enum Message {

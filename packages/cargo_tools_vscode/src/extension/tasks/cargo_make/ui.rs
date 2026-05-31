@@ -24,7 +24,7 @@ use crate::{
     runtime::{
         CHANNEL_CAPACITY, VsCodeTask, exec_vs_code, get_state_vs_code, persist_state_vs_code,
     },
-    vs_code_api::{TsFileWatcher, execute_task, set_makefile_context},
+    runtime::{TsFileWatcher, execute_task, set_makefile_context},
 };
 use tracing::{error, info};
 

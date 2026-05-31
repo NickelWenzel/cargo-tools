@@ -1,11 +1,20 @@
 use futures::channel::mpsc::Sender;
+use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     commands::pinned::*,
-    extension::vscode_task_utils::{CommandBinding, register_commands},
-    vs_code_api::{try_get_pinned_alias_key, try_get_task_label},
+    extension::{
+        tasks::cargo_make::tree_provider::try_get_task_label,
+        vscode_task_utils::{CommandBinding, register_commands},
+    },
 };
+
+#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+extern "C" {
+    #[wasm_bindgen]
+    fn try_get_pinned_alias_key(value: Array) -> Option<String>;
+}
 
 #[derive(Debug, Clone)]
 pub enum Command {

@@ -6,6 +6,8 @@ use iced_viewless::Task;
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen_futures::js_sys::Array;
 
+use wasm_bindgen::prelude::wasm_bindgen;
+
 use crate::{
     commands::tasks::*,
     extension::{
@@ -19,8 +21,21 @@ use crate::{
     },
     quick_pick::ToQuickPickItem,
     runtime::CHANNEL_CAPACITY,
-    vs_code_api::TasksTreeProvider,
 };
+
+#[wasm_bindgen(raw_module = "../tasksTreeProvider.ts")]
+extern "C" {
+    type TasksTreeProvider;
+
+    #[wasm_bindgen(constructor)]
+    fn new(cm: CargoMakeTreeProviderHandler, xt: XtaskTreeProviderHandler) -> TasksTreeProvider;
+
+    #[wasm_bindgen(method)]
+    fn update_cargo_make(this: &TasksTreeProvider, handler: CargoMakeTreeProviderHandler);
+
+    #[wasm_bindgen(method)]
+    fn update_xtask(this: &TasksTreeProvider, handler: XtaskTreeProviderHandler);
+}
 
 use cargo_tools::cargo_make::MakefileTasks;
 

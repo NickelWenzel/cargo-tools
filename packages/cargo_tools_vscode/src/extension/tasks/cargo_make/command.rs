@@ -3,8 +3,10 @@ use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
     commands::cargo_make::*,
-    extension::vscode_task_utils::{CommandBinding, register_commands},
-    vs_code_api::try_get_task_label,
+    extension::{
+        tasks::cargo_make::tree_provider::try_get_task_label,
+        vscode_task_utils::{CommandBinding, register_commands},
+    },
 };
 
 #[derive(Debug, Clone)]
