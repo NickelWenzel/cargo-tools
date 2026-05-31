@@ -24,8 +24,9 @@ use crate::{
     runtime::{
         CHANNEL_CAPACITY, VsCodeTask, exec_vs_code, get_state_vs_code, persist_state_vs_code,
     },
-    vs_code_api::{TsFileWatcher, execute_task, log_error, log_info, set_makefile_context},
+    vs_code_api::{TsFileWatcher, execute_task, set_makefile_context},
 };
+use tracing::{error, info};
 
 #[derive(Debug, Clone)]
 pub enum MakefileTasksUpdate {
@@ -139,7 +140,7 @@ impl CargoMake {
                 }
                 MakefileTasksUpdate::CargoMakeNotInstalled(e)
                 | MakefileTasksUpdate::NoMakefile(e) => {
-                    log_error(&e);
+                    error!("{e}");
                     self.makefile_tasks = MakefileTasks::default();
                     let event = self.tree_changed_event();
                     (
@@ -150,7 +151,7 @@ impl CargoMake {
                 // For invalid makefiles or cargo command config leave everything as is
                 MakefileTasksUpdate::CargoCommandEmpty(e)
                 | MakefileTasksUpdate::FailedToRetrieve(e) => {
-                    log_error(&e);
+                    error!("{e}");
                     (Task::none(), None)
                 }
             },
@@ -231,7 +232,7 @@ impl CargoMake {
         match MakefileTask::try_into_process(make_task, makefile_task_context()) {
             Ok(process) => Task::future(execute_task(VsCodeTask::cargo_make(process))).discard(),
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 Task::none()
             }
         }
@@ -261,9 +262,7 @@ impl CargoMake {
         let cmd_tx = self.cmd_tx.clone();
         let categories_filter_update = categories.clone();
         let filter_update = move |selected: Vec<String>| {
-            log_info(&format!(
-                "Received category filter update from quickpick'{selected:?}'"
-            ));
+            info!("Received category filter update from quickpick'{selected:?}'");
             let mut tx = cmd_tx.clone();
             let categories = categories_filter_update.clone();
             spawn_local(async move {
@@ -272,11 +271,9 @@ impl CargoMake {
                     .filter(|category| !selected.contains(category))
                     .cloned()
                     .collect();
-                log_info(&format!(
-                    "Sending cargo make category filter '{selected:?}'"
-                ));
+                info!("Sending cargo make category filter '{selected:?}'");
                 if let Err(e) = tx.send(Command::EditCategoryFilter(selected)).await {
-                    log_error(&format!("Failed to queue msg: {}", e));
+                    error!("Failed to queue msg: {}", e);
                 }
             });
         };

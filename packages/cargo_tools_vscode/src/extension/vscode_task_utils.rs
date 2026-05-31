@@ -6,7 +6,8 @@ use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
-use crate::vs_code_api::{log_error, log_info, register_command, show_quick_pick_type};
+use crate::vs_code_api::{register_command, show_quick_pick_type};
+use tracing::{error, info};
 
 pub type CommandBinding = Closure<dyn FnMut(Array)>;
 type CommandMap = HashMap<&'static str, CommandBinding>;
@@ -18,7 +19,7 @@ pub fn send_file_changed(tx: Sender<()>) -> OnFileChanged {
         let tx = tx.clone();
         spawn_local(async move {
             if let Err(e) = tx.clone().send(()).await {
-                log_error(&format!("Failed to notify about file change: {e}",))
+                error!("Failed to notify about file change: {e}",)
             }
         })
     })
@@ -27,9 +28,9 @@ pub fn send_file_changed(tx: Sender<()>) -> OnFileChanged {
 fn register_tasks(cmds: CommandMap) -> Vec<CommandBinding> {
     cmds.into_iter()
         .map(|(command_id, cmd)| {
-            log_info(&format!("Register task '{command_id}'"));
+            info!("Register task '{command_id}'");
             if let Err(e) = register_command(command_id, &cmd) {
-                log_error(&format!("Failed to register task '{command_id}': {e:?}"));
+                error!("Failed to register task '{command_id}': {e:?}");
             };
             cmd
         })
@@ -40,7 +41,7 @@ pub fn take_first<T: DeserializeOwned>(array: Array) -> Option<T> {
     match serde_wasm_bindgen::from_value(array.get(0)) {
         Ok(v) => Some(v),
         Err(e) => {
-            log_error(&format!("Failed to deserialize update: {e}"));
+            error!("Failed to deserialize update: {e}");
             None
         }
     }
@@ -53,11 +54,11 @@ pub fn take_first_two<T: DeserializeOwned, U: DeserializeOwned>(array: Array) ->
     ) {
         (Ok(v_0), Ok(v_1)) => Some((v_0, v_1)),
         (Err(e_0), Err(e_1)) => {
-            log_error(&format!("Failed to deserialize update: {e_0}, {e_1}"));
+            error!("Failed to deserialize update: {e_0}, {e_1}");
             None
         }
         (Err(e), _) | (_, Err(e)) => {
-            log_error(&format!("Failed to deserialize update: {e}"));
+            error!("Failed to deserialize update: {e}");
             None
         }
     }
@@ -72,12 +73,12 @@ fn create_vs_code_command<Cmd: Debug + 'static>(
         let tx = tx.clone();
         spawn_local(async move {
             let Some(cmd) = cmd_fn(args) else {
-                log_error("Failed to extract command");
+                error!("Failed to extract command");
                 return;
             };
-            log_info(&format!("Sending VS Code command '{cmd:?}'"));
+            info!("Sending VS Code command '{cmd:?}'");
             if let Err(e) = tx.clone().send(cmd).await {
-                log_error(&format!("Failed to queue msg: {}", e));
+                error!("Failed to queue msg: {}", e);
             }
         });
     });
@@ -106,7 +107,7 @@ pub fn select_name_filter<C: Clone + Send + 'static>(
             let mut tx = cmd_tx.clone();
             spawn_local(async move {
                 if let Err(e) = tx.send(make_edit(filter)).await {
-                    log_error(&format!("Failed to queue filter update: {e}"));
+                    error!("Failed to queue filter update: {e}");
                 }
             });
         });

@@ -21,10 +21,10 @@ use crate::{
     quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem},
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
     vs_code_api::{
-        CargoMakePinnedTreeProvider, execute_task, log_error, show_input_box,
-        showInformationMessage,
+        CargoMakePinnedTreeProvider, execute_task, show_input_box, showInformationMessage,
     },
 };
+use tracing::error;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -262,7 +262,7 @@ impl Pinned {
         match MakefileTask::try_into_process(make_task, makefile_task_context()) {
             Ok(process) => Task::future(execute_task(VsCodeTask::cargo_make(process))).discard(),
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 Task::none()
             }
         }
@@ -294,7 +294,7 @@ impl Pinned {
         match result {
             Ok(process) => Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
             Err(e) => {
-                log_error(&e.to_string());
+                error!("{e}");
                 Task::none()
             }
         }

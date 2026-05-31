@@ -11,8 +11,9 @@ use crate::{
         BENCH_ACTION, BENCH_TARGET, BUILD_ACTION, FEATURES_CONFIG, Icon, PACKAGE, PLATFORM_CONFIG,
         PROFILE_CONFIG, RUN_ACTION, SELECTED_STATE, TARGET_CONFIG, UNSELECTED_STATE,
     },
-    vs_code_api::{CargoNode, log_error},
+    vs_code_api::CargoNode,
 };
+use tracing::error;
 
 const PACKAGE_CTX: &str = "packageSelection";
 const BUILD_CTX: &str = "buildTargetSelection";
@@ -302,7 +303,7 @@ impl CargoConfigurationTreeProviderHandler {
         let request = ConfigUiRequest { tx, node_type };
 
         if let Err(e) = self.tx.clone().send(request).await {
-            log_error(&format!("Failed to send UiConfigUpdate: {e}"));
+            error!("Failed to send UiConfigUpdate: {e}");
         }
 
         rx.next()

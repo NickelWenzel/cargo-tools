@@ -9,7 +9,8 @@ use wasm_bindgen::prelude::*;
 
 use std::fmt::Debug;
 
-use crate::vs_code_api::{log_error, show_quick_pick, show_quick_pick_multiple};
+use crate::vs_code_api::{show_quick_pick, show_quick_pick_multiple};
+use tracing::error;
 
 /// Represents an item in a VS Code quick pick menu.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,7 +192,7 @@ impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
         {
             Ok(array) => array,
             Err(e) => {
-                log_error(&format!("Failed to serialize quick pick items: {e:?}"));
+                error!("Failed to serialize quick pick items: {e:?}");
                 return None;
             }
         };
@@ -199,7 +200,7 @@ impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
         let selected_index = match show_quick_pick(vscode_options).await {
             Ok(value) => value.as_f64().map(|f| f as usize),
             Err(e) => {
-                log_error(&format!("Quick pick failed: {e:?}"));
+                error!("Quick pick failed: {e:?}");
                 return None;
             }
         }?;
@@ -222,7 +223,7 @@ impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
         {
             Ok(array) => array,
             Err(e) => {
-                log_error(&format!("Failed to serialize quick pick items: {e:?}"));
+                error!("Failed to serialize quick pick items: {e:?}");
                 return None;
             }
         };
@@ -243,7 +244,7 @@ impl<T: ToQuickPickItem + Debug + Clone + PartialEq> SelectInput<T> {
                 Some(indices)
             }
             Err(e) => {
-                log_error(&format!("Quick pick multiple failed: {e:?}"));
+                error!("Quick pick multiple failed: {e:?}");
                 return None;
             }
         }?;
