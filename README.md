@@ -15,13 +15,9 @@ Cargo Tools is a Visual Studio Code extension that provides IDE-like features fo
 
 ![Project outline](./vscode_extension/media/cargo_tools_project_outline.gif)
 
-### cargo-make Integration
+### [xtask](https://github.com/matklad/cargo-xtask)/alias and cargo-make Integration
 
 ![cargo make](./vscode_extension/media/cargo_tools_makefile_support.gif)
-
-### Cargo Alias Support
-
-Run and pin cargo aliases defined in `.cargo/config.toml` — the same shortcuts you use in the terminal are surfaced as first-class tasks in the Tasks panel. This includes the [xtask pattern](https://github.com/matklad/cargo-xtask), where a workspace member acts as a build tool invoked via a cargo alias such as `cargo xtask compile`.
 
 ## Usage
 
@@ -50,14 +46,14 @@ ext install NickelWenzel.cargo-tools
 * wasm-pack 0.14
 * wasm-bindgen-cli 0.2.106
 
-Development workflows are driven by the `xtask` binary via Cargo aliases defined in `.cargo/config.toml`.
+Development workflows through `xtask`s defined in `.cargo/config.toml`.
 
-| Command           | Description                                           |
-| ----------------- | ----------------------------------------------------- |
-| `cargo compile`   | Build WASM + bundle TypeScript                        |
-| `cargo lint`      | `cargo clippy` + `cargo fmt --check` + ESLint         |
-| `cargo xt-test`   | Run Rust tests on native and `wasm32-unknown-unknown` |
-| `cargo xt-pkg`    | Produce `cargo-tools.vsix`                            |
+| Command         | Description                                           |
+| --------------- | ----------------------------------------------------- |
+| `cargo compile` | Build WASM + bundle TypeScript                        |
+| `cargo lint`    | `cargo clippy` + `cargo fmt --check` + ESLint         |
+| `cargo xt-test` | Run Rust tests on native and `wasm32-unknown-unknown` |
+| `cargo xt-pkg`  | Produce `cargo-tools.vsix`                            |
 
 ## Contributing
 
