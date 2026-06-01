@@ -1,5 +1,6 @@
 # Rust workspace sources and manifests
 packages/**
+xtask/**
 Cargo.toml
 Cargo.lock
 **/target/
