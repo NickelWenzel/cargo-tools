@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { CargoMakeTreeProviderHandler, XtaskTreeProviderHandler } from './wasm/cargo_tools_vscode';
-import { CargoMakeNode } from './cargoMakeTreeProvider';
-import { XtaskNode } from './xtaskTreeProvider';
+import { CargoMakeTreeProviderHandler, XtaskTreeProviderHandler } from '../../../../../vscode_extension/src/wasm/cargo_tools_vscode';
+import { CargoMakeNode } from './cargo_make/tree_provider';
+import { XtaskNode } from './xtask/tree_provider';
 
 class SectionNode extends vscode.TreeItem {
     constructor(

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { QuickPickItem } from './wasm/cargo_tools_vscode';
-import { log } from './extension';
+import { QuickPickItem } from '../../../vscode_extension/src/wasm/cargo_tools_vscode';
+import { log } from '../../../vscode_extension/src/extension';
 
 function to_items(items: QuickPickItem[]): vscode.QuickPickItem[] {
     return items.map(item => ({

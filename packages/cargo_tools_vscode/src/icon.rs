@@ -1,5 +1,5 @@
 use cargo_tools::cargo::command::{BuildSubTarget, RunSubTarget};
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone)]
 #[wasm_bindgen]

@@ -4,7 +4,7 @@ use futures::{
     channel::mpsc::{Sender, channel},
 };
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 
 use crate::icon::{
     BENCH_ACTION, BENCH_TARGET, BUILD_ACTION, FEATURES_CONFIG, Icon, PACKAGE, PLATFORM_CONFIG,
@@ -12,7 +12,9 @@ use crate::icon::{
 };
 use tracing::error;
 
-#[wasm_bindgen(raw_module = "../configurationTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/workspace/configuration/treeprovider.ts"
+)]
 extern "C" {
     pub type CargoNode;
 

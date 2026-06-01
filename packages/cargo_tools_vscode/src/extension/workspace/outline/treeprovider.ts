@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { OutlineNodeType, CargoOutlineTreeProviderHandler, Icon } from './wasm/cargo_tools_vscode';
+import { OutlineNodeType, Icon } from '../../../../../../vscode_extension/src/wasm/cargo_tools_vscode';
 
 export class CargoOutlineNode extends vscode.TreeItem {
     constructor(
@@ -47,38 +47,4 @@ export class CargoOutlineNode extends vscode.TreeItem {
 
         return node;
     }
-}
-
-export class CargoOutlineTreeProvider implements vscode.TreeDataProvider<CargoOutlineNode> {
-    private _onDidChangeTreeData: vscode.EventEmitter<CargoOutlineNode | undefined | null | void> = new vscode.EventEmitter<CargoOutlineNode | undefined | null | void>();
-    readonly onDidChangeTreeData: vscode.Event<CargoOutlineNode | undefined | null | void> = this._onDidChangeTreeData.event;
-
-    private handler: CargoOutlineTreeProviderHandler;
-
-    constructor(handler: CargoOutlineTreeProviderHandler) {
-        this.handler = handler;
-
-        // register on creation
-        vscode.window.createTreeView('cargoToolsProjectOutline', {
-            treeDataProvider: this,
-            showCollapseAll: true,
-            canSelectMany: false
-        });
-    }
-
-    update(): void {
-        this._onDidChangeTreeData.fire();
-    }
-
-    getTreeItem(element: CargoOutlineNode): vscode.TreeItem {
-        return element;
-    }
-
-    async getChildren(element?: CargoOutlineNode): Promise<CargoOutlineNode[]> {
-        return this.handler.children(element ? element.node_type.cloned() : undefined);
-    }
-}
-
-export function try_get_node_type(value: any[]): OutlineNodeType | undefined {
-    return value[0] instanceof CargoOutlineNode ? value[0].node_type.cloned() : undefined;
 }

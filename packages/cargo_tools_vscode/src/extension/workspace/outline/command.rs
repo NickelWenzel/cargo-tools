@@ -5,7 +5,7 @@ use cargo_tools::cargo::{
 use futures::channel::mpsc::Sender;
 use wasm_bindgen_futures::js_sys::Array;
 
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 
 use crate::{
     commands::outline::*,
@@ -15,7 +15,9 @@ use crate::{
     },
 };
 
-#[wasm_bindgen(raw_module = "../outlineTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/workspace/outline/command.ts"
+)]
 extern "C" {
     #[wasm_bindgen]
     fn try_get_node_type(value: Array) -> Option<OutlineNodeType>;

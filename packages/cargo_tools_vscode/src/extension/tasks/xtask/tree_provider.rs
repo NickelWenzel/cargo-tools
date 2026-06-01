@@ -7,7 +7,9 @@ use wasm_bindgen::prelude::*;
 
 use crate::{icon::XTASK_ALIAS, runtime::exec_vs_code};
 
-#[wasm_bindgen(raw_module = "../xtaskTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/tasks/xtask/tree_provider.ts"
+)]
 extern "C" {
     pub type XtaskNode;
 

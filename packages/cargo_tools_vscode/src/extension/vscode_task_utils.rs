@@ -9,7 +9,9 @@ use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 use crate::quick_pick::show_quick_pick_type;
 use tracing::{error, info};
 
-#[wasm_bindgen(raw_module = "../runtime.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/vscode_task_utils.ts"
+)]
 extern "C" {
     #[wasm_bindgen(catch)]
     fn register_command(command: &str, callback: &Closure<dyn FnMut(Array)>)

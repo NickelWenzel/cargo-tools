@@ -4,7 +4,7 @@ use serde_wasm_bindgen::{from_value, to_value};
 use std::collections::HashMap;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
-#[wasm_bindgen(raw_module = "../configuration.ts")]
+#[wasm_bindgen(raw_module = "../../../packages/cargo_tools_vscode/src/environment.ts")]
 extern "C" {
     fn get_config(
         section: &str,

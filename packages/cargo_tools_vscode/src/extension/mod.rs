@@ -13,7 +13,7 @@ use futures::{
     channel::mpsc::{Receiver, Sender, channel},
 };
 use iced_viewless::{Subscription, Task, async_application, event_loop::Exit, stream};
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 
 use crate::{logger::VSCodeLogger, runtime::CHANNEL_CAPACITY};
 use tracing::{error, info};

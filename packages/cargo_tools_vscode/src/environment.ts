@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ConfigValueType } from './wasm/cargo_tools_vscode';
+import { ConfigValueType } from '../../../vscode_extension/src/wasm/cargo_tools_vscode';
 
 export function get_config(section: string, key: string, type: ConfigValueType, default_value: any): any {
     let dir = vscode.workspace.workspaceFolders?.[0]?.uri;
@@ -15,21 +15,3 @@ export function get_config(section: string, key: string, type: ConfigValueType, 
             return config.get<{ [key: string]: string }>(key, default_value as { [key: string]: string });
     }
 }
-
-export function get_rust_analyzer_check_targets(): string[] {
-    let config = vscode.workspace.getConfiguration('rust-analyzer');
-    return config.get('check.targets', []) || [];
-}
-
-export async function update_rust_analyzer_check_targets(targets: string[]) {
-    let config = vscode.workspace.getConfiguration('rust-analyzer');
-
-    if (targets.length === 0) {
-        // Remove setting if no targets selected
-        await config.update('check.targets', undefined, vscode.ConfigurationTarget.Workspace);
-    } else {
-        // Set the new targets
-        await config.update('check.targets', targets, vscode.ConfigurationTarget.Workspace);
-    }
-}
-

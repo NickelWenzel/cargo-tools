@@ -19,7 +19,7 @@ use futures::{
 use iced_viewless::Task;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
-use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::{
@@ -38,14 +38,16 @@ use crate::{
 };
 use tracing::{error, info};
 
-#[wasm_bindgen::prelude::wasm_bindgen(raw_module = "../outlineTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/workspace/outline/ui.ts"
+)]
 extern "C" {
     type CargoOutlineTreeProvider;
 
-    #[wasm_bindgen::prelude::wasm_bindgen(constructor)]
+    #[wasm_bindgen(constructor)]
     fn new(handler: CargoOutlineTreeProviderHandler) -> CargoOutlineTreeProvider;
 
-    #[wasm_bindgen::prelude::wasm_bindgen(method)]
+    #[wasm_bindgen(method)]
     fn update(this: &CargoOutlineTreeProvider);
 }
 

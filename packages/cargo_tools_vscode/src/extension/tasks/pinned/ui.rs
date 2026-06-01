@@ -9,7 +9,7 @@ use iced_viewless::Task;
 
 use serde::{Deserialize, Serialize};
 
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::JsString;
 
 use crate::{
@@ -28,7 +28,9 @@ use crate::{
 };
 use tracing::error;
 
-#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/tasks/pinned/ui.ts"
+)]
 extern "C" {
     type CargoMakePinnedTreeProvider;
 
@@ -37,21 +39,18 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     fn update(this: &CargoMakePinnedTreeProvider, handler: CargoMakePinnedTreeProviderHandler);
+
+    #[wasm_bindgen(catch)]
+    async fn showInformationMessage(
+        message: String,
+        items: Vec<String>,
+    ) -> Result<JsString, wasm_bindgen::JsValue>;
 }
 
 impl std::fmt::Debug for CargoMakePinnedTreeProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("CargoMakePinnedTreeProvider").finish()
     }
-}
-
-#[wasm_bindgen(raw_module = "../execute.ts")]
-extern "C" {
-    #[wasm_bindgen(catch)]
-    async fn showInformationMessage(
-        message: String,
-        items: Vec<String>,
-    ) -> Result<JsString, wasm_bindgen::JsValue>;
 }
 
 #[derive(Debug, Clone)]

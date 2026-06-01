@@ -12,7 +12,7 @@ use std::fmt::Debug;
 
 use tracing::error;
 
-#[wasm_bindgen(raw_module = "../window.ts")]
+#[wasm_bindgen(raw_module = "../../../packages/cargo_tools_vscode/src/quick_pick.ts")]
 extern "C" {
     #[wasm_bindgen(catch)]
     pub(crate) async fn show_quick_pick(items: Array) -> Result<JsValue, JsValue>;
