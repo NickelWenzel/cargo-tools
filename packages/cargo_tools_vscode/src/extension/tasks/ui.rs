@@ -4,9 +4,8 @@ use cargo_tools::xtask::XtaskAliases;
 use futures::channel::mpsc::{Sender, channel};
 use iced_viewless::Task;
 use serde_wasm_bindgen::to_value;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Array;
-
-use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
     commands::tasks::*,
@@ -23,7 +22,7 @@ use crate::{
     runtime::CHANNEL_CAPACITY,
 };
 
-#[wasm_bindgen(raw_module = "../tasksTreeProvider.ts")]
+#[wasm_bindgen(raw_module = "../../../packages/cargo_tools_vscode/src/extension/tasks/ui.ts")]
 extern "C" {
     type TasksTreeProvider;
 

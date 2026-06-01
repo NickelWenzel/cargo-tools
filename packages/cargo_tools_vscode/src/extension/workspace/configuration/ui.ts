@@ -1,31 +1,6 @@
 import * as vscode from 'vscode';
-import { NodeType, CargoConfigurationTreeProviderHandler, Icon } from './wasm/cargo_tools_vscode';
-
-export class CargoNode extends vscode.TreeItem {
-    constructor(
-        public readonly label: string,
-        public readonly icon: Icon,
-        public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly node_type: NodeType,
-        public readonly contextValue?: string,
-        public readonly description?: string,
-        public readonly tooltip?: string,
-        public readonly cmd?: string,
-        public readonly cmd_arg?: string,
-    ) {
-        super(label, collapsibleState);
-        this.iconPath = new vscode.ThemeIcon(icon.icon, new vscode.ThemeColor(icon.color));
-        this.contextValue = contextValue;
-        this.command = cmd ? {
-            command: cmd,
-            title: '',
-            arguments: cmd_arg ? [cmd_arg] : undefined,
-        } : undefined;
-        this.description = description;
-        this.tooltip = tooltip;
-        this.node_type = node_type;
-    }
-}
+import { CargoConfigurationTreeProviderHandler } from '../../../../../../vscode_extension/src/wasm/cargo_tools_vscode';
+import { CargoNode } from './treeprovider';
 
 export class CargoConfigurationTreeProvider implements vscode.TreeDataProvider<CargoNode> {
     private _onDidChangeTreeData: vscode.EventEmitter<CargoNode | undefined | null | void> = new vscode.EventEmitter<CargoNode | undefined | null | void>();
@@ -54,5 +29,22 @@ export class CargoConfigurationTreeProvider implements vscode.TreeDataProvider<C
 
     async getChildren(element?: CargoNode): Promise<CargoNode[]> {
         return this.handler.children(element ? element.node_type : undefined);
+    }
+}
+
+export function get_rust_analyzer_check_targets(): string[] {
+    let config = vscode.workspace.getConfiguration('rust-analyzer');
+    return config.get('check.targets', []) || [];
+}
+
+export async function update_rust_analyzer_check_targets(targets: string[]) {
+    let config = vscode.workspace.getConfiguration('rust-analyzer');
+
+    if (targets.length === 0) {
+        // Remove setting if no targets selected
+        await config.update('check.targets', undefined, vscode.ConfigurationTarget.Workspace);
+    } else {
+        // Set the new targets
+        await config.update('check.targets', targets, vscode.ConfigurationTarget.Workspace);
     }
 }

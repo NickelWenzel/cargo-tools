@@ -1,9 +1,9 @@
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen(raw_module = "../runtime.ts")]
+#[wasm_bindgen(raw_module = "../../../packages/cargo_tools_vscode/src/logger.ts")]
 extern "C" {
     fn log_debug(msg: &str);
     fn log_info(msg: &str);

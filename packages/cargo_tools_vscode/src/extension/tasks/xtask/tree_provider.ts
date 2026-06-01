@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Icon } from './wasm/cargo_tools_vscode';
+import { Icon } from '../../../../../../vscode_extension/src/wasm/cargo_tools_vscode';
 
 export class XtaskNode extends vscode.TreeItem {
     constructor(
@@ -16,11 +16,4 @@ export class XtaskNode extends vscode.TreeItem {
         this.description = description;
         this.tooltip = tooltip;
     }
-}
-
-export function try_get_xtask_label(value: any[]): string | undefined {
-    if (value[0] instanceof XtaskNode) {
-        return value[0].label;
-    }
-    return undefined;
 }

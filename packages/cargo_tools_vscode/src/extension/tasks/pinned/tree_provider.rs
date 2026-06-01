@@ -10,7 +10,9 @@ use crate::{
     icon::{MAKEFILE_TASK, XTASK_ALIAS},
 };
 
-#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/tasks/pinned/tree_provider.ts"
+)]
 extern "C" {
     pub type CargoMakePinnedNode;
 

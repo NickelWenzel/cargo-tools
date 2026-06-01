@@ -10,7 +10,7 @@ use futures::{
     channel::mpsc::{Sender, channel},
 };
 use itertools::Itertools;
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 
 use crate::{
     extension::workspace::outline::Grouping,
@@ -21,7 +21,9 @@ use crate::{
 };
 use tracing::error;
 
-#[wasm_bindgen(raw_module = "../outlineTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/workspace/outline/treeprovider.ts"
+)]
 extern "C" {
     pub type CargoOutlineNode;
 

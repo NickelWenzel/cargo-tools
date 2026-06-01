@@ -6,9 +6,7 @@ use tracing::{error, info};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::{Array, JsString, Map};
 
-// ── execute.ts ───────────────────────────────────────────────────────────────
-
-#[wasm_bindgen(raw_module = "../execute.ts")]
+#[wasm_bindgen(raw_module = "../../../packages/cargo_tools_vscode/src/runtime.ts")]
 extern "C" {
     #[wasm_bindgen(catch)]
     async fn execute_async(process: VsCodeProcess) -> Result<JsString, JsValue>;
@@ -17,12 +15,7 @@ extern "C" {
 
     #[wasm_bindgen(catch)]
     async fn executeCommand(command: &str, rest: Array) -> Result<JsValue, JsValue>;
-}
 
-// ── runtime.ts ───────────────────────────────────────────────────────────────
-
-#[wasm_bindgen(raw_module = "../runtime.ts")]
-extern "C" {
     type FileWatcher;
 
     #[wasm_bindgen(constructor)]
@@ -49,8 +42,6 @@ extern "C" {
     async fn set_state(key: &str, value: String) -> Result<(), JsValue>;
 }
 
-// ── TsFileWatcher ────────────────────────────────────────────────────────────
-
 pub struct TsFileWatcher {
     file_watcher: FileWatcher,
     _on_file_changed: Closure<dyn FnMut()>,
@@ -76,8 +67,6 @@ impl Debug for TsFileWatcher {
         f.debug_tuple("TsFileWatcher").finish()
     }
 }
-
-// ── VS Code context setters ───────────────────────────────────────────────────
 
 pub async fn set_cargo_context(has_cargo: bool) {
     let res = executeCommand(
@@ -121,8 +110,6 @@ pub async fn set_makefile_context(has_makefile: bool) {
     }
 }
 
-// ── JsValueExt ───────────────────────────────────────────────────────────────
-
 pub trait JsValueExt {
     fn to_error_string(self) -> String;
 }
@@ -132,8 +119,6 @@ impl JsValueExt for JsValue {
         self.as_string().unwrap_or(format!("{self:?}"))
     }
 }
-
-// ── Runtime wrappers ─────────────────────────────────────────────────────────
 
 pub const CHANNEL_CAPACITY: usize = 100;
 
@@ -192,8 +177,6 @@ impl ProcessExt for Process {
         to_value(&self.env()).map(Map::from).unwrap_or_default()
     }
 }
-
-// ── VsCodeProcess / VsCodeTask ────────────────────────────────────────────────
 
 /// Task type which is exported in typescript code
 #[wasm_bindgen]

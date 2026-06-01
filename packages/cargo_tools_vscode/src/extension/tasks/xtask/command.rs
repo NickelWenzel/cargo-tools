@@ -1,5 +1,5 @@
 use futures::channel::mpsc::Sender;
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::js_sys::Array;
 
 use crate::{
@@ -7,7 +7,9 @@ use crate::{
     extension::vscode_task_utils::{CommandBinding, register_commands},
 };
 
-#[wasm_bindgen(raw_module = "../xtaskTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/tasks/xtask/command.ts"
+)]
 extern "C" {
     #[wasm_bindgen]
     fn try_get_xtask_label(value: Array) -> Option<String>;

@@ -9,7 +9,9 @@ use wasm_bindgen_futures::js_sys::Array;
 
 use crate::icon::{MAKEFILE_CATEGORY, MAKEFILE_TASK};
 
-#[wasm_bindgen(raw_module = "../cargoMakeTreeProvider.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/tasks/cargo_make/tree_provider.ts"
+)]
 extern "C" {
     pub type CargoMakeNode;
 

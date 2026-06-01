@@ -32,20 +32,19 @@ use crate::{
 };
 use tracing::error;
 
-#[wasm_bindgen::prelude::wasm_bindgen(raw_module = "../configuration.ts")]
+#[wasm_bindgen(
+    raw_module = "../../../packages/cargo_tools_vscode/src/extension/workspace/configuration/ui.ts"
+)]
 extern "C" {
     fn get_rust_analyzer_check_targets() -> Vec<String>;
     async fn update_rust_analyzer_check_targets(targets: Vec<String>);
-}
 
-#[wasm_bindgen::prelude::wasm_bindgen(raw_module = "../configurationTreeProvider.ts")]
-extern "C" {
     type CargoConfigurationTreeProvider;
 
-    #[wasm_bindgen::prelude::wasm_bindgen(constructor)]
+    #[wasm_bindgen(constructor)]
     fn new(handler: CargoConfigurationTreeProviderHandler) -> CargoConfigurationTreeProvider;
 
-    #[wasm_bindgen::prelude::wasm_bindgen(method)]
+    #[wasm_bindgen(method)]
     fn update(this: &CargoConfigurationTreeProvider);
 }
 
