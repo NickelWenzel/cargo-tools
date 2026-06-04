@@ -1,6 +1,6 @@
 # Extension build outputs
-out
-dist
+/out/
+/dist/
 node_modules
 *.vsix
 
