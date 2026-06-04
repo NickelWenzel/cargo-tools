@@ -1,5 +1,3 @@
-* polish and release rust re-write
-  * logging through tracing crate
-  * move typescript code next to rust modules
+* release rust re-write
 * better single crate support
 * visualization of project package dependencies
