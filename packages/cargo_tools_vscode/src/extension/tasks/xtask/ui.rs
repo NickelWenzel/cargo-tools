@@ -1,5 +1,5 @@
 use cargo_tools::xtask::{ParseError, PinnedAlias, XtaskAlias, XtaskAliases, parse_config};
-use futures::{channel::mpsc::channel, future::join_all};
+use futures::channel::mpsc::channel;
 use iced_viewless::Task;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
@@ -13,9 +13,7 @@ use crate::{
             tree_provider::XtaskTreeProviderHandler,
         },
     },
-    quick_pick::{
-        QuickPickItem, SelectInput, ToQuickPickItem, show_input_box, show_quick_pick_with_buttons,
-    },
+    quick_pick::{QuickPickItem, SelectInput, ToQuickPickItem, show_input_box, show_quick_pick},
     runtime::{
         CHANNEL_CAPACITY, TsFileWatcher, VsCodeTask, execute_task, get_state_vs_code,
         persist_state_vs_code, set_xtask_context,
@@ -207,17 +205,8 @@ impl Xtask {
                 let options = self.aliases.iter().cloned().collect::<Vec<_>>();
                 (
                     Task::future(async move {
-                        let tooltips = join_all(
-                            options
-                                .iter()
-                                .map(|alias| super::tree_provider::fetch_tooltip(&alias.name)),
-                        )
-                        .await;
-                        let items: Vec<QuickPickItem> = options
-                            .iter()
-                            .zip(tooltips)
-                            .map(|(alias, help)| alias.to_item(false).with_button_tooltip(help))
-                            .collect();
+                        let items: Vec<_> =
+                            options.iter().map(|alias| alias.to_item(false)).collect();
                         let vscode_options = match items.iter().map(to_value).collect() {
                             Ok(arr) => arr,
                             Err(e) => {
@@ -225,17 +214,16 @@ impl Xtask {
                                 return;
                             }
                         };
-                        let selected_index =
-                            match show_quick_pick_with_buttons(vscode_options).await {
-                                Ok(v) => match v.as_f64().map(|f| f as usize) {
-                                    Some(i) => i,
-                                    None => return,
-                                },
-                                Err(e) => {
-                                    error!("Quick pick failed: {e:?}");
-                                    return;
-                                }
-                            };
+                        let selected_index = match show_quick_pick(vscode_options).await {
+                            Ok(v) => match v.as_f64().map(|f| f as usize) {
+                                Some(i) => i,
+                                None => return,
+                            },
+                            Err(e) => {
+                                error!("Quick pick failed: {e:?}");
+                                return;
+                            }
+                        };
                         let Some(alias) = options.get(selected_index).cloned() else {
                             return;
                         };
