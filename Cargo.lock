@@ -250,7 +250,7 @@ dependencies = [
 
 [[package]]
 name = "cargo_tools"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "assert2",
@@ -270,7 +270,7 @@ dependencies = [
 
 [[package]]
 name = "cargo_tools_vscode"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "cargo_tools",
  "futures",

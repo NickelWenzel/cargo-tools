@@ -3,7 +3,7 @@ authors = ["Nicolas Wenzel"]
 edition = "2024"
 name = "cargo_tools_vscode"
 publish = false
-version = "0.3.0"
+version = "0.4.0"
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -20,7 +20,9 @@ serde-wasm-bindgen = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { version = "0.3", default-features = false, features = ["registry"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "registry",
+] }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
