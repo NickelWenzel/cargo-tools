@@ -32,9 +32,6 @@ extern "C" {
 
     #[wasm_bindgen(catch)]
     pub async fn show_input_box(placeholder: String, prompt: String) -> Result<JsValue, JsValue>;
-
-    #[wasm_bindgen(catch)]
-    pub(crate) async fn show_quick_pick_with_buttons(items: Array) -> Result<JsValue, JsValue>;
 }
 
 /// Represents an item in a VS Code quick pick menu.
@@ -52,9 +49,6 @@ pub struct QuickPickItem {
     /// Whether this item should be selected by default.
     #[serde(skip_serializing_if = "Option::is_none")]
     picked: Option<bool>,
-    /// Tooltip shown on the info button attached to this item.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    button_tooltip: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -66,7 +60,6 @@ impl QuickPickItem {
             description: None,
             detail: None,
             picked: None,
-            button_tooltip: None,
         }
     }
 
@@ -88,12 +81,6 @@ impl QuickPickItem {
         self
     }
 
-    /// Sets the tooltip shown on the info button next to this item.
-    pub fn with_button_tooltip(mut self, tooltip: String) -> Self {
-        self.button_tooltip = Some(tooltip);
-        self
-    }
-
     #[wasm_bindgen(getter)]
     pub fn label(&self) -> String {
         self.label.clone()
@@ -112,11 +99,6 @@ impl QuickPickItem {
     #[wasm_bindgen(getter)]
     pub fn picked(&self) -> Option<bool> {
         self.picked
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn button_tooltip(&self) -> Option<String> {
-        self.button_tooltip.clone()
     }
 }
 

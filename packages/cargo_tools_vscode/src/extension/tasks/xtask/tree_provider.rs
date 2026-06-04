@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
-use cargo_tools::{process::Process, xtask::XtaskAliases};
-use futures::future::join_all;
+use cargo_tools::xtask::XtaskAliases;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::{icon::XTASK_ALIAS, runtime::exec_vs_code};
+use crate::icon::XTASK_ALIAS;
 
 #[wasm_bindgen(
     raw_module = "../../../packages/cargo_tools_vscode/src/extension/tasks/xtask/tree_provider.ts"
@@ -41,13 +38,17 @@ pub struct XtaskTreeProviderHandler {
 #[wasm_bindgen]
 impl XtaskTreeProviderHandler {
     #[wasm_bindgen]
-    pub async fn aliases(&self) -> Vec<XtaskNode> {
-        let tooltips = join_all(self.aliases.iter().map(|alias| fetch_tooltip(&alias.name))).await;
-
+    pub fn aliases(&self) -> Vec<XtaskNode> {
         self.aliases
             .iter()
-            .zip(tooltips)
-            .map(|(alias, tooltip)| {
+            .map(|alias| {
+                let description = alias
+                    .command
+                    .is_empty()
+                    .then_some(format!("\nAlias: cargo {}", alias.command_display()))
+                    .unwrap_or_default();
+                let tooltip = format!("Task: {}{description}", alias.name);
+
                 XtaskNode::new(
                     alias.name.clone(),
                     XTASK_ALIAS,
@@ -58,18 +59,6 @@ impl XtaskTreeProviderHandler {
                 )
             })
             .collect()
-    }
-}
-
-pub(super) async fn fetch_tooltip(label: &str) -> String {
-    let process = Process::new(
-        "cargo".to_string(),
-        vec![label.to_string(), "--help".to_string()],
-        HashMap::new(),
-    );
-    match exec_vs_code(process).await {
-        Ok(out) if !out.trim().is_empty() => out,
-        _ => format!("cargo {label}"),
     }
 }
 

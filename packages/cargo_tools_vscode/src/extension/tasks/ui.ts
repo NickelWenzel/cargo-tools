@@ -54,7 +54,7 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TaskNode> {
         return element;
     }
 
-    async getChildren(element?: TaskNode): Promise<TaskNode[]> {
+    getChildren(element?: TaskNode): TaskNode[] {
         if (!element) {
             return [this.makefileSection, this.aliasSection];
         }
@@ -62,7 +62,7 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TaskNode> {
             if (element.key === 'makefile') {
                 return this.cmHandler.categories() as unknown as CargoMakeNode[];
             }
-            return await this.xtHandler.aliases() as unknown as XtaskNode[];
+            return this.xtHandler.aliases() as unknown as XtaskNode[];
         }
         if (element instanceof CargoMakeNode) {
             return element.handler.tasks() as unknown as CargoMakeNode[];

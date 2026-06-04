@@ -80,41 +80,6 @@ export async function show_input_box(
     return vscode.window.showInputBox({ placeHolder: placeholder, prompt });
 }
 
-export async function show_quick_pick_with_buttons(items: QuickPickItem[]): Promise<number | null> {
-    const vsCodeItems = items.map(item => ({
-        label: item.label,
-        description: item.description,
-        detail: item.detail,
-        picked: item.picked ?? false,
-        buttons: item.button_tooltip
-            ? [{ iconPath: new vscode.ThemeIcon('info'), tooltip: item.button_tooltip }]
-            : [],
-    }));
-
-    const quickPick = vscode.window.createQuickPick();
-    quickPick.items = vsCodeItems;
-
-    return new Promise(resolve => {
-        let accepted = false;
-        quickPick.onDidAccept(() => {
-            accepted = true;
-            quickPick.hide();
-        });
-        quickPick.onDidHide(() => {
-            if (!accepted) {
-                quickPick.dispose();
-                resolve(null);
-                return;
-            }
-            const active = quickPick.activeItems[0];
-            const idx = active ? vsCodeItems.indexOf(active as typeof vsCodeItems[0]) : -1;
-            quickPick.dispose();
-            resolve(idx >= 0 ? idx : null);
-        });
-        quickPick.show();
-    });
-}
-
 export async function show_quick_pick_type(current: string, items: QuickPickItem[], on_type: (filter: string) => void): Promise<string | null> {
     const vsCodeItems = to_items(items);
 
