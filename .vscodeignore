@@ -11,21 +11,15 @@ vscode_extension/**
 # Generic build artifacts and TypeScript source
 **/*.ts
 **/*.map
-
-# Test fixtures
-test-rust-project/**
-test-rust-project-single-crate/**
+**/*.wasm-opt.wasm
 
 # Repo tooling and config
 Makefile.toml
 .cargo/**
 .github/**
 .vscode/**
-.vscode-test/**
-**/.vscode-test.*
+cargo_tools/**
 .gitignore
 node_modules/**
-docs/**
-README.md
-TODO.md
+*.md
 **/settings.local.json
