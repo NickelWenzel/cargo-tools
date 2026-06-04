@@ -16,7 +16,8 @@
 				"${workspaceFolder}/dist/**/*.js"
 			],
 			"sourceMapPathOverrides": {
-				"webpack:///./src/*": "${workspaceFolder}/vscode_extension/src/*"
+				"webpack:///./src/*": "${workspaceFolder}/vscode_extension/src/*",
+				"webpack:///../packages/cargo_tools_vscode/src/*": "${workspaceFolder}/packages/cargo_tools_vscode/src/*"
 			},
 			"preLaunchTask": "${defaultBuildTask}"
 		}
