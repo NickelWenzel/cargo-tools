@@ -1056,7 +1056,7 @@
     "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
-    "@vscode/vsce": "^2.25.0",
+    "@vscode/vsce": "^3.9.2",
     "@wasm-tool/wasm-pack-plugin": "^1.5.1",
     "copy-webpack-plugin": "^14.0.0",
     "eslint": "^9.25.1",
