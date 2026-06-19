@@ -33,7 +33,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-
 
-    # Setup Rust toolchain for cargo-make
+    # Setup Rust toolchain
     - name: Setup Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -45,7 +45,7 @@ jobs:
     - name: Install cargo tools
       uses: taiki-e/install-action@v2
       with:
-        tool: cargo-make,wasm-pack@0.14.0,wasm-bindgen-cli@0.2.106
+        tool: wasm-pack@0.14.0,wasm-bindgen-cli@0.2.106
 
     - name: Install dependencies
       run: npm ci
@@ -53,17 +53,14 @@ jobs:
     - name: Compile extension
       run: npm run compile
 
-    - name: Check Rust formatting
-      run: cargo make lint-fmt
-
-    - name: Run Rust linter
-      run: cargo make lint-clippy
+    - name: Run Rust linter and check formatting
+      run: cargo lint-cargo
 
     - name: Run TypeScript linter
       run: npm run lint
 
     - name: Run tests
-      run: cargo make test
+      run: cargo xt-test
 
   build-package:
     name: Build Extension Package
