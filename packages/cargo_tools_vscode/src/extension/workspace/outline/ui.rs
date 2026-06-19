@@ -115,26 +115,7 @@ impl Outline {
     ) -> (Task<Message>, Option<Event>) {
         match msg {
             Message::MetadataChanged => {
-                let packages = metadata.packages();
-                let filtered_packages = self.settings.filter_packages(packages);
-                self.filtered_packages = filtered_packages
-                    .map(
-                        |Package {
-                             name,
-                             manifest,
-                             targets,
-                             features,
-                         }| {
-                            Package {
-                                name: name.clone(),
-                                manifest: manifest.clone(),
-                                targets: self.settings.filter_targets(targets).cloned().collect(),
-                                features: features.clone(),
-                            }
-                        },
-                    )
-                    .collect();
-
+                self.update_selected_packages(metadata.packages());
                 self.ui.update();
                 (Task::none(), None)
             }
@@ -143,14 +124,18 @@ impl Outline {
                 (Task::none(), None)
             }
             Message::SettingsChanged(update) => {
-                let settings = &mut self.settings;
                 match update {
-                    SettingsUpdate::PackageFilter(filter) => settings.package_filter = filter,
-                    SettingsUpdate::TargetTypesFilter(filter) => {
-                        settings.target_types_filter = filter
+                    SettingsUpdate::PackageFilter(filter) => {
+                        self.update_selected_packages(metadata.packages());
+                        self.settings.package_filter = filter
                     }
-                    SettingsUpdate::Grouping(grouping) => settings.grouping = grouping,
+                    SettingsUpdate::TargetTypesFilter(filter) => {
+                        self.update_selected_packages(metadata.packages());
+                        self.settings.target_types_filter = filter
+                    }
+                    SettingsUpdate::Grouping(grouping) => self.settings.grouping = grouping,
                 }
+
                 self.ui.update();
 
                 let task = Task::future(persist_state_vs_code(
@@ -190,6 +175,28 @@ impl Outline {
                 (task, None)
             }
         }
+    }
+
+    fn update_selected_packages(&mut self, packages: &[Package]) {
+        self.filtered_packages = self
+            .settings
+            .filter_packages(packages)
+            .map(
+                |Package {
+                     name,
+                     manifest,
+                     targets,
+                     features,
+                 }| {
+                    Package {
+                        name: name.clone(),
+                        manifest: manifest.clone(),
+                        targets: self.settings.filter_targets(targets).cloned().collect(),
+                        features: features.clone(),
+                    }
+                },
+            )
+            .collect();
     }
 
     fn handle_cmd(
