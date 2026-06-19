@@ -126,12 +126,12 @@ impl Outline {
             Message::SettingsChanged(update) => {
                 match update {
                     SettingsUpdate::PackageFilter(filter) => {
+                        self.settings.package_filter = filter;
                         self.update_selected_packages(metadata.packages());
-                        self.settings.package_filter = filter
                     }
                     SettingsUpdate::TargetTypesFilter(filter) => {
+                        self.settings.target_types_filter = filter;
                         self.update_selected_packages(metadata.packages());
-                        self.settings.target_types_filter = filter
                     }
                     SettingsUpdate::Grouping(grouping) => self.settings.grouping = grouping,
                 }
