@@ -4,6 +4,8 @@ fn main() {
     match std::env::args().nth(1).as_deref() {
         Some("compile") => compile(),
         Some("lint") => lint(),
+        Some("lint-cargo") => lint_cargo(),
+        Some("lint-npm") => lint_npm(),
         Some("test") => test(),
         Some("package") => package(),
         _ => {
@@ -33,8 +35,18 @@ fn compile() {
 }
 
 fn lint() {
+    lint_npm();
+    lint_cargo();
+}
+
+fn lint_cargo() {
+    println!("Run clippy");
     run("cargo", &["clippy", "--", "-D", "warnings"]);
+    println!("Run fmt");
     run("cargo", &["fmt", "--check"]);
+}
+
+fn lint_npm() {
     run(npm(), &["run", "lint"]);
 }
 
