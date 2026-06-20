@@ -143,7 +143,7 @@
 //!     Ok(())
 //! }
 //! ```
-
+#![cfg_attr(docsrs, feature(doc_cfg))]
 pub mod default;
 pub mod error;
 pub mod event_loop;
