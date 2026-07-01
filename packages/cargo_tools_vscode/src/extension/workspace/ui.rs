@@ -100,18 +100,25 @@ impl Workspace {
                 }
                 MetadataUpdate::NoCargoToml(e) => {
                     error!("{e}");
-                    // Always check for mainfest in root dir
+                    // Always check for mainfest in root dir, so we notice once one appears
                     self.file_watcher.watch_files(vec![self.root_manifest()]);
 
-                    self.metadata = Metadata::default();
+                    // Only treat this as "no cargo project" if we have never seen valid
+                    // metadata before. Otherwise this is likely a transient failure (e.g.
+                    // the manifest is being edited) and we should keep the last good state
+                    // instead of making the extension's views disappear.
+                    if self.metadata == Metadata::default() {
+                        let config = Task::done(Message::Configuration(
+                            configuration::Message::MetadataChanged,
+                        ));
+                        let outline =
+                            Task::done(Message::Outline(outline::Message::MetadataChanged));
+                        let cargo_context = Task::future(set_cargo_context(false)).discard();
 
-                    let config = Task::done(Message::Configuration(
-                        configuration::Message::MetadataChanged,
-                    ));
-                    let outline = Task::done(Message::Outline(outline::Message::MetadataChanged));
-                    let cargo_context = Task::future(set_cargo_context(false)).discard();
-
-                    Task::batch([config, outline, cargo_context])
+                        Task::batch([config, outline, cargo_context])
+                    } else {
+                        Task::none()
+                    }
                 }
                 // For invalid metadata or cargo command leave everything as is
                 MetadataUpdate::CargoCommandEmpty(e) | MetadataUpdate::FailedToParse(e) => {
