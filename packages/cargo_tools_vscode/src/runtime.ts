@@ -12,10 +12,16 @@ export class FileWatcher {
     }
 
     watch_files(paths: string[]): void {
-        // Create a single watcher with a pattern that matches all paths
+        // Create a single watcher with a pattern that matches all paths.
+        // We only need brace expansion when there's more than one alternative,
+        // so a lone path must be used as-is instead of being wrapped in `{}`.
+        const relativePaths = paths.map((path) => vscode.workspace.asRelativePath(path));
+        const globPattern = relativePaths.length === 1
+            ? relativePaths[0]
+            : `{${relativePaths.join(',')}}`;
         const pattern = new vscode.RelativePattern(
             vscode.workspace.workspaceFolders?.[0]?.uri ?? '',
-            `{${paths.map((path) => vscode.workspace.asRelativePath(path)).join(',')}}`
+            globPattern
         );
 
         const watcher = vscode.workspace.createFileSystemWatcher(pattern);
