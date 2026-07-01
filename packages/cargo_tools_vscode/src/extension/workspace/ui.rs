@@ -8,15 +8,17 @@ use crate::{
         send_file_changed,
         workspace::{configuration, outline},
     },
-    runtime::{CHANNEL_CAPACITY, exec_vs_code, read_file_vs_code},
-    runtime::{TsFileWatcher, set_cargo_context},
+    runtime::{
+        CHANNEL_CAPACITY, TsFileWatcher, exec_vs_code, file_exists_vs_code, read_file_vs_code,
+        set_cargo_context,
+    },
 };
 use tracing::error;
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
     Metadata(Metadata),
-    NoCargoToml(String),
+    NoCargoToml,
     FailedToParse(String),
     CargoCommandEmpty(String),
 }
@@ -26,9 +28,10 @@ impl MetadataUpdate {
         match res {
             Ok(metadata) => Self::Metadata(metadata),
             Err(e) => match e {
-                ParseError::NoCargoToml(e) => Self::NoCargoToml(e),
+                ParseError::NoCargoToml => Self::NoCargoToml,
                 ParseError::Parse(e) => Self::FailedToParse(e.to_string()),
                 ParseError::CargoCommandEmpty(e) => Self::CargoCommandEmpty(e.to_string()),
+                ParseError::Exec(e) => Self::FailedToParse(e),
             },
         }
     }
@@ -98,8 +101,7 @@ impl Workspace {
 
                     Task::batch([config, outline, cargo_context])
                 }
-                MetadataUpdate::NoCargoToml(e) => {
-                    error!("{e}");
+                MetadataUpdate::NoCargoToml => {
                     // Always check for mainfest in root dir
                     self.file_watcher.watch_files(vec![self.root_manifest()]);
 
@@ -143,12 +145,21 @@ impl Workspace {
     }
 
     fn parse_manifest(&self) -> Task<Message> {
-        Task::future(parse_metadata(
-            self.root_dir.clone(),
-            metadata_task_context(),
-            exec_vs_code,
-            read_file_vs_code,
-        ))
+        let root_dir = self.root_dir.clone();
+        let root_manifest = self.root_manifest();
+        Task::future(async move {
+            if file_exists_vs_code(root_manifest).await {
+                parse_metadata(
+                    root_dir.clone(),
+                    metadata_task_context(),
+                    exec_vs_code,
+                    read_file_vs_code,
+                )
+                .await
+            } else {
+                Err(ParseError::NoCargoToml)
+            }
+        })
         .map(MetadataUpdate::from_parse_result)
         .map(Message::MetadataChanged)
     }

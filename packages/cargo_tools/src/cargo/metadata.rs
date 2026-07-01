@@ -81,8 +81,10 @@ impl TargetType {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
-    #[error("No Cargo toml found: {0}")]
-    NoCargoToml(String),
+    #[error("No Cargo toml found")]
+    NoCargoToml,
+    #[error("Failed to execute: {0}")]
+    Exec(String),
     #[error(transparent)]
     Parse(cargo_metadata::Error),
     #[error(transparent)]
@@ -141,7 +143,7 @@ async fn parse_cargo_metadata(
         .map_err(ParseError::CargoCommandEmpty)?;
 
     // Execute command via runtime
-    let metadata = exec(process).await.map_err(ParseError::NoCargoToml)?;
+    let metadata = exec(process).await.map_err(ParseError::Exec)?;
 
     let metadata = extract_raw_metadata(&metadata)?;
 

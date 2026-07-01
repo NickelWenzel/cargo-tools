@@ -53,6 +53,11 @@ export async function read_file(file_path: string): Promise<string> {
     return new TextDecoder().decode(fileContent);
 }
 
+export async function file_exists(file_path: string): Promise<void> {
+    const uri = vscode.Uri.file(file_path);
+    await vscode.workspace.fs.stat(uri);
+}
+
 export async function debug(target_exe_path: string, target_name: string): Promise<void> {
     // Create debug configuration
     const debugConfig: vscode.DebugConfiguration = {

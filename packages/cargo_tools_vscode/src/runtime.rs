@@ -31,6 +31,9 @@ extern "C" {
     async fn read_file(file_path: &str) -> Result<JsString, JsValue>;
 
     #[wasm_bindgen(catch)]
+    async fn file_exists(file_path: &str) -> Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch)]
     pub async fn debug(target_exe_path: &str, target_name: &str) -> Result<JsValue, JsValue>;
 
     pub fn host_platform() -> String;
@@ -127,6 +130,10 @@ pub async fn read_file_vs_code(file_path: String) -> Result<String, String> {
         .await
         .map(|js_str| js_str.as_string().expect("JsString conversion failed"))
         .map_err(|e| e.to_error_string())
+}
+
+pub async fn file_exists_vs_code(file_path: String) -> bool {
+    file_exists(&file_path).await.is_ok()
 }
 
 pub async fn persist_state_vs_code(key: String, state: impl Serialize) {
