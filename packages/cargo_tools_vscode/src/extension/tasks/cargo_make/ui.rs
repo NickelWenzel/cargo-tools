@@ -22,9 +22,9 @@ use crate::{
     },
     quick_pick::SelectInput,
     runtime::{
-        CHANNEL_CAPACITY, VsCodeTask, exec_vs_code, get_state_vs_code, persist_state_vs_code,
+        CHANNEL_CAPACITY, TsFileWatcher, VsCodeTask, exec_vs_code, execute_task,
+        file_exists_vs_code, get_state_vs_code, persist_state_vs_code, set_makefile_context,
     },
-    runtime::{TsFileWatcher, execute_task, set_makefile_context},
 };
 use tracing::{error, info};
 
@@ -32,7 +32,7 @@ use tracing::{error, info};
 pub enum MakefileTasksUpdate {
     New(MakefileTasks),
     CargoMakeNotInstalled(String),
-    NoMakefile(String),
+    NoMakefile,
     FailedToRetrieve(String),
     CargoCommandEmpty(String),
 }
@@ -43,8 +43,8 @@ impl MakefileTasksUpdate {
             Ok(metadata) => Self::New(metadata),
             Err(e) => match e {
                 ParseError::CargoMakeNotInstalled(e) => Self::CargoMakeNotInstalled(e),
-                ParseError::NoMakefile(e) => Self::NoMakefile(e),
-                ParseError::FailedToRetrieve(e) => Self::FailedToRetrieve(e),
+                ParseError::NoMakefile => Self::NoMakefile,
+                ParseError::Exec(e) | ParseError::FailedToRetrieve(e) => Self::FailedToRetrieve(e),
                 ParseError::CargoCommandEmpty(e) => Self::CargoCommandEmpty(e.to_string()),
             },
         }
@@ -138,16 +138,11 @@ impl CargoMake {
                         Some(event),
                     )
                 }
-                MakefileTasksUpdate::CargoMakeNotInstalled(e)
-                | MakefileTasksUpdate::NoMakefile(e) => {
+                MakefileTasksUpdate::CargoMakeNotInstalled(e) => {
                     error!("{e}");
-                    self.makefile_tasks = MakefileTasks::default();
-                    let event = self.tree_changed_event();
-                    (
-                        Task::future(set_makefile_context(false)).discard(),
-                        Some(event),
-                    )
+                    self.set_context_false()
                 }
+                MakefileTasksUpdate::NoMakefile => self.set_context_false(),
                 // For invalid makefiles or cargo command config leave everything as is
                 MakefileTasksUpdate::CargoCommandEmpty(e)
                 | MakefileTasksUpdate::FailedToRetrieve(e) => {
@@ -155,19 +150,31 @@ impl CargoMake {
                     (Task::none(), None)
                 }
             },
-            Message::MakefileChanged => (
-                Task::future(parse_tasks(
-                    makefile(&self.root_dir),
-                    makefile_task_context(),
-                    exec_vs_code,
-                ))
+            Message::MakefileChanged => {
+                let makefile = makefile(&self.root_dir);
+                let task = Task::future(async move {
+                    if file_exists_vs_code(makefile.clone()).await {
+                        parse_tasks(makefile, makefile_task_context(), exec_vs_code).await
+                    } else {
+                        Err(ParseError::NoMakefile)
+                    }
+                })
                 .map(MakefileTasksUpdate::from_parse_result)
-                .map(Message::MakefileTasksChanged),
-                None,
-            ),
+                .map(Message::MakefileTasksChanged);
+                (task, None)
+            }
             Message::SettingsChanged(update) => self.update_state(update),
             Message::Cmd(cmd) => (self.handle_cmd(cmd), None),
         }
+    }
+
+    fn set_context_false(&mut self) -> (Task<Message>, Option<Event>) {
+        self.makefile_tasks = MakefileTasks::default();
+        let event = self.tree_changed_event();
+        (
+            Task::future(set_makefile_context(false)).discard(),
+            Some(event),
+        )
     }
 
     fn update_state(&mut self, update: SettingsUpdate) -> (Task<Message>, Option<Event>) {

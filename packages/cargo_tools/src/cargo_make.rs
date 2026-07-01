@@ -78,8 +78,10 @@ pub enum ParseError {
     CargoCommandEmpty(CargoCommandEmpty),
     #[error("Cargo make is not installed: {0}")]
     CargoMakeNotInstalled(String),
-    #[error("No Makefile.toml present: {0}")]
-    NoMakefile(String),
+    #[error("No Makefile.toml present")]
+    NoMakefile,
+    #[error("Execution failed: {0}")]
+    Exec(String),
     #[error("Failed to retrieve tasks from Makefile.toml: {0}")]
     FailedToRetrieve(String),
 }
@@ -116,7 +118,7 @@ pub async fn parse_tasks(
 
     exec(proc)
         .await
-        .map_err(ParseError::NoMakefile)
+        .map_err(ParseError::Exec)
         .map(|output| parse_makefile_output(&output))
 }
 
