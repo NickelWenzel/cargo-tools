@@ -259,12 +259,9 @@ dependencies = [
  "itertools",
  "serde",
  "thiserror",
- "tokio",
  "toml",
  "tracing",
  "tracing-test",
- "wasm-bindgen",
- "wasm-bindgen-futures",
  "wasm-bindgen-test",
 ]
 
@@ -283,7 +280,6 @@ dependencies = [
  "tracing-subscriber",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-bindgen-test",
 ]
 
 [[package]]
