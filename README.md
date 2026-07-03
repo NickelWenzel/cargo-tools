@@ -11,11 +11,11 @@ Cargo Tools is a Visual Studio Code extension that provides IDE-like features fo
 
 ![Project configuration](./vscode_extension/media/cargo_tools_configuration.gif)
 
-* Select defaults for target platform, cargo pprofile, package
+* Select defaults for target platform, cargo profile, package
 * Select default build run, benchmarks targets and features for packages
 * Trigger cargo through user interface or key bindings
-* Build documention
-* Install additional targt platforms, clean buid artifacts
+* Build documentation
+* Install additional target platforms, clean build artifacts
 
 ### Project Outline
 
@@ -34,7 +34,7 @@ Cargo Tools is a Visual Studio Code extension that provides IDE-like features fo
 * Overview over available cargo aliases and cargo make tasks
 * Run tasks with or without additional arguments
 * Filter by name or task category
-* Pin default tasks and trigge them through key bindings
+* Pin default tasks and trigger them through key bindings
 
 ## Usage
 
