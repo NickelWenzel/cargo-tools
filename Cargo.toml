@@ -15,13 +15,11 @@ resolver = "2"
 
 [workspace.dependencies]
 cargo_tools = { path = "packages/cargo_tools" }
-cargo_tools_vscode = { path = "packages/cargo_tools_vscode" }
 iced_viewless = { path = "packages/iced_viewless", default-features = false }
-
-futures = "0.3.31"
+futures = { version = "0.3.31", default-features = false }
 cargo_metadata = "0.23.1"
-wasm-bindgen = "0.2.106"
-wasm-bindgen-futures = "0.4.56"
+wasm-bindgen = { version = "0.2.106", default-features = false }
+wasm-bindgen-futures = { version = "0.4.56", default-features = false }
 wasm-bindgen-test = "0.3.56"
 serde = { version = "1.0", default-features = false }
 serde_json = "1.0"
@@ -38,5 +36,8 @@ toml = { version = "0.9.8", features = [
     "serde",
 ], default-features = false }
 itertools = "0.14.0"
-anyhow = "1.0.102"
+anyhow = { version = "1.0.102", default-features = false }
 assert2 = "0.4.0"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "registry",
+] }
