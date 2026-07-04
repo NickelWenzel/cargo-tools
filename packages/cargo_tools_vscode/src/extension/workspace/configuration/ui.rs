@@ -50,7 +50,7 @@ extern "C" {
 
 #[derive(Debug)]
 pub enum Message {
-    MetadataChanged,
+    ManifestFilesChanged,
     ConfigChanged(ConfigUpdate),
     Cmd(Command),
     ConfigUiRequest(ConfigUiRequest),
@@ -93,7 +93,8 @@ impl Configuration {
 
     pub fn update(&mut self, msg: Message, metadata: &Metadata) -> (Task<Message>, Option<Event>) {
         match msg {
-            Message::MetadataChanged => {
+            Message::ManifestFilesChanged => {
+                // Features which are potentially are visible could have changed so we need to update the UI
                 self.ui.update();
                 (Task::none(), None)
             }
