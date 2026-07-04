@@ -5,7 +5,7 @@ use futures::{
     channel::mpsc::{self, UnboundedSender},
 };
 use iced_runtime::Action;
-use log::info;
+use tracing::debug;
 
 /// The exit token signalling the runtime to stop
 pub struct Exit;
@@ -25,7 +25,7 @@ impl<T> EventLoop<T> {
         T: Debug,
     {
         while let Some(action) = self.rx.next().await {
-            info!("Received action {action:?}");
+            debug!("Received action {action:?}");
             match action {
                 Action::Output(message) => f(&mut state, message),
                 Action::Exit => break,

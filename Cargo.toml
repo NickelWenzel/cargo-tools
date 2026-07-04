@@ -31,9 +31,7 @@ tokio = { version = "1.49.0", default-features = false, features = [
     "macros",
     "rt",
 ] }
-log = "0.4.29"
 tracing = { version = "0.1.43", default-features = false }
-tracing-test = "0.2.5"
 toml = { version = "0.9.8", features = [
     "parse",
     "serde",

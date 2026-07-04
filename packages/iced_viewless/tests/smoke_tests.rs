@@ -1,8 +1,7 @@
 use iced_futures::{Subscription, stream};
 use iced_runtime::Task;
 use iced_viewless::{application, event_loop::Exit, viewless::async_application};
-use log::info;
-use tracing_test::traced_test;
+use tracing::info;
 use wasm_bindgen_test::*;
 
 use futures::{SinkExt, channel::mpsc::Sender};
@@ -50,7 +49,6 @@ impl SimpleProgram {
 }
 
 #[wasm_bindgen_test(unsupported = test)]
-#[traced_test]
 fn sync_app_completes() {
     info!("InTest");
     let result = application(SimpleProgram::update)
@@ -62,7 +60,6 @@ fn sync_app_completes() {
 }
 
 #[wasm_bindgen_test(unsupported = tokio::test)]
-#[traced_test]
 async fn async_app_completes() {
     info!("InTest");
     let result = async_application(SimpleProgram::update)

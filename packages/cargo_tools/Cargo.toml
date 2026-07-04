@@ -15,9 +15,4 @@ thiserror = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 assert2 = { workspace = true }
-tracing = { workspace = true }
-tracing-test = { workspace = true }
 wasm-bindgen-test = { workspace = true }
-
-[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-futures = { workspace = true }

@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Array, spawn_local};
 
 use crate::quick_pick::show_quick_pick_type;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 #[wasm_bindgen(
     raw_module = "../../../packages/cargo_tools_vscode/src/extension/vscode_task_utils.ts"
@@ -37,7 +37,7 @@ pub fn send_file_changed(tx: Sender<()>) -> OnFileChanged {
 fn register_tasks(cmds: CommandMap) -> Vec<CommandBinding> {
     cmds.into_iter()
         .map(|(command_id, cmd)| {
-            info!("Register task '{command_id}'");
+            debug!("Register task '{command_id}'");
             if let Err(e) = register_command(command_id, &cmd) {
                 error!("Failed to register task '{command_id}': {e:?}");
             };
@@ -85,7 +85,7 @@ fn create_vs_code_command<Cmd: Debug + 'static>(
                 error!("Failed to extract command");
                 return;
             };
-            info!("Sending VS Code command '{cmd:?}'");
+            debug!("Sending VS Code command '{cmd:?}'");
             if let Err(e) = tx.clone().send(cmd).await {
                 error!("Failed to queue msg: {}", e);
             }

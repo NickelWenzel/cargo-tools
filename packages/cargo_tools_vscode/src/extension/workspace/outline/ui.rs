@@ -36,7 +36,7 @@ use crate::{
     runtime::{CHANNEL_CAPACITY, VsCodeTask, get_state_vs_code, persist_state_vs_code},
     runtime::{JsValueExt, debug, execute_task, host_platform},
 };
-use tracing::{error, info};
+use tracing::{debug, error};
 
 #[wasm_bindgen(
     raw_module = "../../../packages/cargo_tools_vscode/src/extension/workspace/outline/ui.ts"
@@ -324,7 +324,7 @@ impl Outline {
             let filter_update = Closure::new(move |filter: String| {
                 let mut tx = cmd_tx.clone();
                 spawn_local(async move {
-                    info!("Sending workspace member filter '{filter}'");
+                    debug!("Sending workspace member filter '{filter}'");
                     if let Err(e) = tx.send(Command::EditWorkspaceMemberFilter(filter)).await {
                         error!("Failed to queue msg: {}", e);
                     }
@@ -362,7 +362,7 @@ impl Outline {
 
         let cmd_tx = self.cmd_tx.clone();
         let filter_update = move |selected: Vec<String>| {
-            info!("Received category filter update from quickpick'{selected:?}'");
+            debug!("Received category filter update from quickpick'{selected:?}'");
             let mut tx = cmd_tx.clone();
             spawn_local(async move {
                 let filter = TargetTypesFilter::from_selected(selected);
