@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use futures::future;
 use itertools::Itertools;
 use toml::Table;
 
@@ -12,6 +11,7 @@ use crate::{
     process::{CargoCommandEmpty, CargoTaskContext, Process},
 };
 
+/// Holds the [`Package`]s, [`Profile`]s and `target_dir` where cargo builds to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Metadata {
     packages: Vec<Package>,
@@ -32,8 +32,17 @@ impl Metadata {
         &self.packages
     }
 
+    pub fn set_packages_and_target_dir(&mut self, packages_and_target_dir: PackagesAndTargetDir) {
+        self.packages = packages_and_target_dir.packages;
+        self.target_dir = packages_and_target_dir.target_dir;
+    }
+
     pub fn profiles(&self) -> &[Profile] {
         &self.profiles
+    }
+
+    pub fn set_profiles(&mut self, profiles: impl Into<Vec<Profile>>) {
+        self.profiles = profiles.into()
     }
 
     pub fn target_dir(&self) -> &str {
@@ -91,43 +100,20 @@ pub enum ParseError {
     CargoCommandEmpty(CargoCommandEmpty),
 }
 
-struct CargoMetadata {
+/// Holds the [`Package`]s and `target_dir` going into [`Metadata`].
+#[derive(Debug, Clone)]
+pub struct PackagesAndTargetDir {
     packages: Vec<Package>,
     target_dir: String,
 }
 
-/// Tries to parse the metadata of a cargo project located at `root_dir`.
-/// Executing necessary commands with `exec` and reading files with `read_file`.
-pub async fn parse_metadata(
-    root_dir: String,
-    ctx: CargoTaskContext,
-    exec: impl AsyncFn(Process) -> Result<String, String>,
-    read_file: impl AsyncFn(String) -> Result<String, String>,
-) -> Result<Metadata, ParseError> {
-    let (cargo_metadata, profiles) = future::join(
-        parse_cargo_metadata(format!("{root_dir}/Cargo.toml"), ctx, exec),
-        parse_profiles(root_dir, read_file),
-    )
-    .await;
-
-    match cargo_metadata {
-        Ok(CargoMetadata {
-            packages,
-            target_dir,
-        }) => Ok(Metadata {
-            packages,
-            profiles,
-            target_dir,
-        }),
-        Err(e) => Err(e),
-    }
-}
-
-async fn parse_cargo_metadata(
+/// Tries to parse the packages and target dir from `Cargo.toml` at `root_dir`.
+/// Process Execution capabilities are client providedby `exec`.
+pub async fn parse_packages_and_target_dir(
     manifest_file: String,
     ctx: CargoTaskContext,
     exec: impl AsyncFn(Process) -> Result<String, String>,
-) -> Result<CargoMetadata, ParseError> {
+) -> Result<PackagesAndTargetDir, ParseError> {
     // Construct cargo metadata command with manifest path
     let args = vec![
         "metadata".to_string(),
@@ -150,33 +136,33 @@ async fn parse_cargo_metadata(
     let target_dir = metadata.target_directory.to_string();
     let packages = Package::from_metadata(metadata);
 
-    Ok(CargoMetadata {
+    Ok(PackagesAndTargetDir {
         packages,
         target_dir,
     })
 }
 
-async fn parse_profiles(
-    root_dir: String,
+/// Tries to parse the profiles from the provided `file_paths`.
+/// File reading capabilities are client provided by `read_file`.
+pub async fn parse_profiles(
+    file_paths: Vec<String>,
     read_file: impl AsyncFn(String) -> Result<String, String>,
 ) -> Vec<Profile> {
-    let mut profiles = Profile::standards_profiles();
-
-    let manifest_file = format!("{root_dir}/Cargo.toml");
-    let config_file = format!("{root_dir}/.cargo/Config.toml");
-
-    for file in [manifest_file, config_file] {
-        let Ok(toml) = read_file(file).await else {
-            continue;
-        };
-        for profile in extract_profiles(toml) {
-            if !profiles.contains(&profile) {
-                profiles.push(profile);
-            }
-        }
+    let mut contents = Vec::new();
+    for file in file_paths {
+        contents.push(read_file(file).await);
     }
 
-    profiles
+    let custom_profiles = contents
+        .into_iter()
+        .filter_map(Result::ok)
+        .flat_map(extract_profiles);
+
+    Profile::standards_profiles()
+        .into_iter()
+        .chain(custom_profiles)
+        .unique()
+        .collect()
 }
 
 fn extract_raw_metadata(raw_metadata: &str) -> Result<cargo_metadata::Metadata, ParseError> {

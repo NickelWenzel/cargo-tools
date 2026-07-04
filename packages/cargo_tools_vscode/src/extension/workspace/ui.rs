@@ -1,4 +1,9 @@
-use cargo_tools::cargo::metadata::{Metadata, ParseError, parse_metadata};
+use cargo_tools::cargo::{
+    Profile,
+    metadata::{
+        Metadata, PackagesAndTargetDir, ParseError, parse_packages_and_target_dir, parse_profiles,
+    },
+};
 use futures::channel::mpsc::channel;
 use iced_viewless::Task;
 
@@ -17,22 +22,34 @@ use tracing::error;
 
 #[derive(Debug, Clone)]
 pub enum MetadataUpdate {
-    Metadata(Metadata),
+    PackagesAndTargetDir(PackagesAndTargetDir),
+    Profiles(Vec<Profile>),
     NoCargoToml,
     FailedToParse(String),
     CargoCommandEmpty(String),
 }
 
 impl MetadataUpdate {
-    fn from_parse_result(res: Result<Metadata, ParseError>) -> Self {
+    fn from_parse_manifest_result(res: Result<PackagesAndTargetDir, ParseError>) -> Self {
         match res {
-            Ok(metadata) => Self::Metadata(metadata),
-            Err(e) => match e {
-                ParseError::NoCargoToml => Self::NoCargoToml,
-                ParseError::Parse(e) => Self::FailedToParse(e.to_string()),
-                ParseError::CargoCommandEmpty(e) => Self::CargoCommandEmpty(e.to_string()),
-                ParseError::Exec(e) => Self::FailedToParse(e),
-            },
+            Ok(packages_and_target_dir) => Self::PackagesAndTargetDir(packages_and_target_dir),
+            Err(err) => Self::from_parse_error(err),
+        }
+    }
+
+    fn from_parse_profiles_result(res: Result<Vec<Profile>, ParseError>) -> Self {
+        match res {
+            Ok(profiles) => Self::Profiles(profiles),
+            Err(err) => Self::from_parse_error(err),
+        }
+    }
+
+    fn from_parse_error(err: ParseError) -> Self {
+        match err {
+            ParseError::NoCargoToml => Self::NoCargoToml,
+            ParseError::Parse(e) => Self::FailedToParse(e.to_string()),
+            ParseError::CargoCommandEmpty(e) => Self::CargoCommandEmpty(e.to_string()),
+            ParseError::Exec(e) => Self::FailedToParse(e),
         }
     }
 }
@@ -40,6 +57,7 @@ impl MetadataUpdate {
 #[derive(Debug)]
 pub enum Message {
     ManifestChanged,
+    ConfigFileChanged,
     MetadataChanged(MetadataUpdate),
     Configuration(configuration::Message),
     Outline(outline::Message),
@@ -49,7 +67,8 @@ pub struct Workspace {
     configuration: configuration::Configuration,
     outline: outline::Outline,
     metadata: Metadata,
-    file_watcher: TsFileWatcher,
+    mainfests_file_watcher: TsFileWatcher,
+    config_file_watcher: TsFileWatcher,
     root_dir: String,
 }
 
@@ -57,7 +76,11 @@ impl Workspace {
     pub fn init(root_dir: String) -> (Self, Task<Message>) {
         // Init manifest file updates
         let (manifest_changed_tx, manifest_changed_rx) = channel(CHANNEL_CAPACITY);
-        let file_watcher = TsFileWatcher::new(send_file_changed(manifest_changed_tx));
+        let manifests_file_watcher = TsFileWatcher::new(send_file_changed(manifest_changed_tx));
+
+        // Init config file updates
+        let (config_changed_tx, config_changed_rx) = channel(CHANNEL_CAPACITY);
+        let config_file_watcher = TsFileWatcher::new(send_file_changed(config_changed_tx));
 
         let (configuration, configuration_task) =
             configuration::Configuration::init(root_dir.clone());
@@ -67,14 +90,22 @@ impl Workspace {
             configuration,
             outline,
             metadata: Metadata::default(),
-            file_watcher,
+            mainfests_file_watcher: manifests_file_watcher,
+            config_file_watcher,
             root_dir,
         };
+
+        this.config_file_watcher
+            .watch_files(vec![this.root_manifest(), this.root_config()]);
+
         let task = Task::batch([
-            // manifest updates will run for the lifetime of the extension
+            // manifest and config updates will run for the lifetime of the extension
             Task::stream(manifest_changed_rx).map(|()| Message::ManifestChanged),
-            // metadata is to initially parse the Cargo.toml
-            this.parse_manifest(),
+            Task::stream(config_changed_rx).map(|()| Message::ConfigFileChanged),
+            // initially parse metadata
+            this.parse_packages_and_target_dir(),
+            this.parse_profiles(),
+            // initial sub-component tasks
             configuration_task.map(Message::Configuration),
             outline_task.map(Message::Outline),
         ]);
@@ -85,30 +116,36 @@ impl Workspace {
     pub fn update(&mut self, msg: Message) -> Task<Message> {
         match msg {
             Message::MetadataChanged(update) => match update {
-                MetadataUpdate::Metadata(metadata) => {
-                    // Update file watcher
-                    let mut manifests = metadata.manifests();
-                    manifests.push(self.root_manifest());
-                    self.file_watcher.watch_files(manifests);
+                MetadataUpdate::PackagesAndTargetDir(packages_and_target_dir) => {
+                    self.metadata
+                        .set_packages_and_target_dir(packages_and_target_dir);
 
-                    self.metadata = metadata;
+                    // Update file watcher
+                    let mut manifests = self.metadata.manifests();
+                    manifests.push(self.root_manifest());
+                    self.mainfests_file_watcher.watch_files(manifests);
 
                     let config = Task::done(Message::Configuration(
-                        configuration::Message::MetadataChanged,
+                        configuration::Message::ManifestFilesChanged,
                     ));
                     let outline = Task::done(Message::Outline(outline::Message::MetadataChanged));
                     let cargo_context = Task::future(set_cargo_context(true)).discard();
 
                     Task::batch([config, outline, cargo_context])
                 }
+                MetadataUpdate::Profiles(profiles) => {
+                    self.metadata.set_profiles(profiles);
+                    Task::none()
+                }
                 MetadataUpdate::NoCargoToml => {
                     // Always check for mainfest in root dir
-                    self.file_watcher.watch_files(vec![self.root_manifest()]);
+                    self.mainfests_file_watcher
+                        .watch_files(vec![self.root_manifest()]);
 
                     self.metadata = Metadata::default();
 
                     let config = Task::done(Message::Configuration(
-                        configuration::Message::MetadataChanged,
+                        configuration::Message::ManifestFilesChanged,
                     ));
                     let outline = Task::done(Message::Outline(outline::Message::MetadataChanged));
                     let cargo_context = Task::future(set_cargo_context(false)).discard();
@@ -121,7 +158,8 @@ impl Workspace {
                     Task::none()
                 }
             },
-            Message::ManifestChanged => self.parse_manifest(),
+            Message::ManifestChanged => self.parse_packages_and_target_dir(),
+            Message::ConfigFileChanged => self.parse_profiles(),
             Message::Configuration(msg) => {
                 let (task, event) = self.configuration.update(msg, &self.metadata);
 
@@ -144,28 +182,40 @@ impl Workspace {
         }
     }
 
-    fn parse_manifest(&self) -> Task<Message> {
-        let root_dir = self.root_dir.clone();
+    fn parse_packages_and_target_dir(&self) -> Task<Message> {
         let root_manifest = self.root_manifest();
         Task::future(async move {
-            if file_exists_vs_code(root_manifest).await {
-                parse_metadata(
-                    root_dir.clone(),
-                    metadata_task_context(),
-                    exec_vs_code,
-                    read_file_vs_code,
-                )
-                .await
+            if file_exists_vs_code(root_manifest.clone()).await {
+                parse_packages_and_target_dir(root_manifest, metadata_task_context(), exec_vs_code)
+                    .await
             } else {
                 Err(ParseError::NoCargoToml)
             }
         })
-        .map(MetadataUpdate::from_parse_result)
+        .map(MetadataUpdate::from_parse_manifest_result)
+        .map(Message::MetadataChanged)
+    }
+
+    fn parse_profiles(&self) -> Task<Message> {
+        let manifest = self.root_manifest();
+        let config_toml = self.root_config();
+        Task::future(async move {
+            if file_exists_vs_code(manifest.clone()).await {
+                Ok(parse_profiles(vec![manifest, config_toml], read_file_vs_code).await)
+            } else {
+                Err(ParseError::NoCargoToml)
+            }
+        })
+        .map(MetadataUpdate::from_parse_profiles_result)
         .map(Message::MetadataChanged)
     }
 
     fn root_manifest(&self) -> String {
         format!("{}/Cargo.toml", self.root_dir)
+    }
+
+    fn root_config(&self) -> String {
+        format!("{}/.cargo/config.toml", self.root_dir)
     }
 }
 
