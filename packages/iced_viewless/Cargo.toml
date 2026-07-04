@@ -33,8 +33,7 @@ tracing = { workspace = true }
 tracing-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-iced_viewless = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt"] }
+tokio = { workspace = true }
 
 [features]
 default = ["thread-pool"]
