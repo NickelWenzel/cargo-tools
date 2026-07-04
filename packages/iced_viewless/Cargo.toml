@@ -1,6 +1,6 @@
 [package]
 name = "iced_viewless"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Nicolas Wenzel <nicolas.wenzel@gmx.de>"]
 description = "Viewless application runtime based on iced primitives, enabling background services without UI"
