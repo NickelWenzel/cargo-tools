@@ -16,7 +16,7 @@ use iced_viewless::{Subscription, Task, async_application, event_loop::Exit, str
 use wasm_bindgen::prelude::*;
 
 use crate::{logger::VSCodeLogger, runtime::CHANNEL_CAPACITY};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[wasm_bindgen]
 pub struct ExitToken(Sender<()>);
@@ -46,7 +46,7 @@ struct Extension {
 
 impl Extension {
     fn update(&mut self, msg: Message) -> Task<Message> {
-        info!("Cargo tools extension received message:\n{msg:?}");
+        debug!("Cargo tools extension received message:\n{msg:?}");
         match msg {
             Message::Workspace(msg) => self.workspace.update(msg).map(Message::Workspace),
             Message::Tasks(msg) => self.tasks.update(msg).map(Message::Tasks),

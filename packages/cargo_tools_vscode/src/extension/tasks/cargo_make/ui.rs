@@ -26,7 +26,7 @@ use crate::{
         file_exists_vs_code, get_state_vs_code, persist_state_vs_code, set_makefile_context,
     },
 };
-use tracing::{error, info};
+use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
 pub enum MakefileTasksUpdate {
@@ -269,7 +269,7 @@ impl CargoMake {
         let cmd_tx = self.cmd_tx.clone();
         let categories_filter_update = categories.clone();
         let filter_update = move |selected: Vec<String>| {
-            info!("Received category filter update from quickpick'{selected:?}'");
+            debug!("Received category filter update from quickpick'{selected:?}'");
             let mut tx = cmd_tx.clone();
             let categories = categories_filter_update.clone();
             spawn_local(async move {
@@ -278,7 +278,7 @@ impl CargoMake {
                     .filter(|category| !selected.contains(category))
                     .cloned()
                     .collect();
-                info!("Sending cargo make category filter '{selected:?}'");
+                debug!("Sending cargo make category filter '{selected:?}'");
                 if let Err(e) = tx.send(Command::EditCategoryFilter(selected)).await {
                     error!("Failed to queue msg: {}", e);
                 }

@@ -20,7 +20,7 @@ iced_futures = { workspace = true }
 iced_runtime = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 
 tokio = { workspace = true, optional = true }
 
@@ -29,8 +29,6 @@ wasm-bindgen-futures = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
-tracing = { workspace = true }
-tracing-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio = { workspace = true }

@@ -166,7 +166,6 @@ mod tests {
 
     /// Test makefile task discovery - skips if cargo-make not installed.
     #[wasm_bindgen_test(unsupported = test)]
-    #[tracing_test::traced_test]
     fn parse_valid_makefile_output() {
         let makefile_output = include_str!("../res/test-rust-project-cargo-make-steps.md");
         let tasks = parse_makefile_output(makefile_output);
