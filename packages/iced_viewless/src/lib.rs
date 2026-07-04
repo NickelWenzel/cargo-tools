@@ -148,7 +148,7 @@ pub mod default;
 pub mod error;
 pub mod event_loop;
 pub mod program;
-#[cfg(feature = "tokio")]
+#[cfg(all(feature = "tokio", not(target_arch = "wasm32")))]
 pub mod tokio_context;
 pub mod viewless;
 
