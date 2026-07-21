@@ -106,6 +106,20 @@ opt-level = 3
 
 Test `opt-level = "s"` as a separate variant. Adopt it only if the additional reduction in embedded WASM and VSIX size improves measured activation without a meaningful regression in filter, tree-generation, or parsing scenarios. Do not describe profile tuning as unconditionally low-risk: LTO and one codegen unit increase release build time, while `"s"` explicitly trades some runtime optimization for size.
 
+#### Packaging measurements
+
+Measurements were collected on 2026-07-21 with a warmed build cache. Each duration is wall-clock time for `cargo xt-pkg`; sizes are exact bytes from the resulting `cargo-tools.vsix` and uncompressed `dist/cargo_tools_vscode_bg.wasm`.
+
+| Variant | VSIX bytes | WASM bytes | `cargo xt-pkg` |
+| --- | ---: | ---: | ---: |
+| Baseline, before the optimization series | 538,134 | 1,147,830 | 15.39 s |
+| `lto = "fat"`, one codegen unit, stripped symbols, `opt-level = 3` | 493,639 | 1,077,641 | 11.41 s |
+| Same profile with temporary `opt-level = "s"` | 454,463 | 1,001,451 | 10.75 s |
+
+The retained `opt-level = 3` profile reduced the measured VSIX by 44,495 bytes (8.3%) and the embedded WASM by 70,189 bytes (6.1%) relative to the baseline. The `"s"` variant was restored after measurement: although it was smaller, activation time and representative runtime behavior could not be profiled in an Extension Development Host in this environment, so there is not enough evidence to accept its runtime tradeoff.
+
+The installed `wasm-opt` also reported that bulk-memory operations were not enabled while validating these builds. The webpack packaging pipeline still exited successfully and produced each VSIX, but it retained the pre-`wasm-opt` WASM. These figures therefore compare the emitted package artifacts and should be repeated after the Binaryen/`wasm-opt` toolchain is updated. Extension activation time was not available in this non-GUI environment.
+
 ## Explicitly out of scope
 
 - Incremental tree diffing. Filtering changes the visible node set, and replacing full `_onDidChangeTreeData.fire()` refreshes would be a larger architectural change. The preview-persistence optimization above intentionally preserves current tree refresh behavior.

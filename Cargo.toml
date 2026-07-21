@@ -42,3 +42,9 @@ assert2 = "0.4.0"
 tracing-subscriber = { version = "0.3", default-features = false, features = [
     "registry",
 ] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+opt-level = 3
