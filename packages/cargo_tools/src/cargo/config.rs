@@ -140,14 +140,10 @@ impl Config {
             .clone()
     }
 
-    fn selected_package(&self, metadata: &Metadata) -> Option<Package> {
+    fn selected_package<'a>(&self, metadata: &'a Metadata) -> Option<&'a Package> {
         let selected = self.selected_package.as_ref()?;
 
-        metadata
-            .packages()
-            .iter()
-            .find(|p| &p.name == selected)
-            .cloned()
+        metadata.packages().iter().find(|p| &p.name == selected)
     }
 
     pub fn build_target_options(&self, metadata: &Metadata) -> Vec<Option<BuildSubTarget>> {
@@ -200,14 +196,15 @@ impl Config {
     pub fn feature_options(&self, metadata: &Metadata) -> Vec<String> {
         let features = iter::once("All features".to_string());
         match self.selected_package(metadata) {
-            Some(package) => features.chain(package.features.clone()).collect(),
+            Some(package) => features.chain(package.features.iter().cloned()).collect(),
             None => {
                 let package_features = metadata
                     .packages()
                     .iter()
-                    .flat_map(|package| package.features.clone())
+                    .flat_map(|package| package.features.iter())
                     .sorted()
-                    .unique();
+                    .unique()
+                    .cloned();
                 features.chain(package_features).collect()
             }
         }
