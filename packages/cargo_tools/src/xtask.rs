@@ -46,7 +46,7 @@ impl XtaskAlias {
         if filter.is_empty() {
             return true;
         }
-        self.name.to_lowercase().contains(&filter.to_lowercase())
+        self.name.to_lowercase().contains(filter)
     }
 }
 
@@ -55,7 +55,8 @@ pub struct XtaskAliases(Vec<XtaskAlias>);
 
 impl XtaskAliases {
     pub fn filtered(&self, filter: &str) -> Self {
-        let aliases = self.iter().filter(|a| a.keep(filter)).cloned().collect();
+        let filter = filter.to_lowercase();
+        let aliases = self.iter().filter(|a| a.keep(&filter)).cloned().collect();
         Self(aliases)
     }
 }
@@ -172,7 +173,7 @@ mod tests {
         let config = include_str!("../res/test-cargo-config.toml");
         let aliases = parse_config(config).unwrap();
 
-        let filtered = aliases.filtered("xt");
+        let filtered = aliases.filtered("XT");
         assert!(filtered.iter().all(|a| a.name.contains("xt")));
         assert!(filtered.len() < aliases.len());
     }
