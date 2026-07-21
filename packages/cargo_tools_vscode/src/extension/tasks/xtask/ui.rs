@@ -4,6 +4,7 @@ use iced_viewless::Task;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
 
+use crate::recent_items::RecentItems;
 use crate::{
     environment::xtask_task_context,
     extension::{
@@ -31,9 +32,15 @@ impl ToQuickPickItem for XtaskAlias {
 pub enum Message {
     ConfigChanged,
     AliasesChanged(Result<XtaskAliases, String>),
-    SettingsChanged(String),
+    SettingsChanged(SettingsUpdate),
     Cmd(Command),
     PendingEvent(Event),
+}
+
+#[derive(Debug, Clone)]
+pub enum SettingsUpdate {
+    Filter(String),
+    RecordRun(String),
 }
 
 #[derive(Debug, Clone)]
@@ -113,15 +120,23 @@ impl Xtask {
                     .map(Message::AliasesChanged),
                 None,
             ),
-            Message::SettingsChanged(filter) => {
-                self.settings.filter = filter;
-                let event = self.tree_changed_event();
+            Message::SettingsChanged(update) => {
+                let event = match update {
+                    SettingsUpdate::Filter(filter) => {
+                        self.settings.filter = filter;
+                        Some(self.tree_changed_event())
+                    }
+                    SettingsUpdate::RecordRun(name) => {
+                        self.settings.recent_aliases.record(name);
+                        None
+                    }
+                };
                 let persist = Task::future(persist_state_vs_code(
                     settings_key(&self.root_dir),
                     self.settings.clone(),
                 ))
                 .discard();
-                (persist, Some(event))
+                (persist, event)
             }
             Message::Cmd(cmd) => self.handle_cmd(cmd),
             Message::PendingEvent(event) => (Task::none(), Some(event)),
@@ -140,25 +155,31 @@ impl Xtask {
                 Task::future(async move {
                     let placeholder = format!("Extra args for 'cargo {name}'");
                     let Ok(val) = show_input_box(placeholder, String::new()).await else {
-                        return;
+                        return None;
                     };
                     let Some(args_str) = val.as_string() else {
-                        return;
+                        return None;
                     };
                     let extra_args = args_str
                         .split_whitespace()
                         .map(String::from)
                         .collect::<Vec<_>>();
                     match XtaskAlias::try_into_process_with_extra_args(
-                        name,
+                        name.clone(),
                         extra_args,
                         xtask_task_context(),
                     ) {
-                        Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
-                        Err(e) => error!("{e}"),
+                        Ok(process) => {
+                            execute_task(VsCodeTask::xtask_alias(process)).await;
+                            Some(Message::SettingsChanged(SettingsUpdate::RecordRun(name)))
+                        }
+                        Err(e) => {
+                            error!("{e}");
+                            None
+                        }
                     }
                 })
-                .discard(),
+                .and_then(Task::done),
                 None,
             ),
             Command::PinAlias(name) => (
@@ -187,7 +208,10 @@ impl Xtask {
                 None,
             ),
             Command::SelectAndRun => {
-                let options = self.aliases.iter().cloned().collect::<Vec<_>>();
+                let options = self
+                    .settings
+                    .recent_aliases
+                    .apply(&self.aliases, |alias| &alias.name);
                 let current = Vec::new();
                 (
                     Task::future(async move {
@@ -202,7 +226,10 @@ impl Xtask {
                 )
             }
             Command::SelectAndRunWithArgs => {
-                let options = self.aliases.iter().cloned().collect::<Vec<_>>();
+                let options = self
+                    .settings
+                    .recent_aliases
+                    .apply(&self.aliases, |alias| &alias.name);
                 (
                     Task::future(async move {
                         let items: Vec<_> =
@@ -211,43 +238,50 @@ impl Xtask {
                             Ok(arr) => arr,
                             Err(e) => {
                                 error!("Failed to serialize quick pick items: {e:?}");
-                                return;
+                                return None;
                             }
                         };
                         let selected_index = match show_quick_pick(vscode_options).await {
                             Ok(v) => match v.as_f64().map(|f| f as usize) {
                                 Some(i) => i,
-                                None => return,
+                                None => return None,
                             },
                             Err(e) => {
                                 error!("Quick pick failed: {e:?}");
-                                return;
+                                return None;
                             }
                         };
                         let Some(alias) = options.get(selected_index).cloned() else {
-                            return;
+                            return None;
                         };
                         let placeholder = format!("Extra args for 'cargo {}'", alias.name);
                         let Ok(val) = show_input_box(placeholder, String::new()).await else {
-                            return;
+                            return None;
                         };
                         let Some(args_str) = val.as_string() else {
-                            return;
+                            return None;
                         };
                         let extra_args = args_str
                             .split_whitespace()
                             .map(String::from)
                             .collect::<Vec<_>>();
                         match XtaskAlias::try_into_process_with_extra_args(
-                            alias.name,
+                            alias.name.clone(),
                             extra_args,
                             xtask_task_context(),
                         ) {
-                            Ok(process) => execute_task(VsCodeTask::xtask_alias(process)).await,
-                            Err(e) => error!("{e}"),
+                            Ok(process) => {
+                                let name = alias.name;
+                                execute_task(VsCodeTask::xtask_alias(process)).await;
+                                Some(Message::SettingsChanged(SettingsUpdate::RecordRun(name)))
+                            }
+                            Err(e) => {
+                                error!("{e}");
+                                None
+                            }
                         }
                     })
-                    .discard(),
+                    .and_then(Task::done),
                     None,
                 )
             }
@@ -255,8 +289,11 @@ impl Xtask {
     }
 
     fn run_alias(&self, name: String) -> Task<Message> {
-        match XtaskAlias::try_into_process(name, xtask_task_context()) {
-            Ok(process) => Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
+        match XtaskAlias::try_into_process(name.clone(), xtask_task_context()) {
+            Ok(process) => Task::batch([
+                Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
+                Task::done(Message::SettingsChanged(SettingsUpdate::RecordRun(name))),
+            ]),
             Err(e) => {
                 error!("{e}");
                 Task::none()
@@ -283,4 +320,6 @@ fn config_path(root_dir: &str) -> String {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Settings {
     filter: String,
+    #[serde(default)]
+    recent_aliases: RecentItems,
 }

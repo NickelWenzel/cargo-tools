@@ -60,6 +60,12 @@ pub enum Message {
 }
 
 #[derive(Debug, Clone)]
+pub enum Event {
+    CargoMakeRun(String),
+    AliasRun(String),
+}
+
+#[derive(Debug, Clone)]
 pub enum SettingsUpdate {
     AddPinned(MakefileTask),
     RemovePinned(usize),
@@ -105,9 +111,9 @@ impl Pinned {
         makefile_tasks: &MakefileTasks,
         xtask_aliases: &XtaskAliases,
         msg: Message,
-    ) -> Task<Message> {
+    ) -> (Task<Message>, Option<Event>) {
         match msg {
-            Message::SettingsChanged(update) => self.update_state(update),
+            Message::SettingsChanged(update) => (self.update_state(update), None),
             Message::Cmd(cmd) => self.handle_cmd(makefile_tasks, xtask_aliases, cmd),
         }
     }
@@ -206,7 +212,7 @@ impl Pinned {
         makefile_tasks: &MakefileTasks,
         xtask_aliases: &XtaskAliases,
         cmd: Command,
-    ) -> Task<Message> {
+    ) -> (Task<Message>, Option<Event>) {
         match cmd {
             Command::Add => {
                 let options: Vec<PinnableItem> = makefile_tasks
@@ -219,28 +225,32 @@ impl Pinned {
                     options,
                     current: Vec::new(),
                 };
-                done(async move {
-                    let selected = input.select().await?;
-                    match selected {
-                        PinnableItem::Task(task) => Some(SettingsUpdate::AddPinned(task)),
-                        PinnableItem::Alias(alias) => {
-                            let placeholder = format!(
-                                "Args to always use when running 'cargo {}' (pinned)",
-                                alias.name
-                            );
-                            let Ok(val) = show_input_box(placeholder, String::new()).await else {
-                                return None;
-                            };
-                            let args_str = val.as_string().unwrap_or_default();
-                            let extra_args =
-                                args_str.split_whitespace().map(String::from).collect();
-                            Some(SettingsUpdate::AddPinnedAlias(PinnedAlias {
-                                name: alias.name,
-                                extra_args,
-                            }))
+                (
+                    done(async move {
+                        let selected = input.select().await?;
+                        match selected {
+                            PinnableItem::Task(task) => Some(SettingsUpdate::AddPinned(task)),
+                            PinnableItem::Alias(alias) => {
+                                let placeholder = format!(
+                                    "Args to always use when running 'cargo {}' (pinned)",
+                                    alias.name
+                                );
+                                let Ok(val) = show_input_box(placeholder, String::new()).await
+                                else {
+                                    return None;
+                                };
+                                let args_str = val.as_string().unwrap_or_default();
+                                let extra_args =
+                                    args_str.split_whitespace().map(String::from).collect();
+                                Some(SettingsUpdate::AddPinnedAlias(PinnedAlias {
+                                    name: alias.name,
+                                    extra_args,
+                                }))
+                            }
                         }
-                    }
-                })
+                    }),
+                    None,
+                )
             }
             Command::Remove(task) => {
                 let Some(idx) = self
@@ -249,13 +259,16 @@ impl Pinned {
                     .iter()
                     .position(|pinned| pinned.name == task)
                 else {
-                    return Task::none();
+                    return (Task::none(), None);
                 };
-                Task::done(SettingsUpdate::RemovePinned(idx).into_pinned_msg())
+                (
+                    Task::done(SettingsUpdate::RemovePinned(idx).into_pinned_msg()),
+                    None,
+                )
             }
             Command::Execute(task) => self.make_task_exec(task),
             Command::ExecuteAlias(key) => self.alias_exec_by_key(key),
-            Command::RemoveAlias(key) => self.alias_remove_by_key(key),
+            Command::RemoveAlias(key) => (self.alias_remove_by_key(key), None),
             Command::Execute1 => self.execute_pinned(0),
             Command::Execute2 => self.execute_pinned(1),
             Command::Execute3 => self.execute_pinned(2),
@@ -265,37 +278,43 @@ impl Pinned {
     }
 
     /// Execute the Nth item across the combined list (makefile tasks first, then aliases).
-    fn execute_pinned(&self, idx: usize) -> Task<Message> {
+    fn execute_pinned(&self, idx: usize) -> (Task<Message>, Option<Event>) {
         let task_count = self.settings.pinned_makefile_tasks.len();
         if idx < task_count {
             match self.settings.pinned_makefile_tasks.get(idx) {
                 Some(task) => self.make_task_exec(task.name.clone()),
-                None => Task::none(),
+                None => (Task::none(), None),
             }
         } else {
             let alias_idx = idx - task_count;
             match self.settings.pinned_aliases.get(alias_idx) {
                 Some(alias) => self.alias_exec(alias.clone()),
-                None => Task::future(showInformationMessage(
-                    format!("There is no task no. {} pinned ", idx + 1),
-                    Vec::new(),
-                ))
-                .discard(),
+                None => (
+                    Task::future(showInformationMessage(
+                        format!("There is no task no. {} pinned ", idx + 1),
+                        Vec::new(),
+                    ))
+                    .discard(),
+                    None,
+                ),
             }
         }
     }
 
-    fn make_task_exec(&self, make_task: String) -> Task<Message> {
-        match MakefileTask::try_into_process(make_task, makefile_task_context()) {
-            Ok(process) => Task::future(execute_task(VsCodeTask::cargo_make(process))).discard(),
+    fn make_task_exec(&self, make_task: String) -> (Task<Message>, Option<Event>) {
+        match MakefileTask::try_into_process(make_task.clone(), makefile_task_context()) {
+            Ok(process) => (
+                Task::future(execute_task(VsCodeTask::cargo_make(process))).discard(),
+                Some(Event::CargoMakeRun(make_task)),
+            ),
             Err(e) => {
                 error!("{e}");
-                Task::none()
+                (Task::none(), None)
             }
         }
     }
 
-    fn alias_exec_by_key(&self, key: String) -> Task<Message> {
+    fn alias_exec_by_key(&self, key: String) -> (Task<Message>, Option<Event>) {
         self.alias_exec(pinned_alias_from_key(&key))
     }
 
@@ -312,17 +331,21 @@ impl Pinned {
         Task::done(SettingsUpdate::RemovePinnedAlias(idx).into_pinned_msg())
     }
 
-    fn alias_exec(&self, alias: PinnedAlias) -> Task<Message> {
+    fn alias_exec(&self, alias: PinnedAlias) -> (Task<Message>, Option<Event>) {
+        let name = alias.name.clone();
         let result = XtaskAlias::try_into_process_with_extra_args(
             alias.name,
             alias.extra_args,
             xtask_task_context(),
         );
         match result {
-            Ok(process) => Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
+            Ok(process) => (
+                Task::future(execute_task(VsCodeTask::xtask_alias(process))).discard(),
+                Some(Event::AliasRun(name)),
+            ),
             Err(e) => {
                 error!("{e}");
-                Task::none()
+                (Task::none(), None)
             }
         }
     }

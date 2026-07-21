@@ -17,3 +17,6 @@ pub mod quick_pick;
 pub mod runtime;
 
 pub mod commands;
+
+#[cfg(any(target_arch = "wasm32", test))]
+mod recent_items;
