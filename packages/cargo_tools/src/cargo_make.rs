@@ -32,9 +32,7 @@ impl MakefileTask {
         }
 
         // 3. check task filter
-        self.name
-            .to_lowercase()
-            .contains(&task_filter.to_lowercase())
+        self.name.to_lowercase().contains(task_filter)
     }
 }
 
@@ -43,9 +41,10 @@ pub struct MakefileTasks(Vec<MakefileTask>);
 
 impl MakefileTasks {
     pub fn filtered(&self, task_filter: &str, category_filters: &[String]) -> Self {
+        let task_filter = task_filter.to_lowercase();
         let tasks = self
             .iter()
-            .filter(|task| task.keep(task_filter, category_filters))
+            .filter(|task| task.keep(&task_filter, category_filters))
             .cloned()
             .collect();
         Self(tasks)
@@ -206,5 +205,14 @@ mod tests {
                 task.name
             );
         }
+
+        let filtered = tasks.filtered("BUILD-WORK", &[]);
+        assert_eq!(
+            filtered
+                .iter()
+                .map(|task| task.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["build-workspace"]
+        );
     }
 }
