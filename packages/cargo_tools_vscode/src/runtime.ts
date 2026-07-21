@@ -6,6 +6,17 @@ import { extension_context } from '../../../vscode_extension/src/extension';
 export class FileWatcher {
     private watcher?: vscode.Disposable;
     private onChanged?: (() => void);
+    private changeTimer?: ReturnType<typeof setTimeout>;
+
+    private scheduleChanged(): void {
+        if (this.changeTimer) {
+            clearTimeout(this.changeTimer);
+        }
+        this.changeTimer = setTimeout(() => {
+            this.changeTimer = undefined;
+            this.onChanged?.();
+        }, 100);
+    }
 
     on_changed(callback: () => void): void {
         this.onChanged = callback;
@@ -25,9 +36,9 @@ export class FileWatcher {
         );
 
         const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-        const changeDisposable = watcher.onDidChange(() => this.onChanged?.());
-        const createDisposable = watcher.onDidCreate(() => this.onChanged?.());
-        const deleteDisposable = watcher.onDidDelete(() => this.onChanged?.());
+        const changeDisposable = watcher.onDidChange(() => this.scheduleChanged());
+        const createDisposable = watcher.onDidCreate(() => this.scheduleChanged());
+        const deleteDisposable = watcher.onDidDelete(() => this.scheduleChanged());
 
         const compositeDisposable = {
             dispose: () => {
@@ -43,7 +54,12 @@ export class FileWatcher {
     }
 
     dispose(): void {
+        if (this.changeTimer) {
+            clearTimeout(this.changeTimer);
+            this.changeTimer = undefined;
+        }
         this.watcher?.dispose();
+        this.watcher = undefined;
     }
 }
 
