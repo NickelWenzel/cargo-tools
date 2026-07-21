@@ -206,7 +206,7 @@ impl Package {
             .into_iter()
             .filter(|p| metadata.workspace_members.contains(&p.id))
             .map(Package::from_cargo)
-            .sorted_by_key(|pkg| pkg.name.clone())
+            .sorted_by(|a, b| a.name.cmp(&b.name))
             .collect()
     }
 
@@ -323,6 +323,11 @@ version = "0.1.0"
         ];
 
         check!(expected_packages.len() == packages.len());
+        check!(
+            packages
+                .windows(2)
+                .all(|pair| pair[0].name.as_str() <= pair[1].name.as_str())
+        );
         for expected in &expected_packages {
             check!(
                 packages.iter().any(|pkg| &pkg.name == expected),
