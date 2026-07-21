@@ -11,6 +11,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen_futures::spawn_local;
 
+use crate::recent_items::RecentItems;
 use crate::{
     environment::makefile_task_context,
     extension::{
@@ -69,6 +70,7 @@ pub enum SettingsUpdate {
     TaskFilter(String),
     CategoryFilter(Vec<String>),
     AddPinned(MakefileTask),
+    RecordRun(String),
 }
 
 #[derive(Debug)]
@@ -181,6 +183,7 @@ impl CargoMake {
         let Settings {
             task_filter,
             category_filters,
+            recent_tasks,
         } = &mut self.settings;
 
         let event = match update {
@@ -193,6 +196,10 @@ impl CargoMake {
                 Some(self.tree_changed_event())
             }
             SettingsUpdate::AddPinned(makefile_task) => Some(Event::AddPinned(makefile_task)),
+            SettingsUpdate::RecordRun(name) => {
+                recent_tasks.record(name);
+                None
+            }
         };
 
         let task = Task::future(persist_state_vs_code(
@@ -215,8 +222,12 @@ impl CargoMake {
         match cmd {
             Command::RunTask(task) => self.make_task_exec(task),
             Command::SelectAndRunTask => {
+                let options = self
+                    .settings
+                    .recent_tasks
+                    .apply(self.makefile_tasks.deref(), |task| &task.name);
                 let input = SelectInput {
-                    options: self.makefile_tasks.deref().clone(),
+                    options,
                     current: Vec::new(),
                 };
                 done(async move { input.select().await.map(|task| Command::RunTask(task.name)) })
@@ -236,8 +247,13 @@ impl CargoMake {
     }
 
     fn make_task_exec(&self, make_task: String) -> Task<Message> {
-        match MakefileTask::try_into_process(make_task, makefile_task_context()) {
-            Ok(process) => Task::future(execute_task(VsCodeTask::cargo_make(process))).discard(),
+        match MakefileTask::try_into_process(make_task.clone(), makefile_task_context()) {
+            Ok(process) => Task::batch([
+                Task::future(execute_task(VsCodeTask::cargo_make(process))).discard(),
+                Task::done(Message::SettingsChanged(SettingsUpdate::RecordRun(
+                    make_task,
+                ))),
+            ]),
             Err(e) => {
                 error!("{e}");
                 Task::none()
@@ -340,4 +356,6 @@ fn makefile(root_dir: &str) -> String {
 pub struct Settings {
     task_filter: String,
     category_filters: Vec<String>,
+    #[serde(default)]
+    recent_tasks: RecentItems,
 }

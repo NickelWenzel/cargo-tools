@@ -114,10 +114,15 @@ impl Tasks {
                         .chain(event.map(|evt| Task::done(evt.into_message()))),
                 )
             }
-            Message::Pinned(msg) => self
-                .pinned
-                .update(self.cargo_make.makefile_tasks(), self.xtask.aliases(), msg)
-                .map(Message::Pinned),
+            Message::Pinned(msg) => {
+                let (task, event) =
+                    self.pinned
+                        .update(self.cargo_make.makefile_tasks(), self.xtask.aliases(), msg);
+                Task::batch(
+                    iter::once(task.map(Message::Pinned))
+                        .chain(event.map(|event| Task::done(event.into_message()))),
+                )
+            }
             Message::Xtask(msg) => {
                 let (task, event) = self.xtask.update(msg);
                 Task::batch(
@@ -172,7 +177,9 @@ impl Tasks {
                 Task::done(Message::CargoMake(cargo_make::Message::SettingsChanged(
                     cargo_make::SettingsUpdate::TaskFilter(filter.clone()),
                 ))),
-                Task::done(Message::Xtask(xtask::Message::SettingsChanged(filter))),
+                Task::done(Message::Xtask(xtask::Message::SettingsChanged(
+                    xtask::SettingsUpdate::Filter(filter),
+                ))),
             ]),
             SharedCommand::ClearAllFilters => Task::batch([
                 Task::done(Message::CargoMake(cargo_make::Message::SettingsChanged(
@@ -182,7 +189,7 @@ impl Tasks {
                     cargo_make::SettingsUpdate::CategoryFilter(Vec::new()),
                 ))),
                 Task::done(Message::Xtask(xtask::Message::SettingsChanged(
-                    String::new(),
+                    xtask::SettingsUpdate::Filter(String::new()),
                 ))),
             ]),
         }
@@ -211,6 +218,19 @@ impl IntoMessage for xtask::Event {
             xtask::Event::AddPinnedAlias(alias) => Message::Pinned(
                 pinned::Message::SettingsChanged(SettingsUpdate::AddPinnedAlias(alias)),
             ),
+        }
+    }
+}
+
+impl IntoMessage for pinned::Event {
+    fn into_message(self) -> Message {
+        match self {
+            pinned::Event::CargoMakeRun(name) => Message::CargoMake(
+                cargo_make::Message::SettingsChanged(cargo_make::SettingsUpdate::RecordRun(name)),
+            ),
+            pinned::Event::AliasRun(name) => Message::Xtask(xtask::Message::SettingsChanged(
+                xtask::SettingsUpdate::RecordRun(name),
+            )),
         }
     }
 }
