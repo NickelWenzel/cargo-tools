@@ -1046,7 +1046,7 @@
   },
   "scripts": {
     "vscode:prepublish": "webpack --mode=production --config vscode_extension/webpack.config.js",
-    "package": "vsce package -o cargo-tools.vsix",
+    "package": "vsce package --no-dependencies -o cargo-tools.vsix",
     "compile": "webpack --config vscode_extension/webpack.config.js",
     "watch": "webpack --watch --config vscode_extension/webpack.config.js",
     "lint": "eslint --max-warnings 0 --config vscode_extension/eslint.config.mjs vscode_extension/src"
