@@ -12,7 +12,7 @@ function to_items(items: QuickPickItem[]): vscode.QuickPickItem[] {
 }
 
 export async function show_quick_pick(items: QuickPickItem[]): Promise<number | null> {
-    log.info(`Show quick pick for ${JSON.stringify(items)}`);
+    log.debug(`Show quick pick with ${items.length} items`);
     const vsCodeItems = to_items(items);
 
     const selected = await vscode.window.showQuickPick(vsCodeItems, {

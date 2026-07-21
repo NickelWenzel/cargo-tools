@@ -46,7 +46,7 @@ struct Extension {
 
 impl Extension {
     fn update(&mut self, msg: Message) -> Task<Message> {
-        debug!("Cargo tools extension received message:\n{msg:?}");
+        debug!("Cargo tools extension received message: {msg:?}");
         match msg {
             Message::Workspace(msg) => self.workspace.update(msg).map(Message::Workspace),
             Message::Tasks(msg) => self.tasks.update(msg).map(Message::Tasks),
