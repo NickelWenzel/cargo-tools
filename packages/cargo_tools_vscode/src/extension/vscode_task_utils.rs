@@ -105,25 +105,24 @@ pub fn register_commands<Cmd: Debug + 'static, const N: usize>(
     ))
 }
 
-pub fn select_name_filter<C: Clone + Send + 'static>(
+pub fn select_name_filter<C: Send + 'static>(
     current: String,
     options: Array,
     cmd_tx: Sender<C>,
-    make_edit: fn(String) -> C,
-) -> Task<C> {
+    make_preview: fn(String) -> C,
+) -> Task<String> {
     Task::future(async move {
         let filter_update = Closure::new(move |filter: String| {
             let mut tx = cmd_tx.clone();
             spawn_local(async move {
-                if let Err(e) = tx.send(make_edit(filter)).await {
+                if let Err(e) = tx.send(make_preview(filter)).await {
                     error!("Failed to queue filter update: {e}");
                 }
             });
         });
-        let filter = show_quick_pick_type(current.clone(), options, &filter_update)
+        show_quick_pick_type(current.clone(), options, &filter_update)
             .await
             .map(|f| f.as_string().unwrap_or(current.clone()))
-            .unwrap_or(current);
-        make_edit(filter)
+            .unwrap_or(current)
     })
 }

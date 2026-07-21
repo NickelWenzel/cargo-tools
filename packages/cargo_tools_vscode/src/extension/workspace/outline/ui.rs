@@ -55,6 +55,7 @@ extern "C" {
 pub enum Message {
     MetadataChanged,
     ConfigChanged,
+    PreviewSettings(SettingsUpdate),
     SettingsChanged(SettingsUpdate),
     Cmd(Command),
     OutlineUiRequest(OutlineUiRequest),
@@ -123,28 +124,8 @@ impl Outline {
                 self.ui.update();
                 (Task::none(), None)
             }
-            Message::SettingsChanged(update) => {
-                match update {
-                    SettingsUpdate::PackageFilter(filter) => {
-                        self.settings.package_filter = filter;
-                        self.update_selected_packages(metadata.packages());
-                    }
-                    SettingsUpdate::TargetTypesFilter(filter) => {
-                        self.settings.target_types_filter = filter;
-                        self.update_selected_packages(metadata.packages());
-                    }
-                    SettingsUpdate::Grouping(grouping) => self.settings.grouping = grouping,
-                }
-
-                self.ui.update();
-
-                let task = Task::future(persist_state_vs_code(
-                    settings_key(&self.root_dir),
-                    self.settings.clone(),
-                ))
-                .discard();
-                (task, None)
-            }
+            Message::PreviewSettings(update) => self.update_settings(update, metadata, false),
+            Message::SettingsChanged(update) => self.update_settings(update, metadata, true),
             Message::Cmd(cmd) => self.handle_cmd(cmd, metadata, config),
             Message::OutlineUiRequest(request) => {
                 let OutlineUiRequest { mut tx, node_type } = request;
@@ -175,6 +156,38 @@ impl Outline {
                 (task, None)
             }
         }
+    }
+
+    fn update_settings(
+        &mut self,
+        update: SettingsUpdate,
+        metadata: &Metadata,
+        persist: bool,
+    ) -> (Task<Message>, Option<Event>) {
+        match update {
+            SettingsUpdate::PackageFilter(filter) => {
+                self.settings.package_filter = filter;
+                self.update_selected_packages(metadata.packages());
+            }
+            SettingsUpdate::TargetTypesFilter(filter) => {
+                self.settings.target_types_filter = filter;
+                self.update_selected_packages(metadata.packages());
+            }
+            SettingsUpdate::Grouping(grouping) => self.settings.grouping = grouping,
+        }
+
+        self.ui.update();
+
+        let task = if persist {
+            Task::future(persist_state_vs_code(
+                settings_key(&self.root_dir),
+                self.settings.clone(),
+            ))
+            .discard()
+        } else {
+            Task::none()
+        };
+        (task, None)
     }
 
     fn update_selected_packages(&mut self, packages: &[Package]) {
@@ -223,13 +236,18 @@ impl Outline {
                 (self.select_workspace_member_filter(metadata), None)
             }
             Command::EditWorkspaceMemberFilter(filter) => {
-                let task = Task::done(Message::SettingsChanged(SettingsUpdate::PackageFilter(
+                let task = Task::done(Message::PreviewSettings(SettingsUpdate::PackageFilter(
                     filter,
                 )));
                 (task, None)
             }
             Command::SelectTargetTypeFilter => (self.select_target_type_filter(), None),
-            Command::EditTargetTypeFilter(update) => (Task::done(update.into_cargo_msg()), None),
+            Command::EditTargetTypeFilter(update) => (
+                Task::done(Message::PreviewSettings(SettingsUpdate::TargetTypesFilter(
+                    update,
+                ))),
+                None,
+            ),
             Command::ClearAllFilters => {
                 let member_filter = Task::done(Message::SettingsChanged(
                     SettingsUpdate::PackageFilter(String::new()),

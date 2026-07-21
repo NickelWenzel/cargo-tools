@@ -56,6 +56,7 @@ impl MakefileTasksUpdate {
 pub enum Message {
     MakefileChanged,
     MakefileTasksChanged(MakefileTasksUpdate),
+    PreviewSettings(SettingsUpdate),
     SettingsChanged(SettingsUpdate),
     Cmd(Command),
 }
@@ -175,7 +176,8 @@ impl CargoMake {
                 .map(Message::MakefileTasksChanged);
                 (task, None)
             }
-            Message::SettingsChanged(update) => self.update_state(update),
+            Message::PreviewSettings(update) => self.update_state(update, false),
+            Message::SettingsChanged(update) => self.update_state(update, true),
             Message::Cmd(cmd) => (self.handle_cmd(cmd), None),
         }
     }
@@ -189,7 +191,11 @@ impl CargoMake {
         )
     }
 
-    fn update_state(&mut self, update: SettingsUpdate) -> (Task<Message>, Option<Event>) {
+    fn update_state(
+        &mut self,
+        update: SettingsUpdate,
+        persist: bool,
+    ) -> (Task<Message>, Option<Event>) {
         let Settings {
             task_filter,
             category_filters,
@@ -212,11 +218,15 @@ impl CargoMake {
             }
         };
 
-        let task = Task::future(persist_state_vs_code(
-            settings_key(&self.root_dir),
-            self.settings.clone(),
-        ))
-        .discard();
+        let task = if persist {
+            Task::future(persist_state_vs_code(
+                settings_key(&self.root_dir),
+                self.settings.clone(),
+            ))
+            .discard()
+        } else {
+            Task::none()
+        };
 
         (task, event)
     }
@@ -243,9 +253,9 @@ impl CargoMake {
                 done(async move { input.select().await.map(|task| Command::RunTask(task.name)) })
             }
             Command::SelectCategoryFilter => self.select_category_filter(),
-            Command::EditCategoryFilter(category_filters) => {
-                Task::done(SettingsUpdate::CategoryFilter(category_filters).into_cargo_make_msg())
-            }
+            Command::EditCategoryFilter(category_filters) => Task::done(Message::PreviewSettings(
+                SettingsUpdate::CategoryFilter(category_filters),
+            )),
             Command::PinTask(task) => self
                 .makefile_tasks
                 .iter()

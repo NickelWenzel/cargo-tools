@@ -41,7 +41,8 @@ use cargo_tools::cargo_make::MakefileTasks;
 #[derive(Debug, Clone)]
 pub enum SharedCommand {
     SelectNameFilter,
-    EditNameFilter(String),
+    PreviewNameFilter(String),
+    CommitNameFilter(String),
     ClearAllFilters,
 }
 
@@ -169,11 +170,20 @@ impl Tasks {
                     current,
                     options,
                     self.shared_cmd_tx.clone(),
-                    SharedCommand::EditNameFilter,
+                    SharedCommand::PreviewNameFilter,
                 )
+                .map(SharedCommand::CommitNameFilter)
                 .map(Message::SharedCmd)
             }
-            SharedCommand::EditNameFilter(filter) => Task::batch([
+            SharedCommand::PreviewNameFilter(filter) => Task::batch([
+                Task::done(Message::CargoMake(cargo_make::Message::PreviewSettings(
+                    cargo_make::SettingsUpdate::TaskFilter(filter.clone()),
+                ))),
+                Task::done(Message::Xtask(xtask::Message::PreviewSettings(
+                    xtask::SettingsUpdate::Filter(filter),
+                ))),
+            ]),
+            SharedCommand::CommitNameFilter(filter) => Task::batch([
                 Task::done(Message::CargoMake(cargo_make::Message::SettingsChanged(
                     cargo_make::SettingsUpdate::TaskFilter(filter.clone()),
                 ))),
