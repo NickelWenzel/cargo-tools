@@ -98,10 +98,20 @@ impl Xtask {
             Message::AliasesChanged(result) => match result {
                 Ok(aliases) => {
                     let has_aliases = !aliases.is_empty();
+                    self.settings
+                        .recent_aliases
+                        .remove_obsolete(&aliases, |alias| &alias.name);
                     self.aliases = aliases;
                     let event = self.tree_changed_event();
                     (
-                        Task::future(set_xtask_context(has_aliases)).discard(),
+                        Task::batch([
+                            Task::future(set_xtask_context(has_aliases)).discard(),
+                            Task::future(persist_state_vs_code(
+                                settings_key(&self.root_dir),
+                                self.settings.clone(),
+                            ))
+                            .discard(),
+                        ]),
                         Some(event),
                     )
                 }

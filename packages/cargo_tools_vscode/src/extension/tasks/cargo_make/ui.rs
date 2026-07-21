@@ -133,10 +133,20 @@ impl CargoMake {
         match msg {
             Message::MakefileTasksChanged(update) => match update {
                 MakefileTasksUpdate::New(makefile_tasks) => {
+                    self.settings
+                        .recent_tasks
+                        .remove_obsolete(&makefile_tasks, |task| &task.name);
                     self.makefile_tasks = makefile_tasks.clone();
                     let event = self.tree_changed_event();
                     (
-                        Task::future(set_makefile_context(true)).discard(),
+                        Task::batch([
+                            Task::future(set_makefile_context(true)).discard(),
+                            Task::future(persist_state_vs_code(
+                                settings_key(&self.root_dir),
+                                self.settings.clone(),
+                            ))
+                            .discard(),
+                        ]),
                         Some(event),
                     )
                 }

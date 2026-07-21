@@ -16,6 +16,11 @@ impl RecentItems {
         self.0.insert(0, name);
     }
 
+    pub fn remove_obsolete<T>(&mut self, available: &[T], name: impl Fn(&T) -> &str) {
+        self.0
+            .retain(|recent| available.iter().any(|item| name(item) == recent));
+    }
+
     /// Returns recorded items first, followed by unseen items in their source order.
     pub fn apply<T: Clone>(&self, available: &[T], name: impl Fn(&T) -> &str) -> Vec<T> {
         let mut ordered = self
@@ -71,5 +76,17 @@ mod tests {
             recent.apply(&["first", "second"], |item| item),
             ["second", "first"]
         );
+    }
+
+    #[test]
+    fn removes_items_that_are_no_longer_available() {
+        let mut recent = RecentItems::default();
+        recent.record("removed".into());
+        recent.record("second".into());
+        recent.record("first".into());
+
+        recent.remove_obsolete(&["first", "second"], |item| item);
+
+        assert_eq!(recent.0, ["first", "second"]);
     }
 }
