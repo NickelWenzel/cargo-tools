@@ -32,6 +32,7 @@ impl ToQuickPickItem for XtaskAlias {
 pub enum Message {
     ConfigChanged,
     AliasesChanged(Result<XtaskAliases, String>),
+    PreviewSettings(SettingsUpdate),
     SettingsChanged(SettingsUpdate),
     Cmd(Command),
     PendingEvent(Event),
@@ -130,27 +131,38 @@ impl Xtask {
                     .map(Message::AliasesChanged),
                 None,
             ),
-            Message::SettingsChanged(update) => {
-                let event = match update {
-                    SettingsUpdate::Filter(filter) => {
-                        self.settings.filter = filter;
-                        Some(self.tree_changed_event())
-                    }
-                    SettingsUpdate::RecordRun(name) => {
-                        self.settings.recent_aliases.record(name);
-                        None
-                    }
-                };
-                let persist = Task::future(persist_state_vs_code(
-                    settings_key(&self.root_dir),
-                    self.settings.clone(),
-                ))
-                .discard();
-                (persist, event)
-            }
+            Message::PreviewSettings(update) => self.update_state(update, false),
+            Message::SettingsChanged(update) => self.update_state(update, true),
             Message::Cmd(cmd) => self.handle_cmd(cmd),
             Message::PendingEvent(event) => (Task::none(), Some(event)),
         }
+    }
+
+    fn update_state(
+        &mut self,
+        update: SettingsUpdate,
+        persist: bool,
+    ) -> (Task<Message>, Option<Event>) {
+        let event = match update {
+            SettingsUpdate::Filter(filter) => {
+                self.settings.filter = filter;
+                Some(self.tree_changed_event())
+            }
+            SettingsUpdate::RecordRun(name) => {
+                self.settings.recent_aliases.record(name);
+                None
+            }
+        };
+        let persist = if persist {
+            Task::future(persist_state_vs_code(
+                settings_key(&self.root_dir),
+                self.settings.clone(),
+            ))
+            .discard()
+        } else {
+            Task::none()
+        };
+        (persist, event)
     }
 
     fn tree_changed_event(&self) -> Event {
