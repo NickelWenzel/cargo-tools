@@ -5,6 +5,12 @@ All notable changes to Cargo Tools are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-07-24
+
+### Fixed
+
+- The extension changelog is now included in the VSIX package and displayed on the Marketplace.
+
 ## [0.5.0] - 2026-07-23
 
 ### Added
@@ -46,6 +52,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Removed the obsolete repository-level Cargo Make configuration.
 - Improved release and CI task configuration.
 
+[0.5.1]: https://github.com/NickelWenzel/cargo-tools/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/NickelWenzel/cargo-tools/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/NickelWenzel/cargo-tools/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/NickelWenzel/cargo-tools/compare/v0.4.1...v0.4.2
