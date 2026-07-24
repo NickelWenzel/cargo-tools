@@ -21,4 +21,5 @@ cargo_tools/**
 .gitignore
 node_modules/**
 *.md
+!CHANGELOG.md
 **/settings.local.json
