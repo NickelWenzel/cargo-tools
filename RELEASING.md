@@ -97,8 +97,8 @@ code --install-extension cargo-tools.vsix
 5. Create and push an annotated tag matching the package version:
 
    ```bash
-   git tag -a v0.5.0 -m "Release v0.5.0"
-   git push origin v0.5.0
+   git tag -a v0.5.1 -m "Release v0.5.1"
+   git push origin v0.5.1
    ```
 
 6. If configured, approve the `vscode-marketplace` environment deployment.
