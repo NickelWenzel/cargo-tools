@@ -45,7 +45,10 @@ Cargo Tools is a Visual Studio Code extension that provides IDE-like features fo
 
 ### Installation
 
+Install Cargo Tools from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=NickelWenzel.cargo-tools) or [Open VSX](https://open-vsx.org/extension/NickelWenzel/cargo-tools).
+
 Launch VS Code Quick Open (Ctrl+P), paste the following command, and press enter.
+
 ```bash
 ext install NickelWenzel.cargo-tools
 ```

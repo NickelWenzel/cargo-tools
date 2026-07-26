@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
-  # A manual run validates and packages the extension without publishing it.
+  # Manual runs validate/package or check publishing credentials without publishing.
   workflow_dispatch:
     inputs:
       mode:
@@ -15,9 +15,10 @@ on:
         options:
           - build
           - marketplace-identity
+          - openvsx-token
 
 concurrency:
-  group: marketplace-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -139,6 +140,32 @@ jobs:
           echo "Marketplace identity ID: $ID"
           echo "Add this ID to the NickelWenzel Marketplace publisher as a Contributor."
 
+  verify-openvsx-token:
+    name: Verify Open VSX token
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'openvsx-token'
+    runs-on: ubuntu-latest
+    environment: open-vsx
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: npm
+
+      - name: Install publishing tool
+        run: npm ci --ignore-scripts
+
+      - name: Verify Open VSX token
+        run: npm exec -- ovsx verify-pat NickelWenzel --registryUrl https://open-vsx.org
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
   publish-marketplace:
     name: Publish to VS Code Marketplace
     if: github.event_name == 'push' && github.ref_type == 'tag'
@@ -194,10 +221,47 @@ jobs:
       - name: Publish extension
         run: npm exec -- vsce publish --packagePath cargo-tools.vsix --azure-credential
 
+  publish-openvsx:
+    name: Publish to Open VSX
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build-release
+    runs-on: ubuntu-latest
+    environment: open-vsx
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: npm
+
+      - name: Install publishing tool
+        run: npm ci --ignore-scripts
+
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cargo-tools-extension-${{ github.sha }}
+
+      - name: Verify release artifact
+        run: sha256sum --check cargo-tools.vsix.sha256
+
+      - name: Publish extension
+        run: npm exec -- ovsx publish cargo-tools.vsix --registryUrl https://open-vsx.org
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
   create-github-release:
     name: Create GitHub release
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: publish-marketplace
+    needs:
+      - publish-marketplace
+      - publish-openvsx
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -230,7 +294,7 @@ jobs:
             echo
             echo "### Installation"
             echo
-            echo "Install from the VS Code Marketplace, or download \`cargo-tools.vsix\` below and run:"
+            echo "Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=NickelWenzel.cargo-tools) or [Open VSX](https://open-vsx.org/extension/NickelWenzel/cargo-tools), or download \`cargo-tools.vsix\` below and run:"
             echo
             echo '```bash'
             echo 'code --install-extension cargo-tools.vsix'
