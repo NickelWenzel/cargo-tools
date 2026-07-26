@@ -48,6 +48,14 @@ impl Metadata {
     pub fn target_dir(&self) -> &str {
         &self.target_dir
     }
+
+    #[cfg(test)]
+    pub(crate) fn from_packages(packages: Vec<Package>) -> Self {
+        Self {
+            packages,
+            ..Self::default()
+        }
+    }
 }
 
 /// Represents the kinds of targets which a `cargo` command can target

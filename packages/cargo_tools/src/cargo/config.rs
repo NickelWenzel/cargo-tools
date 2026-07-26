@@ -194,20 +194,23 @@ impl Config {
     }
 
     pub fn feature_options(&self, metadata: &Metadata) -> Vec<String> {
-        let features = iter::once("All features".to_string());
-        match self.selected_package(metadata) {
-            Some(package) => features.chain(package.features.iter().cloned()).collect(),
-            None => {
-                let package_features = metadata
-                    .packages()
-                    .iter()
-                    .flat_map(|package| package.features.iter())
-                    .sorted()
-                    .unique()
-                    .cloned();
-                features.chain(package_features).collect()
-            }
+        let mut features = match self.selected_package(metadata) {
+            Some(package) => package.features.clone(),
+            None => metadata
+                .packages()
+                .iter()
+                .flat_map(|package| package.features.iter())
+                .sorted()
+                .unique()
+                .cloned()
+                .collect(),
+        };
+
+        if features.len() > 1 {
+            features.insert(0, "All features".to_string());
         }
+
+        features
     }
 
     pub fn feature_target(&self) -> FeatureTarget {
@@ -244,5 +247,66 @@ impl PackageConfig {
 
     pub fn bench_target_matches(&self, name: &str) -> bool {
         self.benchmark_target.as_deref() == Some(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    use super::*;
+
+    fn package(name: &str, features: &[&str]) -> Package {
+        Package {
+            name: name.to_string(),
+            manifest: String::new(),
+            targets: Vec::new(),
+            features: features.iter().map(|feature| feature.to_string()).collect(),
+        }
+    }
+
+    #[wasm_bindgen_test(unsupported = test)]
+    fn workspace_feature_options_depend_on_distinct_feature_count() {
+        let config = Config::default();
+
+        let metadata = Metadata::from_packages(Vec::new());
+        assert!(config.feature_options(&metadata).is_empty());
+
+        let metadata = Metadata::from_packages(vec![
+            package("first", &["shared"]),
+            package("second", &["shared"]),
+        ]);
+        assert_eq!(config.feature_options(&metadata), ["shared"]);
+
+        let metadata = Metadata::from_packages(vec![
+            package("first", &["shared"]),
+            package("second", &["other", "shared"]),
+        ]);
+        assert_eq!(
+            config.feature_options(&metadata),
+            ["All features", "other", "shared"]
+        );
+    }
+
+    #[wasm_bindgen_test(unsupported = test)]
+    fn package_feature_options_depend_on_feature_count() {
+        let metadata = Metadata::from_packages(vec![
+            package("none", &[]),
+            package("one", &["single"]),
+            package("many", &["second", "first"]),
+        ]);
+        let mut config = Config::default();
+
+        config.selected_package = Some("none".to_string());
+        assert!(config.feature_options(&metadata).is_empty());
+
+        config.selected_package = Some("one".to_string());
+        assert_eq!(config.feature_options(&metadata), ["single"]);
+
+        config.selected_package = Some("many".to_string());
+        assert_eq!(
+            config.feature_options(&metadata),
+            ["All features", "second", "first"]
+        );
     }
 }

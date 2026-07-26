@@ -2,6 +2,8 @@
 pub mod environment;
 #[cfg(target_arch = "wasm32")]
 pub mod extension;
+#[cfg(any(target_arch = "wasm32", test))]
+mod feature_visibility;
 #[cfg(target_arch = "wasm32")]
 pub mod icon;
 #[cfg(target_arch = "wasm32")]

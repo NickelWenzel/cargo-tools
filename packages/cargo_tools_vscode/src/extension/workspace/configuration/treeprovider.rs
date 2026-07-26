@@ -131,7 +131,7 @@ impl NodeData {
         }
     }
 
-    pub fn roots() -> Vec<Self> {
+    pub fn roots(show_features: bool) -> Vec<Self> {
         let platform = Self::node(
             "Target platform".to_string(),
             PLATFORM_CONFIG,
@@ -163,7 +163,11 @@ impl NodeData {
             None,
         );
 
-        vec![platform, build_config, package, target, feature]
+        let mut roots = vec![platform, build_config, package, target];
+        if show_features {
+            roots.push(feature);
+        }
+        roots
     }
 }
 
