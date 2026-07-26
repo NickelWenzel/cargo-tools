@@ -24,6 +24,7 @@ use crate::{
             treeprovider::{CargoConfigurationTreeProviderHandler, ConfigUiRequest, NodeData},
         },
     },
+    feature_visibility::has_features,
     quick_pick::SelectInput,
     runtime::{
         CHANNEL_CAPACITY, VsCodeTask, exec_vs_code, get_state_vs_code, persist_state_vs_code,
@@ -117,7 +118,7 @@ impl Configuration {
                 let available_features = self.config.feature_options(metadata);
                 let nodes = node_type
                     .map(|node| node.children(&config, &available_features))
-                    .unwrap_or(NodeData::roots());
+                    .unwrap_or_else(|| NodeData::roots(has_features(available_features.len())));
 
                 (
                     Task::future(async move { tx.send(nodes).await }).discard(),

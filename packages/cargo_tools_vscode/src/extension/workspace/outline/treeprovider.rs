@@ -14,6 +14,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     extension::workspace::outline::Grouping,
+    feature_visibility::{has_multiple_features, show_features_node},
     icon::{
         BENCH_TARGET, BIN_TARGET, EXAMPLE_TARGET, FEATURES_CONFIG, Icon, LIB_TARGET, PACKAGE,
         PROJECT, SELECTED_STATE, UNSELECTED_STATE,
@@ -608,11 +609,12 @@ impl OutlineNodeData {
             command_arg: None,
         };
 
+        let workspace_feature_count = packages.iter().map(|package| package.features.len()).sum();
         let packages = packages
             .iter()
             .map(|p| Self::package(config.selected_package.as_deref(), p));
 
-        if show_features {
+        if show_features_node(show_features, workspace_feature_count) {
             iter::once(root_features).chain(packages).collect()
         } else {
             packages.collect()
@@ -658,9 +660,12 @@ impl OutlineNodeData {
             .flat_map(|p| &p.features)
             .map(|f| f.as_str())
             .unique()
-            .sorted();
+            .sorted()
+            .collect_vec();
 
-        iter::once("All features")
+        has_multiple_features(package_features.len())
+            .then_some("All features")
+            .into_iter()
             .chain(package_features)
             .map(|feature| {
                 let name = feature;
@@ -695,21 +700,23 @@ impl OutlineNodeData {
             })
             .unwrap_or_default();
 
-        let package_features = package.features.iter().sorted();
+        let package_features = package.features.iter().map(String::as_str).sorted();
 
-        iter::once(&"All features".to_string())
+        has_multiple_features(package.features.len())
+            .then_some("All features")
+            .into_iter()
             .chain(package_features)
             .map(|feature| {
-                let name = feature.clone();
+                let name = feature.to_string();
                 let package = package.name.clone();
-                let icon = if selected_features.contains(&feature.as_str()) {
+                let icon = if selected_features.contains(&feature) {
                     SELECTED_STATE
                 } else {
                     UNSELECTED_STATE
                 };
 
                 Self {
-                    label: feature.clone(),
+                    label: feature.to_string(),
                     icon,
                     collapsible_state: CollapsibleState::None,
                     node_type: OutlineNodeType(OutlineNodeTypeInner::Feature { package, name }),
@@ -758,7 +765,7 @@ impl OutlineNodeData {
             command_arg: None,
         };
 
-        if show_features {
+        if show_features_node(show_features, package.features.len()) {
             targets.chain(iter::once(features)).collect()
         } else {
             targets.collect()
