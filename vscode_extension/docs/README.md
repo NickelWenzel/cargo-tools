@@ -15,7 +15,11 @@ This page walks you through installing Cargo Tools and opening your first Rust p
 
 ## Installation
 
-Install Cargo Tools from the Visual Studio Code Marketplace by searching for *Cargo Tools* in the Extensions view (`Ctrl+Shift+X`), or download a `.vsix` release and install it with **Extensions: Install from VSIX...**.
+Install Cargo Tools from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=NickelWenzel.cargo-tools)
+or [Open VSX](https://open-vsx.org/extension/NickelWenzel/cargo-tools) by
+searching for *Cargo Tools* in your editor's Extensions view (`Ctrl+Shift+X`).
+Alternatively, download a `.vsix` release and install it with **Extensions:
+Install from VSIX...**.
 
 ## Activation
 
@@ -38,4 +42,3 @@ A condensed **Cargo Tools** panel also appears in the Explorer sidebar.
 2. Click the **Cargo Tools** icon in the Activity Bar.
 3. In the **Configuration** view, select a build profile (default: `dev`) and a run target.
 4. Press `F7` to build, `Ctrl+Shift+F5` to run, or `Shift+F5` to debug.
-
