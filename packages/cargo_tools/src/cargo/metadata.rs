@@ -220,7 +220,12 @@ impl Package {
                 .filter_map(Target::try_from_cargo)
                 .sorted_by_key(|t| t.target_type)
                 .collect(),
-            features: package.features.keys().cloned().collect(),
+            features: package
+                .features
+                .keys()
+                .filter(|feature| feature.as_str() != "default")
+                .cloned()
+                .collect(),
         }
     }
 }
@@ -335,6 +340,18 @@ version = "0.1.0"
                 packages
             );
         }
+
+        let core = packages
+            .iter()
+            .find(|package| package.name == "core")
+            .expect("core package should be present");
+        check!(!core.features.iter().any(|feature| feature == "default"));
+        check!(
+            core.features
+                .iter()
+                .any(|feature| feature == "async-support")
+        );
+        check!(core.features.iter().any(|feature| feature == "std-support"));
 
         Ok(())
     }
