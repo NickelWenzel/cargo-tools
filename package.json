@@ -1059,7 +1059,7 @@
     "@vscode/vsce": "^3.9.2",
     "@wasm-tool/wasm-pack-plugin": "^1.5.1",
     "copy-webpack-plugin": "^14.0.0",
-    "eslint": "^9.25.1",
+    "eslint": "^10.8.0",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
     "webpack": "^5.99.7",
