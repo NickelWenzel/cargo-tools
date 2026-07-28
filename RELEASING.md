@@ -136,31 +136,31 @@ code --install-extension cargo-tools.vsix
 
 ## Publish a release
 
-1. Update `CHANGELOG.md`: replace `Unreleased` with the release date in
-   `YYYY-MM-DD` format.
-2. Set the same version in `package.json` and `package-lock.json`. A convenient
-   command for future versions is:
+1. Add a dated release section to `CHANGELOG.md` in `YYYY-MM-DD` format.
+2. Set the same version in `package.json`, `package-lock.json`, the first-party
+   crate manifests, and `Cargo.lock`. A convenient command for the npm metadata
+   is:
 
    ```bash
-   npm version patch --no-git-tag-version
+   npm version 0.6.0 --no-git-tag-version
    ```
 
 3. Run the local checks:
 
    ```bash
    npm ci
-   npm run lint
-   cargo lint-cargo
+   cargo compile
+   cargo lint
    cargo xt-test
-   npm run package
+   cargo xt-pkg
    ```
 
 4. Commit and merge the release preparation.
 5. Create and push an annotated tag matching the package version:
 
    ```bash
-   git tag -a v0.5.1 -m "Release v0.5.1"
-   git push origin v0.5.1
+   git tag -a v0.6.0 -m "Release v0.6.0"
+   git push origin v0.6.0
    ```
 
 6. If configured, approve the `vscode-marketplace` and `open-vsx` environment
