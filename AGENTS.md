@@ -32,6 +32,31 @@ Run wasm tests only: `cargo test --target wasm32-unknown-unknown`
 
 `wasm-bindgen-test-runner` is configured as the wasm32 test runner in `.cargo/config.toml`.
 
+## Preparing a release
+
+Follow `RELEASING.md` for the complete publishing process. When asked to
+prepare version `<version>`:
+
+1. Review all changes since the previous version tag. Add a dated
+   `CHANGELOG.md` section for `<version>` and a comparison link from the
+   previous tag.
+2. Set `<version>` in `package.json`, both root-version entries in
+   `package-lock.json`, `packages/cargo_tools/Cargo.toml`,
+   `packages/cargo_tools_vscode/Cargo.toml`, and the matching first-party
+   entries in `Cargo.lock`.
+3. Update the version-specific npm and Git tag examples in `RELEASING.md`.
+4. Run `npm ci`, followed by the full verification suite listed above.
+5. Confirm the generated `cargo-tools.vsix` contains the expected publisher,
+   extension name, version, and changelog. Also verify that repository-only
+   files such as `AGENTS.md` are absent.
+6. Review `git diff --check` and confirm that only release-preparation files
+   changed.
+
+Preparing a release does not authorize creating or pushing the version tag,
+publishing the extension, or creating a GitHub release. Perform those actions
+only when explicitly requested. Commit preparation changes only when requested,
+using `chore: prepare for <version> release` with a concise commit body.
+
 ## Git commits
 
 Always use [Conventional Commits](https://www.conventionalcommits.org/) for
