@@ -2,9 +2,9 @@
 
 ![Build Status](https://github.com/NickelWenzel/cargo-tools/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
-[![VS Marketplace](https://img.shields.io/badge/Visual_Studio_Code-0078D4?logo=visual%20studio%20code)](https://marketplace.visualstudio.com/items?itemName=NickelWenzel.cargo-tools)
-[![Open VSX](https://img.shields.io/open-vsx/v/NickelWenzel/cargo-tools?label=Open%20VSX)](https://open-vsx.org/extension/NickelWenzel/cargo-tools)
-[![GitHub Release](https://img.shields.io/github/v/release/NickelWenzel/cargo-tools?label=GitHub%20Release)](https://github.com/NickelWenzel/cargo-tools/releases/latest)
+[![VS Marketplace](https://vsmarketplacebadges.dev/version-short/NickelWenzel.cargo-tools.svg)](https://marketplace.visualstudio.com/items?itemName=NickelWenzel.cargo-tools)
+[![Open VSX](https://img.shields.io/open-vsx/v/NickelWenzel/cargo-tools?label=Open%20VSX&color=green)](https://open-vsx.org/extension/NickelWenzel/cargo-tools)
+[![GitHub Release](https://img.shields.io/github/v/release/NickelWenzel/cargo-tools?color=green&label=GitHub%20Release)](https://github.com/NickelWenzel/cargo-tools/releases/latest)
 
 Cargo Tools is a Visual Studio Code extension that provides IDE-like features for Rust/Cargo development. It complements [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) by adding project configuration controls, a workspace target browser, cargo-make task management, and cargo alias shortcuts.
 
